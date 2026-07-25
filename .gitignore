@@ -1,0 +1,7 @@
+.DS_Store
+.superpowers/
+module-cache/
+test_runner
+derivedData/
+build/
+*.xcuserstate
