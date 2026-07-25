@@ -135,25 +135,6 @@ struct CityWeather: Identifiable {
     let uvIndex: Double
     let precipitationChance: Int
     
-    // Cached static DateFormatters to avoid re-creation overhead
-    private static let isoFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        return formatter
-    }()
-    
-    private static let hourFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
-        return formatter
-    }()
-    
-    private static let sunTimeOutputFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
-    
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
         self.city = city
@@ -164,11 +145,34 @@ struct CityWeather: Identifiable {
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
         self.isDay = response.current.is_day == 1
         
+        let cityTimeZone = TimeZone(secondsFromGMT: response.utc_offset_seconds) ?? TimeZone.current
+        var cityCalendar = Calendar.current
+        cityCalendar.timeZone = cityTimeZone
+        
+        let isoFormatter = DateFormatter()
+        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        isoFormatter.timeZone = cityTimeZone
+        
+        let hourFormatter = DateFormatter()
+        hourFormatter.dateFormat = "h a"
+        hourFormatter.timeZone = cityTimeZone
+        
+        let sunTimeOutputFormatter = DateFormatter()
+        sunTimeOutputFormatter.dateFormat = "h:mm a"
+        sunTimeOutputFormatter.timeZone = cityTimeZone
+        
+        func formatSunTime(_ isoString: String) -> String {
+            if let date = isoFormatter.date(from: isoString) {
+                return sunTimeOutputFormatter.string(from: date)
+            }
+            return isoString.components(separatedBy: "T").last ?? isoString
+        }
+        
         // Extract current day's extra metrics (index 0)
         let rawSunrise = response.daily.sunrise.first ?? ""
         let rawSunset = response.daily.sunset.first ?? ""
-        self.sunrise = Self.formatSunTime(rawSunrise)
-        self.sunset = Self.formatSunTime(rawSunset)
+        self.sunrise = formatSunTime(rawSunrise)
+        self.sunset = formatSunTime(rawSunset)
         self.uvIndex = response.daily.uv_index_max.first ?? 0.0
         self.precipitationChance = response.daily.precipitation_probability_max.first ?? 0
         
@@ -177,15 +181,17 @@ struct CityWeather: Identifiable {
         
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = cityTimeZone
         
         let outputFormatter = DateFormatter()
         outputFormatter.dateFormat = "EEE" // "Mon", "Tue"
+        outputFormatter.timeZone = cityTimeZone
         
         for i in 0..<count {
             let dateString = response.daily.time[i]
             var dayLabel = dateString
             if let date = formatter.date(from: dateString) {
-                if Calendar.current.isDateInToday(date) {
+                if cityCalendar.isDateInToday(date) {
                     dayLabel = "Today"
                 } else {
                     dayLabel = outputFormatter.string(from: date)
@@ -213,12 +219,12 @@ struct CityWeather: Identifiable {
             guard parsedHours < 24 else { break }
             let timeString = response.hourly.time[i]
             
-            if let date = Self.isoFormatter.date(from: timeString) {
+            if let date = isoFormatter.date(from: timeString) {
                 // Keep only current and future hours (within a 24h window)
                 // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
-                    let formattedHour = Self.hourFormatter.string(from: date).lowercased()
-                    let isTomorrowHour = !Calendar.current.isDateInToday(date)
+                    let formattedHour = hourFormatter.string(from: date).lowercased()
+                    let isTomorrowHour = !cityCalendar.isDateInToday(date)
                     
                     let forecast = HourlyForecast(
                         time: formattedHour,
@@ -232,13 +238,6 @@ struct CityWeather: Identifiable {
             }
         }
         self.hourlyForecasts = hourlyList
-    }
-    
-    private static func formatSunTime(_ isoString: String) -> String {
-        if let date = Self.isoFormatter.date(from: isoString) {
-            return Self.sunTimeOutputFormatter.string(from: date)
-        }
-        return isoString.components(separatedBy: "T").last ?? isoString
     }
 }
 
@@ -276,6 +275,7 @@ struct GeocodingResult: Decodable, Identifiable {
 struct WeatherResponse: Decodable {
     let latitude: Double
     let longitude: Double
+    let utc_offset_seconds: Int
     let current: CurrentWeatherResponse
     let daily: DailyWeatherResponse
     let hourly: HourlyWeatherResponse
