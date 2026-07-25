@@ -122,26 +122,15 @@ struct CityWeather: Identifiable {
     let city: City
     let temperature: Double
     let feelsLike: Double
-    let humidity: Double
-    let windSpeed: Double
     let condition: WeatherCondition
     let isDay: Bool
-    let dailyForecasts: [DailyForecast]
     let hourlyForecasts: [HourlyForecast]
-    
-    // New daily-level metrics for the current day
-    let sunrise: String
-    let sunset: String
-    let uvIndex: Double
-    let precipitationChance: Int
     
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
         self.city = city
         self.temperature = response.current.temperature_2m
         self.feelsLike = response.current.apparent_temperature
-        self.humidity = response.current.relative_humidity_2m
-        self.windSpeed = response.current.wind_speed_10m
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
         self.isDay = response.current.is_day == 1
         
@@ -157,61 +146,8 @@ struct CityWeather: Identifiable {
         hourFormatter.dateFormat = "h a"
         hourFormatter.timeZone = cityTimeZone
         
-        let sunTimeOutputFormatter = DateFormatter()
-        sunTimeOutputFormatter.dateFormat = "h:mm a"
-        sunTimeOutputFormatter.timeZone = cityTimeZone
-        
-        func formatSunTime(_ isoString: String) -> String {
-            if let date = isoFormatter.date(from: isoString) {
-                return sunTimeOutputFormatter.string(from: date)
-            }
-            return isoString.components(separatedBy: "T").last ?? isoString
-        }
-        
-        // Extract current day's extra metrics (index 0)
-        let rawSunrise = response.daily.sunrise.first ?? ""
-        let rawSunset = response.daily.sunset.first ?? ""
-        self.sunrise = formatSunTime(rawSunrise)
-        self.sunset = formatSunTime(rawSunset)
-        self.uvIndex = response.daily.uv_index_max.first ?? 0.0
-        self.precipitationChance = response.daily.precipitation_probability_max.first ?? 0
-        
-        var forecasts: [DailyForecast] = []
-        let count = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = cityTimeZone
-        
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "EEE" // "Mon", "Tue"
-        outputFormatter.timeZone = cityTimeZone
-        
-        for i in 0..<count {
-            let dateString = response.daily.time[i]
-            var dayLabel = dateString
-            if let date = formatter.date(from: dateString) {
-                if cityCalendar.isDateInToday(date) {
-                    dayLabel = "Today"
-                } else {
-                    dayLabel = outputFormatter.string(from: date)
-                }
-            }
-            
-            let forecast = DailyForecast(
-                dayOfWeek: dayLabel,
-                condition: WeatherCondition.from(wmoCode: response.daily.weather_code[i]),
-                maxTemp: response.daily.temperature_2m_max[i],
-                minTemp: response.daily.temperature_2m_min[i]
-            )
-            forecasts.append(forecast)
-        }
-        self.dailyForecasts = forecasts
-        
-        // Parse hourly forecast for next 24 hours
         var hourlyList: [HourlyForecast] = []
         let currentEpoch = Date().timeIntervalSince1970
-        
         let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count, response.hourly.weather_code.count)
         var parsedHours = 0
         
@@ -220,8 +156,6 @@ struct CityWeather: Identifiable {
             let timeString = response.hourly.time[i]
             
             if let date = isoFormatter.date(from: timeString) {
-                // Keep only current and future hours (within a 24h window)
-                // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
                     let formattedHour = hourFormatter.string(from: date).lowercased()
                     let isTomorrowHour = !cityCalendar.isDateInToday(date)
@@ -239,14 +173,6 @@ struct CityWeather: Identifiable {
         }
         self.hourlyForecasts = hourlyList
     }
-}
-
-struct DailyForecast: Identifiable {
-    let id = UUID()
-    let dayOfWeek: String
-    let condition: WeatherCondition
-    let maxTemp: Double
-    let minTemp: Double
 }
 
 struct HourlyForecast: Identifiable {
@@ -277,7 +203,6 @@ struct WeatherResponse: Decodable {
     let longitude: Double
     let utc_offset_seconds: Int
     let current: CurrentWeatherResponse
-    let daily: DailyWeatherResponse
     let hourly: HourlyWeatherResponse
 }
 
@@ -288,17 +213,6 @@ struct CurrentWeatherResponse: Decodable {
     let is_day: Int
     let wind_speed_10m: Double
     let weather_code: Int
-}
-
-struct DailyWeatherResponse: Decodable {
-    let time: [String]
-    let weather_code: [Int]
-    let temperature_2m_max: [Double]
-    let temperature_2m_min: [Double]
-    let sunrise: [String]
-    let sunset: [String]
-    let uv_index_max: [Double]
-    let precipitation_probability_max: [Int]
 }
 
 struct HourlyWeatherResponse: Decodable {
