@@ -52,7 +52,11 @@ struct ContentView: View {
     // MARK: - Search Bar View
     private var searchBarView: some View {
         VStack(spacing: 8) {
-            HStack {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                    .font(.system(size: 16))
+                
                 TextField("Search city", text: $viewModel.searchQuery, onEditingChanged: { editing in
                     withAnimation {
                         isSearching = editing
@@ -66,8 +70,9 @@ struct ContentView: View {
                     Button(action: {
                         viewModel.searchQuery = ""
                     }) {
-                        Image(systemName: "xmark.circle.fill")
+                        Image(systemName: "xmark")
                             .foregroundColor(.gray)
+                            .font(.system(size: 16, weight: .medium))
                     }
                 }
                 
@@ -81,8 +86,7 @@ struct ContentView: View {
                     }
                     .font(.custom("ManropeExtraLight-SemiBold", size: 15))
                     .foregroundColor(.black)
-                    .padding(.leading, 8)
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .padding(.leading, 4)
                 }
             }
             
@@ -118,18 +122,18 @@ struct ContentView: View {
                                     hideKeyboard()
                                 }
                             }) {
-                                HStack {
+                                HStack(alignment: .firstTextBaseline) {
                                     Text(result.name)
-                                        .font(.custom("ManropeExtraLight-SemiBold", size: 17))
+                                        .font(.custom("ManropeExtraLight-Bold", size: 18))
                                         .foregroundColor(.black)
                                     
                                     Spacer()
                                     
                                     Text([result.admin1, result.country].compactMap { $0 }.joined(separator: ", "))
-                                        .font(.custom("ManropeExtraLight-Regular", size: 14))
+                                        .font(.custom("ManropeExtraLight-Medium", size: 15))
                                         .foregroundColor(.gray)
                                 }
-                                .padding(.vertical, 16)
+                                .padding(.vertical, 18)
                                 .contentShape(Rectangle())
                             }
                             
