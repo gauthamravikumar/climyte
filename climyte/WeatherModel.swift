@@ -210,10 +210,8 @@ struct WeatherResponse: Decodable {
 
 struct CurrentWeatherResponse: Decodable {
     let temperature_2m: Double
-    let relative_humidity_2m: Double
     let apparent_temperature: Double
     let is_day: Int
-    let wind_speed_10m: Double
     let weather_code: Int
 }
 

@@ -33,10 +33,8 @@ struct TestRunner {
             "utc_offset_seconds": 36000,
             "current": {
                 "temperature_2m": 22.5,
-                "relative_humidity_2m": 60.0,
                 "apparent_temperature": 21.0,
                 "is_day": 1,
-                "wind_speed_10m": 12.0,
                 "weather_code": 0
             },
             "hourly": {
@@ -89,10 +87,8 @@ struct TestRunner {
             utc_offset_seconds: 36000,
             current: CurrentWeatherResponse(
                 temperature_2m: 22.5,
-                relative_humidity_2m: 60.0,
                 apparent_temperature: 21.0,
                 is_day: 1,
-                wind_speed_10m: 12.0,
                 weather_code: 0
             ),
             hourly: HourlyWeatherResponse(
@@ -135,10 +131,8 @@ struct TestRunner {
             utc_offset_seconds: 36000,
             current: CurrentWeatherResponse(
                 temperature_2m: 22.5,
-                relative_humidity_2m: 60.0,
                 apparent_temperature: 21.0,
                 is_day: 1,
-                wind_speed_10m: 12.0,
                 weather_code: 0
             ),
             hourly: HourlyWeatherResponse(
