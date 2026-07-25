@@ -201,13 +201,6 @@ struct ContentView: View {
                     .foregroundColor(.white.opacity(0.7))
             }
             
-            // Major Weather Symbol
-            Image(systemName: weather.condition.iconName)
-                .font(.system(size: 100))
-                .symbolRenderingMode(.multicolor)
-                .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 10)
-                .padding(.vertical, 8)
-            
             // Condition details
             VStack(spacing: 4) {
                 Text(String(format: "%.0f°", weather.temperature))
