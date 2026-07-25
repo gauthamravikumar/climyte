@@ -10,5 +10,7 @@
 		<string>Fonts/Manrope-Bold.ttf</string>
 		<string>Fonts/Manrope-ExtraBold.ttf</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Climyte uses your location to show weather for your current area.</string>
 </dict>
 </plist>

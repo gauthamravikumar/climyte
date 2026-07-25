@@ -19,6 +19,7 @@ class WeatherViewModel: ObservableObject {
     }
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var isUsingCurrentLocation: Bool = false
     
     @Published var activeCity: City {
         didSet {
@@ -30,7 +31,9 @@ class WeatherViewModel: ObservableObject {
     }
     
     private let activeCityKey = "saved_active_city"
+    private let hasUsedLocationKey = "has_used_location"
     private var searchTask: Task<Void, Never>?
+    let locationManager = LocationManager()
     
     init() {
         // Load persistently or default to Sydney
@@ -46,6 +49,37 @@ class WeatherViewModel: ObservableObject {
         if let encoded = try? JSONEncoder().encode(activeCity) {
             UserDefaults.standard.set(encoded, forKey: activeCityKey)
         }
+    }
+    
+    /// Called on app launch — tries current location first, falls back to saved city.
+    func loadWeatherOnLaunch() async {
+        isLoading = true
+        errorMessage = nil
+        
+        // Try to get the user's current location
+        if let location = await locationManager.requestCurrentLocation() {
+            if let geo = await locationManager.reverseGeocode(location) {
+                let locCity = City(
+                    id: UUID(),
+                    name: geo.city,
+                    country: geo.country,
+                    latitude: location.coordinate.latitude,
+                    longitude: location.coordinate.longitude
+                )
+                self.isUsingCurrentLocation = true
+                // Save and fetch without triggering didSet fetch (we do it below)
+                if let encoded = try? JSONEncoder().encode(locCity) {
+                    UserDefaults.standard.set(encoded, forKey: activeCityKey)
+                }
+                // Update activeCity directly and fetch
+                self.activeCity = locCity
+                // activeCity didSet already triggers fetch, so just return
+                return
+            }
+        }
+        
+        // Fallback: fetch weather for saved/default city
+        await fetchWeatherForActiveCity()
     }
     
     func fetchWeatherForActiveCity() async {
@@ -70,6 +104,7 @@ class WeatherViewModel: ObservableObject {
             latitude: result.latitude,
             longitude: result.longitude
         )
+        self.isUsingCurrentLocation = false
         self.activeCity = newCity
         
         // Clear search
@@ -102,4 +137,3 @@ class WeatherViewModel: ObservableObject {
         }
     }
 }
-

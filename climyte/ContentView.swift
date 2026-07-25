@@ -68,7 +68,7 @@ struct ContentView: View {
             }
         }
         .task {
-            await viewModel.fetchWeatherForActiveCity()
+            await viewModel.loadWeatherOnLaunch()
         }
     }
     
@@ -191,10 +191,17 @@ struct ContentView: View {
         VStack(spacing: 32) {
             // City metadata
             VStack(spacing: 6) {
-                Text(weather.city.name)
-                    .font(.custom("ManropeExtraLight-Bold", size: 34))
-                    .foregroundColor(.white)
-                    .shadow(radius: 2)
+                HStack(spacing: 8) {
+                    if viewModel.isUsingCurrentLocation {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                    Text(weather.city.name)
+                        .font(.custom("ManropeExtraLight-Bold", size: 34))
+                        .foregroundColor(.white)
+                        .shadow(radius: 2)
+                }
                 
                 Text(weather.city.country)
                     .font(.custom("ManropeExtraLight-Medium", size: 15))
