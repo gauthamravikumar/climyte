@@ -131,10 +131,10 @@ struct ContentView: View {
                         .font(.system(size: 40))
                         .foregroundColor(.white.opacity(0.4))
                     Text("No cities found")
-                        .font(.headline)
+                        .font(.custom("ManropeExtraLight-SemiBold", size: 17))
                         .foregroundColor(.white.opacity(0.6))
                     Text("Try typing another city name.")
-                        .font(.subheadline)
+                        .font(.custom("ManropeExtraLight-Regular", size: 15))
                         .foregroundColor(.white.opacity(0.4))
                 }
                 .padding(.vertical, 40)
@@ -152,11 +152,11 @@ struct ContentView: View {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(result.name)
-                                            .font(.headline)
+                                            .font(.custom("ManropeExtraLight-SemiBold", size: 17))
                                             .foregroundColor(.white)
                                         
                                         Text([result.admin1, result.country].compactMap { $0 }.joined(separator: ", "))
-                                            .font(.subheadline)
+                                            .font(.custom("ManropeExtraLight-Regular", size: 15))
                                             .foregroundColor(.white.opacity(0.6))
                                     }
                                     Spacer()
@@ -192,14 +192,12 @@ struct ContentView: View {
             // City metadata
             VStack(spacing: 6) {
                 Text(weather.city.name)
-                    .font(.system(.largeTitle, design: .rounded))
-                    .fontWeight(.bold)
+                    .font(.custom("ManropeExtraLight-Bold", size: 34))
                     .foregroundColor(.white)
                     .shadow(radius: 2)
                 
                 Text(weather.city.country)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.custom("ManropeExtraLight-Medium", size: 15))
                     .foregroundColor(.white.opacity(0.7))
             }
             
@@ -213,17 +211,16 @@ struct ContentView: View {
             // Condition details
             VStack(spacing: 4) {
                 Text(String(format: "%.0f°", weather.temperature))
-                    .font(.system(size: 84, weight: .thin, design: .rounded))
+                    .font(.custom("ManropeExtraLight-Regular", size: 84))
                     .foregroundColor(.white)
                     .shadow(radius: 2)
                 
                 Text(weather.condition.description)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.custom("ManropeExtraLight-SemiBold", size: 20))
                     .foregroundColor(.white)
                 
                 Text(String(format: "Feels like %.0f°", weather.feelsLike))
-                    .font(.subheadline)
+                    .font(.custom("ManropeExtraLight-Regular", size: 15))
                     .foregroundColor(.white.opacity(0.8))
             }
             
@@ -242,8 +239,7 @@ struct ContentView: View {
     private func hourlyForecastSection(_ weather: CityWeather) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Hourly Forecast")
-                .font(.caption)
-                .fontWeight(.bold)
+                .font(.custom("ManropeExtraLight-Bold", size: 12))
                 .foregroundColor(.white.opacity(0.5))
                 .padding(.horizontal, 4)
             
@@ -266,7 +262,7 @@ struct ContentView: View {
                             
                             VStack(spacing: 4) {
                                 Text("Tomorrow")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.custom("ManropeExtraLight-Bold", size: 10))
                                     .foregroundColor(.white.opacity(0.7))
                                 
                                 Rectangle()
@@ -293,7 +289,7 @@ struct ContentView: View {
     private func hourlyCell(_ hour: HourlyForecast) -> some View {
         VStack(spacing: 8) {
             Text(hour.time)
-                .font(.system(size: 12, weight: .medium))
+                .font(.custom("ManropeExtraLight-Medium", size: 12))
                 .foregroundColor(.white.opacity(0.8))
             
             Image(systemName: hour.condition.iconName)
@@ -301,7 +297,7 @@ struct ContentView: View {
                 .symbolRenderingMode(.multicolor)
             
             Text(String(format: "%.0f°", hour.temperature))
-                .font(.system(size: 14, weight: .bold))
+                .font(.custom("ManropeExtraLight-Bold", size: 14))
                 .foregroundColor(.white)
         }
         .frame(width: 50)
@@ -315,12 +311,11 @@ struct ContentView: View {
                 .symbolRenderingMode(.multicolor)
             
             Text("No weather data available")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.custom("ManropeExtraLight-Bold", size: 22))
                 .foregroundColor(.white)
             
             Text("Try searching for a city above to get started.")
-                .font(.body)
+                .font(.custom("ManropeExtraLight-Regular", size: 17))
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
