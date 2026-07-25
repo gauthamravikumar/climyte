@@ -51,12 +51,9 @@ struct ContentView: View {
     
     // MARK: - Search Bar View
     private var searchBarView: some View {
-        HStack {
+        VStack(spacing: 8) {
             HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
-                
-                TextField("Search for a city...", text: $viewModel.searchQuery, onEditingChanged: { editing in
+                TextField("Search city", text: $viewModel.searchQuery, onEditingChanged: { editing in
                     withAnimation {
                         isSearching = editing
                     }
@@ -73,25 +70,25 @@ struct ContentView: View {
                             .foregroundColor(.gray)
                     }
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.black.opacity(0.04))
-            .cornerRadius(12)
-            
-            if isSearching {
-                Button("Cancel") {
-                    withAnimation {
-                        viewModel.searchQuery = ""
-                        isSearching = false
-                        hideKeyboard()
+                
+                if isSearching {
+                    Button("Cancel") {
+                        withAnimation {
+                            viewModel.searchQuery = ""
+                            isSearching = false
+                            hideKeyboard()
+                        }
                     }
+                    .font(.custom("ManropeExtraLight-SemiBold", size: 15))
+                    .foregroundColor(.black)
+                    .padding(.leading, 8)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
-                .font(.custom("ManropeExtraLight-SemiBold", size: 15))
-                .foregroundColor(.black)
-                .padding(.leading, 8)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
+            
+            Rectangle()
+                .fill(Color.black.opacity(0.12))
+                .frame(height: 1)
         }
         .padding(.horizontal, 4)
     }
@@ -101,19 +98,17 @@ struct ContentView: View {
         VStack(spacing: 0) {
             if viewModel.searchResults.isEmpty {
                 VStack(spacing: 12) {
-                    Image(systemName: "cloud.magnifyingglass")
-                        .font(.system(size: 40))
-                        .foregroundColor(.black.opacity(0.3))
-                    Text("No cities found")
-                        .font(.custom("ManropeExtraLight-SemiBold", size: 17))
-                        .foregroundColor(.black.opacity(0.6))
-                    Text("Try typing another city name.")
-                        .font(.custom("ManropeExtraLight-Regular", size: 15))
-                        .foregroundColor(.black.opacity(0.4))
+                    Image(systemName: "mappin.slash")
+                        .font(.system(size: 24))
+                        .foregroundColor(.gray)
+                    Text("No matches")
+                        .font(.custom("ManropeExtraLight-SemiBold", size: 16))
+                        .foregroundColor(.gray)
                 }
                 .padding(.vertical, 40)
+                .frame(maxWidth: .infinity)
             } else {
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(viewModel.searchResults) { result in
                             Button(action: {
@@ -124,38 +119,28 @@ struct ContentView: View {
                                 }
                             }) {
                                 HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(result.name)
-                                            .font(.custom("ManropeExtraLight-SemiBold", size: 17))
-                                            .foregroundColor(.black)
-                                        
-                                        Text([result.admin1, result.country].compactMap { $0 }.joined(separator: ", "))
-                                            .font(.custom("ManropeExtraLight-Regular", size: 15))
-                                            .foregroundColor(.black.opacity(0.5))
-                                    }
+                                    Text(result.name)
+                                        .font(.custom("ManropeExtraLight-SemiBold", size: 17))
+                                        .foregroundColor(.black)
+                                    
                                     Spacer()
-                                    Image(systemName: "mappin.circle.fill")
-                                        .font(.title3)
-                                        .foregroundColor(.black.opacity(0.5))
+                                    
+                                    Text([result.admin1, result.country].compactMap { $0 }.joined(separator: ", "))
+                                        .font(.custom("ManropeExtraLight-Regular", size: 14))
+                                        .foregroundColor(.gray)
                                 }
-                                .padding()
-                                .background(Color.black.opacity(0.02))
+                                .padding(.vertical, 16)
+                                .contentShape(Rectangle())
                             }
+                            
                             Divider()
-                                .background(Color.black.opacity(0.05))
+                                .background(Color.black.opacity(0.08))
                         }
                     }
                 }
                 .frame(maxHeight: 400)
             }
         }
-        .background(Color.white)
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.black.opacity(0.08), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
         .padding(.horizontal, 4)
     }
     
