@@ -156,6 +156,8 @@ struct CityWeather: Identifiable {
             let timeString = response.hourly.time[i]
             
             if let date = isoFormatter.date(from: timeString) {
+                // Keep only current and future hours (within a 24h window)
+                // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
                     let formattedHour = hourFormatter.string(from: date).lowercased()
                     let isTomorrowHour = !cityCalendar.isDateInToday(date)
