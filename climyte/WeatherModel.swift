@@ -125,6 +125,7 @@ struct CityWeather: Identifiable {
     let condition: WeatherCondition
     let isDay: Bool
     let hourlyForecasts: [HourlyForecast]
+    let utcOffsetSeconds: Int
     
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
@@ -133,6 +134,7 @@ struct CityWeather: Identifiable {
         self.feelsLike = response.current.apparent_temperature
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
         self.isDay = response.current.is_day == 1
+        self.utcOffsetSeconds = response.utc_offset_seconds
         
         let cityTimeZone = TimeZone(secondsFromGMT: response.utc_offset_seconds) ?? TimeZone.current
         var cityCalendar = Calendar.current
