@@ -13,16 +13,16 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // Dynamic Background Gradient
+            // Fullscreen Background Gradient
             LinearGradient(
-                colors: viewModel.selectedWeather?.condition.backgroundColors ?? [Color(hex: "2980B9"), Color(hex: "6DD5FA")],
+                colors: viewModel.activeWeather?.condition.backgroundColors ?? [Color(hex: "2980B9"), Color(hex: "6DD5FA")],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.8), value: viewModel.selectedWeather?.condition)
+            .animation(.easeInOut(duration: 0.8), value: viewModel.activeWeather?.condition)
             
-            // Subtly colored ambient light blobs for premium visual depth
+            // Fullscreen ambient blobs
             GeometryReader { geo in
                 ZStack {
                     Circle()
@@ -41,45 +41,34 @@ struct ContentView: View {
             .ignoresSafeArea()
             
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 24) {
-                    // Header / Search Bar
+                VStack(spacing: 36) {
+                    // Header Search Bar
                     searchBarView
                     
                     if isSearching && !viewModel.searchQuery.isEmpty {
                         searchResultsView
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     } else {
-                        // Horizontal Favorites List
-                        favoritesSection
-                        
-                        if viewModel.isLoading && viewModel.favoriteWeatherList.isEmpty {
+                        if viewModel.isLoading && viewModel.activeWeather == nil {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 .scaleEffect(1.5)
-                                .padding(.top, 40)
-                        } else if let selectedWeather = viewModel.selectedWeather {
-                            // Main Weather View
-                            mainWeatherCard(selectedWeather)
+                                .padding(.top, 80)
+                        } else if let activeWeather = viewModel.activeWeather {
+                            // Immersive Fullscreen Weather details
+                            mainWeatherLayout(activeWeather)
                                 .transition(.scale.combined(with: .opacity))
-                            
-                            // Metrics Grid
-                            metricsGrid(selectedWeather)
-                            
-                            // Sunrise & Sunset Cycle
-                            sunCycleSection(selectedWeather)
                         } else {
-                            noCitiesView
+                            noWeatherDataView
                         }
                     }
                 }
-                .padding()
-            }
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: 20)
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
             }
         }
         .task {
-            await viewModel.fetchWeatherForFavorites()
+            await viewModel.fetchWeatherForActiveCity()
         }
     }
     
@@ -155,9 +144,7 @@ struct ContentView: View {
                         ForEach(viewModel.searchResults) { result in
                             Button(action: {
                                 withAnimation {
-                                    Task {
-                                        await viewModel.addCityToFavorites(result)
-                                    }
+                                    viewModel.selectCity(result)
                                     isSearching = false
                                     hideKeyboard()
                                 }
@@ -173,7 +160,7 @@ struct ContentView: View {
                                             .foregroundColor(.white.opacity(0.6))
                                     }
                                     Spacer()
-                                    Image(systemName: "plus.circle.fill")
+                                    Image(systemName: "mappin.circle.fill")
                                         .font(.title3)
                                         .foregroundColor(.white.opacity(0.8))
                                 }
@@ -199,93 +186,11 @@ struct ContentView: View {
         .padding(.horizontal, 4)
     }
     
-    // MARK: - Favorites Horizontal Carousel
-    private var favoritesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Saved Cities")
-                    .font(.title3)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                Spacer()
-                if viewModel.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                }
-            }
-            .padding(.horizontal, 8)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
-                    ForEach(viewModel.favoriteWeatherList) { weather in
-                        let isSelected = viewModel.selectedWeather?.city.id == weather.city.id
-                        
-                        ZStack(alignment: .topTrailing) {
-                            // Card view
-                            Button(action: {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                    viewModel.selectCityWeather(weather)
-                                }
-                            }) {
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(weather.city.name)
-                                        .font(.headline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-                                    
-                                    HStack {
-                                        Image(systemName: weather.condition.iconName)
-                                            .font(.title2)
-                                            .symbolRenderingMode(.multicolor)
-                                        
-                                        Spacer()
-                                        
-                                        Text(String(format: "%.0f°", weather.temperature))
-                                            .font(.title2)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(.white)
-                                    }
-                                }
-                                .padding()
-                                .frame(width: 140, height: 95)
-                                .background(isSelected ? Color.white.opacity(0.25) : Color.white.opacity(0.1))
-                                .background(.ultraThinMaterial)
-                                .cornerRadius(20)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20)
-                                        .stroke(isSelected ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected ? 2 : 1)
-                                )
-                                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
-                            }
-                            
-                            // Delete button (visible when we have more than 1 favorite, to prevent empty state crashes)
-                            if viewModel.favoriteWeatherList.count > 1 {
-                                Button(action: {
-                                    withAnimation {
-                                        viewModel.removeCityFromFavorites(weather)
-                                    }
-                                }) {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundColor(.red.opacity(0.8))
-                                        .background(Circle().fill(.white))
-                                        .font(.body)
-                                }
-                                .offset(x: 4, y: -4)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 8)
-            }
-        }
-    }
-    
-    // MARK: - Main Weather Card
-    private func mainWeatherCard(_ weather: CityWeather) -> some View {
-        VStack(spacing: 16) {
-            VStack(spacing: 4) {
+    // MARK: - Main Weather Fullscreen Layout
+    private func mainWeatherLayout(_ weather: CityWeather) -> some View {
+        VStack(spacing: 32) {
+            // City metadata
+            VStack(spacing: 6) {
                 Text(weather.city.name)
                     .font(.system(.largeTitle, design: .rounded))
                     .fontWeight(.bold)
@@ -298,15 +203,17 @@ struct ContentView: View {
                     .foregroundColor(.white.opacity(0.7))
             }
             
+            // Major Weather Symbol
             Image(systemName: weather.condition.iconName)
-                .font(.system(size: 90))
+                .font(.system(size: 100))
                 .symbolRenderingMode(.multicolor)
                 .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: 10)
                 .padding(.vertical, 8)
             
+            // Condition details
             VStack(spacing: 4) {
                 Text(String(format: "%.0f°", weather.temperature))
-                    .font(.system(size: 76, weight: .thin, design: .rounded))
+                    .font(.system(size: 84, weight: .thin, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(radius: 2)
                 
@@ -321,24 +228,14 @@ struct ContentView: View {
             }
             
             Divider()
-                .background(Color.white.opacity(0.2))
+                .background(Color.white.opacity(0.25))
                 .padding(.vertical, 8)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
             
-            // Hourly Footer
+            // Hourly Forecast Footer
             hourlyForecastSection(weather)
-                .padding(.horizontal, 16)
         }
-        .padding(.vertical, 32)
-        .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(0.12))
-        .background(.ultraThinMaterial)
-        .cornerRadius(30)
-        .overlay(
-            RoundedRectangle(cornerRadius: 30)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.1), radius: 15, x: 0, y: 12)
+        .padding(.vertical, 20)
     }
     
     // MARK: - Hourly Forecast View
@@ -410,99 +307,8 @@ struct ContentView: View {
         .frame(width: 50)
     }
     
-    // MARK: - Metrics Grid
-    private func metricsGrid(_ weather: CityWeather) -> some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-            metricItem(title: "HUMIDITY", value: String(format: "%.0f%%", weather.humidity), icon: "humidity.fill")
-            metricItem(title: "WIND SPEED", value: String(format: "%.1f km/h", weather.windSpeed), icon: "wind")
-            metricItem(title: "UV INDEX", value: String(format: "%.1f", weather.uvIndex), icon: "sun.max.fill")
-            metricItem(title: "RAIN CHANCE", value: "\(weather.precipitationChance)%", icon: "cloud.drizzle.fill")
-        }
-    }
-    
-    // MARK: - Sunrise & Sunset Card
-    private func sunCycleSection(_ weather: CityWeather) -> some View {
-        HStack(spacing: 24) {
-            HStack(spacing: 12) {
-                Image(systemName: "sunrise.fill")
-                    .font(.title)
-                    .foregroundColor(.yellow)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("SUNRISE")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white.opacity(0.5))
-                    Text(weather.sunrise)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-            }
-            Spacer()
-            
-            Divider()
-                .background(Color.white.opacity(0.2))
-                .frame(height: 40)
-            
-            Spacer()
-            HStack(spacing: 12) {
-                Image(systemName: "sunset.fill")
-                    .font(.title)
-                    .foregroundColor(.orange)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("SUNSET")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white.opacity(0.5))
-                    Text(weather.sunset)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-            }
-        }
-        .padding()
-        .background(Color.white.opacity(0.1))
-        .background(.ultraThinMaterial)
-        .cornerRadius(24)
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
-        )
-    }
-    
-    private func metricItem(title: String, value: String, icon: String) -> some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.white.opacity(0.9))
-                .frame(width: 40)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white.opacity(0.5))
-                
-                Text(value)
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-            }
-            Spacer()
-        }
-        .padding()
-        .background(Color.white.opacity(0.1))
-        .background(.ultraThinMaterial)
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.15), lineWidth: 1)
-        )
-    }
-    
-
-    
     // MARK: - Empty State View
-    private var noCitiesView: some View {
+    private var noWeatherDataView: some View {
         VStack(spacing: 20) {
             Image(systemName: "cloud.sun.rain.fill")
                 .font(.system(size: 70))
