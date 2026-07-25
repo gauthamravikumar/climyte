@@ -18,7 +18,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
             
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 36) {
+                VStack(spacing: 16) {
                     // Header Search Bar
                     searchBarView
                     
@@ -172,7 +172,7 @@ struct ContentView: View {
                     .font(.custom("ManropeExtraLight-Medium", size: 18))
                     .foregroundColor(.gray)
             }
-            .padding(.top, 16)
+            
             
             // Major Temp
             Text(String(format: "%.0f°", weather.temperature))
