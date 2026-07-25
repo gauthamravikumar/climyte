@@ -39,16 +39,6 @@ struct TestRunner {
                 "wind_speed_10m": 12.0,
                 "weather_code": 0
             },
-            "daily": {
-                "time": ["2026-07-25"],
-                "weather_code": [0],
-                "temperature_2m_max": [25.0],
-                "temperature_2m_min": [15.0],
-                "sunrise": ["2026-07-25T06:50"],
-                "sunset": ["2026-07-25T17:15"],
-                "uv_index_max": [6.5],
-                "precipitation_probability_max": [10]
-            },
             "hourly": {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
                 "temperature_2m": [20.0, 21.5, 23.0],
@@ -105,16 +95,6 @@ struct TestRunner {
                 wind_speed_10m: 12.0,
                 weather_code: 0
             ),
-            daily: DailyWeatherResponse(
-                time: ["2026-07-25"],
-                weather_code: [0],
-                temperature_2m_max: [25.0],
-                temperature_2m_min: [15.0],
-                sunrise: ["2026-07-25T06:50"],
-                sunset: ["2026-07-25T17:15"],
-                uv_index_max: [6.5],
-                precipitation_probability_max: [10]
-            ),
             hourly: HourlyWeatherResponse(
                 time: times,
                 temperature_2m: temps,
@@ -161,16 +141,6 @@ struct TestRunner {
                 wind_speed_10m: 12.0,
                 weather_code: 0
             ),
-            daily: DailyWeatherResponse(
-                time: ["2026-07-25"],
-                weather_code: [0],
-                temperature_2m_max: [25.0],
-                temperature_2m_min: [15.0],
-                sunrise: ["2026-07-25T06:50"],
-                sunset: ["2026-07-25T17:15"],
-                uv_index_max: [6.5],
-                precipitation_probability_max: [10]
-            ),
             hourly: HourlyWeatherResponse(
                 time: times, // length 10
                 temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0], // length 5
@@ -183,3 +153,4 @@ struct TestRunner {
         print("  ✓ testMismatchedHourlyArrayLengths passed without crashing")
     }
 }
+
