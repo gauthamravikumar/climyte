@@ -179,11 +179,23 @@ struct ContentView: View {
             }
             
             
-            // Major Temp
-            Text(String(format: "%.0f°", weather.temperature))
-                .font(.custom("ManropeExtraLight-Regular", size: 100))
-                .foregroundColor(currentTheme.primaryText)
-                .padding(.vertical, -10)
+            // Major Temp + H/L Details
+            HStack(alignment: .center, spacing: 16) {
+                Text(String(format: "%.0f°", weather.temperature))
+                    .font(.custom("ManropeExtraLight-Regular", size: 100))
+                    .foregroundColor(currentTheme.primaryText)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(format: "H:%.0f°", weather.maxTemp))
+                        .font(.custom("ManropeExtraLight-Medium", size: 14))
+                        .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(String(format: "L:%.0f°", weather.minTemp))
+                        .font(.custom("ManropeExtraLight-Medium", size: 14))
+                        .foregroundColor(currentTheme.secondaryText)
+                }
+            }
+            .padding(.vertical, -10)
             
             // Condition description
             Text("\(weather.condition.description) · feels like \(String(format: "%.0f°", weather.feelsLike))")
@@ -196,65 +208,126 @@ struct ContentView: View {
             
             // Hourly Forecast
             hourlyForecastSection(weather)
+            
+            // 7-Day Forecast Section
+            dailyForecastSection(weather)
         }
         .padding(.vertical, 10)
     }
     
     // MARK: - Hourly Forecast View
     private func hourlyForecastSection(_ weather: CityWeather) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                let todayHours = weather.hourlyForecasts.filter { !$0.isTomorrow }
-                let tomorrowHours = weather.hourlyForecasts.filter { $0.isTomorrow }
-                
-                // Render Today's Hours
-                HStack(spacing: 20) {
-                    ForEach(todayHours) { hour in
-                        hourlyCell(hour)
-                    }
-                }
-                
-                if !todayHours.isEmpty && !tomorrowHours.isEmpty {
-                    // Minimal separator for Tomorrow
-                    HStack(spacing: 20) {
-                        Spacer().frame(width: 4)
-                        
-                        VStack(spacing: 4) {
-                            Text("Tomorrow")
-                                .font(.custom("ManropeExtraLight-Bold", size: 10))
-                                .foregroundColor(currentTheme.secondaryText.opacity(0.7))
-                            
-                            Rectangle()
-                                .fill(currentTheme.dividerColor)
-                                .frame(width: 1, height: 35)
+        let hours = weather.hourlyForecasts
+        let temperatures = hours.map { $0.temperature }
+        let minTemp = temperatures.min() ?? 0
+        let maxTemp = temperatures.max() ?? 1
+        let tempRange = max(maxTemp - minTemp, 1)
+        
+        let columnWidth: CGFloat = 65
+        let chartHeight: CGFloat = 45
+        let chartPadding: CGFloat = 8
+        
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("HOURLY")
+                .font(.custom("ManropeExtraLight-Bold", size: 12))
+                .foregroundColor(currentTheme.secondaryText)
+                .padding(.horizontal, 4)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                VStack(spacing: 12) {
+                    ZStack(alignment: .topLeading) {
+                        Path { path in
+                            for (index, hour) in hours.enumerated() {
+                                let x = CGFloat(index) * columnWidth + (columnWidth / 2)
+                                let y = yCoordinate(for: hour.temperature, minTemp: minTemp, tempRange: tempRange, chartHeight: chartHeight, chartPadding: chartPadding)
+                                if index == 0 {
+                                    path.move(to: CGPoint(x: x, y: y))
+                                } else {
+                                    path.addLine(to: CGPoint(x: x, y: y))
+                                }
+                            }
                         }
+                        .stroke(currentTheme.secondaryText.opacity(0.3), lineWidth: 1.5)
                         
-                        Spacer().frame(width: 4)
+                        ForEach(0..<hours.count, id: \.self) { index in
+                            let hour = hours[index]
+                            let x = CGFloat(index) * columnWidth + (columnWidth / 2)
+                            let y = yCoordinate(for: hour.temperature, minTemp: minTemp, tempRange: tempRange, chartHeight: chartHeight, chartPadding: chartPadding)
+                            
+                            Circle()
+                                .fill(currentTheme.primaryText)
+                                .frame(width: 5, height: 5)
+                                .position(x: x, y: y)
+                        }
                     }
-                }
-                
-                // Render Tomorrow's Hours
-                HStack(spacing: 20) {
-                    ForEach(tomorrowHours) { hour in
-                        hourlyCell(hour)
+                    .frame(width: CGFloat(hours.count) * columnWidth, height: chartHeight)
+                    
+                    HStack(spacing: 0) {
+                        ForEach(hours) { hour in
+                            VStack(spacing: 6) {
+                                Text(String(format: "%.0f°", hour.temperature))
+                                    .font(.custom("ManropeExtraLight-Bold", size: 14))
+                                    .foregroundColor(currentTheme.primaryText)
+                                
+                                Text(hour.time)
+                                    .font(.custom("ManropeExtraLight-Medium", size: 12))
+                                    .foregroundColor(currentTheme.secondaryText)
+                            }
+                            .frame(width: columnWidth)
+                        }
                     }
                 }
             }
-            .padding(.horizontal, 4)
         }
     }
     
-    private func hourlyCell(_ hour: HourlyForecast) -> some View {
-        VStack(spacing: 8) {
-            Text(hour.time)
-                .font(.custom("ManropeExtraLight-Medium", size: 13))
+    private func yCoordinate(for temp: Double, minTemp: Double, tempRange: Double, chartHeight: CGFloat, chartPadding: CGFloat) -> CGFloat {
+        let relativeValue = (temp - minTemp) / tempRange
+        return chartHeight - chartPadding - CGFloat(relativeValue) * (chartHeight - 2 * chartPadding)
+    }
+    
+    // MARK: - Daily Forecast View
+    private func dailyForecastSection(_ weather: CityWeather) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("7-DAY")
+                .font(.custom("ManropeExtraLight-Bold", size: 12))
                 .foregroundColor(currentTheme.secondaryText)
+                .padding(.horizontal, 4)
             
-            Text(String(format: "%.0f°", hour.temperature))
-                .font(.custom("ManropeExtraLight-Bold", size: 15))
-                .foregroundColor(currentTheme.primaryText)
+            VStack(spacing: 0) {
+                ForEach(weather.dailyForecasts) { forecast in
+                    HStack {
+                        Text(forecast.day)
+                            .font(.custom("ManropeExtraLight-Bold", size: 16))
+                            .foregroundColor(currentTheme.primaryText)
+                            .frame(width: 80, alignment: .leading)
+                        
+                        Spacer()
+                        
+                        Text(forecast.condition.description)
+                            .font(.custom("ManropeExtraLight-Medium", size: 15))
+                            .foregroundColor(currentTheme.secondaryText)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 12) {
+                            Text(String(format: "%.0f°", forecast.minTemp))
+                                .font(.custom("ManropeExtraLight-Medium", size: 16))
+                                .foregroundColor(currentTheme.secondaryText)
+                            
+                            Text(String(format: "%.0f°", forecast.maxTemp))
+                                .font(.custom("ManropeExtraLight-Bold", size: 16))
+                                .foregroundColor(currentTheme.primaryText)
+                        }
+                        .frame(width: 80, alignment: .trailing)
+                    }
+                    .padding(.vertical, 14)
+                    
+                    Divider()
+                        .background(currentTheme.dividerColor)
+                }
+            }
         }
-        .frame(width: 50)
     }
     
     // MARK: - Helper Local Time Method

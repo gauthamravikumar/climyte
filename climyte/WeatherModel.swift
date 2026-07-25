@@ -127,6 +127,9 @@ struct CityWeather: Identifiable {
     let hourlyForecasts: [HourlyForecast]
     let utcOffsetSeconds: Int
     let isNight: Bool
+    let dailyForecasts: [DailyForecast]
+    let maxTemp: Double
+    let minTemp: Double
     
     var theme: WeatherTheme {
         WeatherTheme.forIsNight(isNight)
@@ -148,6 +151,36 @@ struct CityWeather: Identifiable {
         let isoFormatter = DateFormatter()
         isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
         isoFormatter.timeZone = cityTimeZone
+        
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "EEE"
+        dayFormatter.timeZone = cityTimeZone
+        
+        let dateParser = DateFormatter()
+        dateParser.dateFormat = "yyyy-MM-dd"
+        dateParser.timeZone = cityTimeZone
+        
+        var dailyList: [DailyForecast] = []
+        let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
+        
+        for i in 0..<dailyCount {
+            let dateStr = response.daily.time[i]
+            var dayLabel = dateStr
+            if let date = dateParser.date(from: dateStr) {
+                dayLabel = cityCalendar.isDateInToday(date) ? "Today" : dayFormatter.string(from: date)
+            }
+            
+            let forecast = DailyForecast(
+                day: dayLabel,
+                condition: WeatherCondition.from(wmoCode: response.daily.weather_code[i]),
+                minTemp: response.daily.temperature_2m_min[i],
+                maxTemp: response.daily.temperature_2m_max[i]
+            )
+            dailyList.append(forecast)
+        }
+        self.dailyForecasts = dailyList
+        self.maxTemp = response.daily.temperature_2m_max.first ?? response.current.temperature_2m
+        self.minTemp = response.daily.temperature_2m_min.first ?? response.current.temperature_2m
         
         let now = Date()
         if let sunriseStr = response.daily.sunrise.first,
@@ -202,6 +235,14 @@ struct HourlyForecast: Identifiable {
     let temperature: Double
 }
 
+struct DailyForecast: Identifiable {
+    let id = UUID()
+    let day: String
+    let condition: WeatherCondition
+    let minTemp: Double
+    let maxTemp: Double
+}
+
 // MARK: - Open-Meteo Geocoding Decodable Structures
 struct GeocodingResponse: Decodable {
     let results: [GeocodingResult]?
@@ -240,6 +281,10 @@ struct HourlyWeatherResponse: Decodable {
 }
 
 struct DailyWeatherResponse: Decodable {
+    let time: [String]
+    let weather_code: [Int]
+    let temperature_2m_max: [Double]
+    let temperature_2m_min: [Double]
     let sunrise: [String]
     let sunset: [String]
 }
