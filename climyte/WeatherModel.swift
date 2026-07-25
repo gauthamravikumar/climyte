@@ -135,6 +135,25 @@ struct CityWeather: Identifiable {
     let uvIndex: Double
     let precipitationChance: Int
     
+    // Cached static DateFormatters to avoid re-creation overhead
+    private static let isoFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return formatter
+    }()
+    
+    private static let hourFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        return formatter
+    }()
+    
+    private static let sunTimeOutputFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+    
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
         self.city = city
@@ -187,24 +206,18 @@ struct CityWeather: Identifiable {
         var hourlyList: [HourlyForecast] = []
         let currentEpoch = Date().timeIntervalSince1970
         
-        let isoFormatter = DateFormatter()
-        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        
-        let hourFormatter = DateFormatter()
-        hourFormatter.dateFormat = "h a"
-        
-        let hourCount = response.hourly.time.count
+        let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count, response.hourly.weather_code.count)
         var parsedHours = 0
         
         for i in 0..<hourCount {
             guard parsedHours < 24 else { break }
             let timeString = response.hourly.time[i]
             
-            if let date = isoFormatter.date(from: timeString) {
+            if let date = Self.isoFormatter.date(from: timeString) {
                 // Keep only current and future hours (within a 24h window)
                 // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
-                    let formattedHour = hourFormatter.string(from: date).lowercased()
+                    let formattedHour = Self.hourFormatter.string(from: date).lowercased()
                     let isTomorrowHour = !Calendar.current.isDateInToday(date)
                     
                     let forecast = HourlyForecast(
@@ -222,14 +235,8 @@ struct CityWeather: Identifiable {
     }
     
     private static func formatSunTime(_ isoString: String) -> String {
-        let inputFormatter = DateFormatter()
-        inputFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        
-        let outputFormatter = DateFormatter()
-        outputFormatter.dateFormat = "h:mm a"
-        
-        if let date = inputFormatter.date(from: isoString) {
-            return outputFormatter.string(from: date)
+        if let date = Self.isoFormatter.date(from: isoString) {
+            return Self.sunTimeOutputFormatter.string(from: date)
         }
         return isoString.components(separatedBy: "T").last ?? isoString
     }

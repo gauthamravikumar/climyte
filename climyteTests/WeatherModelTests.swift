@@ -21,6 +21,7 @@ struct TestRunner {
         print("Starting WeatherModel tests...")
         testWeatherResponseDecoding()
         testCityWeatherHourlyForecastParsing()
+        testMismatchedHourlyArrayLengths()
         print("✅ All WeatherModel tests passed!")
     }
     
@@ -129,5 +130,53 @@ struct TestRunner {
         assertTrue(firstForecast.time.hasSuffix("am") || firstForecast.time.hasSuffix("pm"), "Formatted hour should end with am/pm")
         
         print("  ✓ testCityWeatherHourlyForecastParsing passed (\(cityWeather.hourlyForecasts.count) hours parsed)")
+    }
+    
+    static func testMismatchedHourlyArrayLengths() {
+        let city = City(id: UUID(), name: "Sydney", country: "Australia", latitude: -33.8688, longitude: 151.2093)
+        let isoFormatter = DateFormatter()
+        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        
+        let now = Date()
+        let calendar = Calendar.current
+        var times: [String] = []
+        for hourOffset in 0..<10 {
+            if let date = calendar.date(byAdding: .hour, value: hourOffset, to: now) {
+                times.append(isoFormatter.string(from: date))
+            }
+        }
+        
+        // Mismatched array lengths: 10 times, 5 temperatures, 7 weather codes
+        let response = WeatherResponse(
+            latitude: -33.8688,
+            longitude: 151.2093,
+            current: CurrentWeatherResponse(
+                temperature_2m: 22.5,
+                relative_humidity_2m: 60.0,
+                apparent_temperature: 21.0,
+                is_day: 1,
+                wind_speed_10m: 12.0,
+                weather_code: 0
+            ),
+            daily: DailyWeatherResponse(
+                time: ["2026-07-25"],
+                weather_code: [0],
+                temperature_2m_max: [25.0],
+                temperature_2m_min: [15.0],
+                sunrise: ["2026-07-25T06:50"],
+                sunset: ["2026-07-25T17:15"],
+                uv_index_max: [6.5],
+                precipitation_probability_max: [10]
+            ),
+            hourly: HourlyWeatherResponse(
+                time: times, // length 10
+                temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0], // length 5
+                weather_code: [0, 1, 2, 3, 45, 51, 61] // length 7
+            )
+        )
+        
+        let cityWeather = CityWeather(city: city, response: response)
+        assertEqual(cityWeather.hourlyForecasts.count, 5, "Hourly forecast count should be capped by min array length (5)")
+        print("  ✓ testMismatchedHourlyArrayLengths passed without crashing")
     }
 }
