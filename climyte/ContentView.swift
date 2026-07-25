@@ -11,11 +11,16 @@ struct ContentView: View {
     @StateObject private var viewModel = WeatherViewModel()
     @State private var isSearching = false
     
+    private var currentTheme: WeatherTheme {
+        viewModel.activeWeather?.theme ?? WeatherTheme.forIsNight(false)
+    }
+    
     var body: some View {
         ZStack {
-            // Fullscreen solid white background
-            Color.white
+            // Fullscreen theme-driven background
+            currentTheme.background
                 .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.5), value: currentTheme.background)
             
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
@@ -54,7 +59,7 @@ struct ContentView: View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray)
+                    .foregroundColor(currentTheme.secondaryText)
                     .font(.system(size: 16))
                 
                 TextField("Search city", text: $viewModel.searchQuery, onEditingChanged: { editing in
@@ -63,15 +68,15 @@ struct ContentView: View {
                     }
                 })
                 .font(.custom("ManropeExtraLight-Medium", size: 16))
-                .foregroundColor(.black)
-                .accentColor(.black)
+                .foregroundColor(currentTheme.primaryText)
+                .accentColor(currentTheme.primaryText)
                 
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: {
                         viewModel.searchQuery = ""
                     }) {
                         Image(systemName: "xmark")
-                            .foregroundColor(.gray)
+                            .foregroundColor(currentTheme.secondaryText)
                             .font(.system(size: 16, weight: .medium))
                     }
                 }
@@ -85,13 +90,13 @@ struct ContentView: View {
                         }
                     }
                     .font(.custom("ManropeExtraLight-SemiBold", size: 15))
-                    .foregroundColor(.black)
+                    .foregroundColor(currentTheme.primaryText)
                     .padding(.leading, 4)
                 }
             }
             
             Rectangle()
-                .fill(Color.black.opacity(0.12))
+                .fill(currentTheme.dividerColor)
                 .frame(height: 1)
         }
         .padding(.horizontal, 4)
@@ -104,10 +109,10 @@ struct ContentView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "mappin.slash")
                         .font(.system(size: 24))
-                        .foregroundColor(.gray)
+                        .foregroundColor(currentTheme.secondaryText)
                     Text("No matches")
                         .font(.custom("ManropeExtraLight-SemiBold", size: 16))
-                        .foregroundColor(.gray)
+                        .foregroundColor(currentTheme.secondaryText)
                 }
                 .padding(.vertical, 40)
                 .frame(maxWidth: .infinity)
@@ -125,20 +130,20 @@ struct ContentView: View {
                                 HStack(alignment: .firstTextBaseline) {
                                     Text(result.name)
                                         .font(.custom("ManropeExtraLight-Bold", size: 18))
-                                        .foregroundColor(.black)
+                                        .foregroundColor(currentTheme.primaryText)
                                     
                                     Spacer()
                                     
                                     Text([result.admin1, result.country].compactMap { $0 }.joined(separator: ", "))
                                         .font(.custom("ManropeExtraLight-Medium", size: 15))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(currentTheme.secondaryText)
                                 }
                                 .padding(.vertical, 18)
                                 .contentShape(Rectangle())
                             }
                             
                             Divider()
-                                .background(Color.black.opacity(0.08))
+                                .background(currentTheme.dividerColor)
                         }
                     }
                 }
@@ -158,11 +163,11 @@ struct ContentView: View {
                         if viewModel.isUsingCurrentLocation {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 14))
-                                .foregroundColor(.black.opacity(0.8))
+                                .foregroundColor(currentTheme.primaryText.opacity(0.8))
                         }
                         Text(weather.city.name)
                             .font(.custom("ManropeExtraLight-Bold", size: 28))
-                            .foregroundColor(.black)
+                            .foregroundColor(currentTheme.primaryText)
                     }
                 }
                 
@@ -170,23 +175,23 @@ struct ContentView: View {
                 
                 Text(getCityLocalTime(utcOffsetSeconds: weather.utcOffsetSeconds))
                     .font(.custom("ManropeExtraLight-Medium", size: 18))
-                    .foregroundColor(.gray)
+                    .foregroundColor(currentTheme.secondaryText)
             }
             
             
             // Major Temp
             Text(String(format: "%.0f°", weather.temperature))
                 .font(.custom("ManropeExtraLight-Regular", size: 100))
-                .foregroundColor(.black)
+                .foregroundColor(currentTheme.primaryText)
                 .padding(.vertical, -10)
             
             // Condition description
             Text("\(weather.condition.description) · feels like \(String(format: "%.0f°", weather.feelsLike))")
                 .font(.custom("ManropeExtraLight-Medium", size: 16))
-                .foregroundColor(.gray)
+                .foregroundColor(currentTheme.secondaryText)
             
             Divider()
-                .background(Color.black.opacity(0.08))
+                .background(currentTheme.dividerColor)
                 .padding(.vertical, 8)
             
             // Hourly Forecast
@@ -217,10 +222,10 @@ struct ContentView: View {
                         VStack(spacing: 4) {
                             Text("Tomorrow")
                                 .font(.custom("ManropeExtraLight-Bold", size: 10))
-                                .foregroundColor(.gray.opacity(0.7))
+                                .foregroundColor(currentTheme.secondaryText.opacity(0.7))
                             
                             Rectangle()
-                                .fill(Color.black.opacity(0.1))
+                                .fill(currentTheme.dividerColor)
                                 .frame(width: 1, height: 35)
                         }
                         
@@ -243,11 +248,11 @@ struct ContentView: View {
         VStack(spacing: 8) {
             Text(hour.time)
                 .font(.custom("ManropeExtraLight-Medium", size: 13))
-                .foregroundColor(.gray)
+                .foregroundColor(currentTheme.secondaryText)
             
             Text(String(format: "%.0f°", hour.temperature))
                 .font(.custom("ManropeExtraLight-Bold", size: 15))
-                .foregroundColor(.black)
+                .foregroundColor(currentTheme.primaryText)
         }
         .frame(width: 50)
     }
@@ -269,21 +274,21 @@ struct ContentView: View {
             
             Text("No weather data available")
                 .font(.custom("ManropeExtraLight-Bold", size: 20))
-                .foregroundColor(.black)
+                .foregroundColor(currentTheme.primaryText)
             
             Text("Try searching for a city above to get started.")
                 .font(.custom("ManropeExtraLight-Regular", size: 16))
-                .foregroundColor(.gray)
+                .foregroundColor(currentTheme.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
         .padding(.vertical, 80)
         .frame(maxWidth: .infinity)
-        .background(Color.black.opacity(0.02))
+        .background(currentTheme.primaryText.opacity(0.02))
         .cornerRadius(20)
         .overlay(
             RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                .stroke(currentTheme.dividerColor, lineWidth: 1)
         )
     }
 }

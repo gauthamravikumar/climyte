@@ -126,6 +126,11 @@ struct CityWeather: Identifiable {
     let isDay: Bool
     let hourlyForecasts: [HourlyForecast]
     let utcOffsetSeconds: Int
+    let isNight: Bool
+    
+    var theme: WeatherTheme {
+        WeatherTheme.forIsNight(isNight)
+    }
     
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
@@ -143,6 +148,16 @@ struct CityWeather: Identifiable {
         let isoFormatter = DateFormatter()
         isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
         isoFormatter.timeZone = cityTimeZone
+        
+        let now = Date()
+        if let sunriseStr = response.daily.sunrise.first,
+           let sunsetStr = response.daily.sunset.first,
+           let sunriseDate = isoFormatter.date(from: sunriseStr),
+           let sunsetDate = isoFormatter.date(from: sunsetStr) {
+            self.isNight = now < sunriseDate || now > sunsetDate
+        } else {
+            self.isNight = response.current.is_day == 0
+        }
         
         let hourFormatter = DateFormatter()
         hourFormatter.dateFormat = "h a"
@@ -208,6 +223,7 @@ struct WeatherResponse: Decodable {
     let utc_offset_seconds: Int
     let current: CurrentWeatherResponse
     let hourly: HourlyWeatherResponse
+    let daily: DailyWeatherResponse
 }
 
 struct CurrentWeatherResponse: Decodable {
@@ -221,4 +237,34 @@ struct HourlyWeatherResponse: Decodable {
     let time: [String]
     let temperature_2m: [Double]
     let weather_code: [Int]
+}
+
+struct DailyWeatherResponse: Decodable {
+    let sunrise: [String]
+    let sunset: [String]
+}
+
+struct WeatherTheme {
+    let background: Color
+    let primaryText: Color
+    let secondaryText: Color
+    let dividerColor: Color
+    
+    static func forIsNight(_ isNight: Bool) -> WeatherTheme {
+        if isNight {
+            return WeatherTheme(
+                background: Color(hex: "0E0F13"),
+                primaryText: Color(hex: "F2F2F0"),
+                secondaryText: Color(hex: "727272"),
+                dividerColor: Color(hex: "F2F2F0").opacity(0.12)
+            )
+        } else {
+            return WeatherTheme(
+                background: Color(hex: "FFFFFF"),
+                primaryText: Color(hex: "1A1A1A"),
+                secondaryText: Color(hex: "727272"),
+                dividerColor: Color(hex: "1A1A1A").opacity(0.12)
+            )
+        }
+    }
 }

@@ -41,6 +41,10 @@ struct TestRunner {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
                 "temperature_2m": [20.0, 21.5, 23.0],
                 "weather_code": [0, 2, 61]
+            },
+            "daily": {
+                "sunrise": ["2026-07-25T06:00"],
+                "sunset": ["2026-07-25T18:00"]
             }
         }
         """
@@ -95,6 +99,10 @@ struct TestRunner {
                 time: times,
                 temperature_2m: temps,
                 weather_code: codes
+            ),
+            daily: DailyWeatherResponse(
+                sunrise: ["2026-07-25T06:00"],
+                sunset: ["2026-07-25T18:00"]
             )
         )
         
@@ -139,6 +147,10 @@ struct TestRunner {
                 time: times, // length 10
                 temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0], // length 5
                 weather_code: [0, 1, 2, 3, 45, 51, 61] // length 7
+            ),
+            daily: DailyWeatherResponse(
+                sunrise: ["2026-07-25T06:00"],
+                sunset: ["2026-07-25T18:00"]
             )
         )
         
