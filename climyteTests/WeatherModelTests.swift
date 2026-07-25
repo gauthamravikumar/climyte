@@ -35,7 +35,9 @@ struct TestRunner {
                 "temperature_2m": 22.5,
                 "apparent_temperature": 21.0,
                 "is_day": 1,
-                "weather_code": 0
+                "weather_code": 0,
+                "relative_humidity_2m": 60.0,
+                "wind_speed_10m": 12.0
             },
             "hourly": {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
@@ -47,6 +49,7 @@ struct TestRunner {
                 "weather_code": [0],
                 "temperature_2m_max": [25.0],
                 "temperature_2m_min": [15.0],
+                "uv_index_max": [2.0],
                 "sunrise": ["2026-07-25T06:00"],
                 "sunset": ["2026-07-25T18:00"]
             }
@@ -97,7 +100,9 @@ struct TestRunner {
                 temperature_2m: 22.5,
                 apparent_temperature: 21.0,
                 is_day: 1,
-                weather_code: 0
+                weather_code: 0,
+                relative_humidity_2m: 60.0,
+                wind_speed_10m: 12.0
             ),
             hourly: HourlyWeatherResponse(
                 time: times,
@@ -110,7 +115,8 @@ struct TestRunner {
                 temperature_2m_max: [25.0],
                 temperature_2m_min: [15.0],
                 sunrise: ["2026-07-25T06:00"],
-                sunset: ["2026-07-25T18:00"]
+                sunset: ["2026-07-25T18:00"],
+                uv_index_max: [2.0]
             )
         )
         
@@ -149,7 +155,9 @@ struct TestRunner {
                 temperature_2m: 22.5,
                 apparent_temperature: 21.0,
                 is_day: 1,
-                weather_code: 0
+                weather_code: 0,
+                relative_humidity_2m: 60.0,
+                wind_speed_10m: 12.0
             ),
             hourly: HourlyWeatherResponse(
                 time: times, // length 10
@@ -162,7 +170,8 @@ struct TestRunner {
                 temperature_2m_max: [25.0],
                 temperature_2m_min: [15.0],
                 sunrise: ["2026-07-25T06:00"],
-                sunset: ["2026-07-25T18:00"]
+                sunset: ["2026-07-25T18:00"],
+                uv_index_max: [2.0]
             )
         )
         

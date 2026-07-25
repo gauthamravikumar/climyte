@@ -130,6 +130,11 @@ struct CityWeather: Identifiable {
     let dailyForecasts: [DailyForecast]
     let maxTemp: Double
     let minTemp: Double
+    let humidity: Int
+    let windSpeed: Double
+    let uvIndex: Double
+    let sunriseFormatted: String
+    let sunsetFormatted: String
     
     var theme: WeatherTheme {
         WeatherTheme.forIsNight(isNight)
@@ -181,6 +186,28 @@ struct CityWeather: Identifiable {
         self.dailyForecasts = dailyList
         self.maxTemp = response.daily.temperature_2m_max.first ?? response.current.temperature_2m
         self.minTemp = response.daily.temperature_2m_min.first ?? response.current.temperature_2m
+        
+        self.humidity = Int(response.current.relative_humidity_2m)
+        self.windSpeed = response.current.wind_speed_10m
+        self.uvIndex = response.daily.uv_index_max.first ?? 0.0
+        
+        let sunTimeFormatter = DateFormatter()
+        sunTimeFormatter.dateFormat = "h:mm a"
+        sunTimeFormatter.timeZone = cityTimeZone
+        
+        if let sunriseStr = response.daily.sunrise.first,
+           let sunriseDate = isoFormatter.date(from: sunriseStr) {
+            self.sunriseFormatted = sunTimeFormatter.string(from: sunriseDate).lowercased()
+        } else {
+            self.sunriseFormatted = "--"
+        }
+        
+        if let sunsetStr = response.daily.sunset.first,
+           let sunsetDate = isoFormatter.date(from: sunsetStr) {
+            self.sunsetFormatted = sunTimeFormatter.string(from: sunsetDate).lowercased()
+        } else {
+            self.sunsetFormatted = "--"
+        }
         
         let now = Date()
         if let sunriseStr = response.daily.sunrise.first,
@@ -272,6 +299,8 @@ struct CurrentWeatherResponse: Decodable {
     let apparent_temperature: Double
     let is_day: Int
     let weather_code: Int
+    let relative_humidity_2m: Double
+    let wind_speed_10m: Double
 }
 
 struct HourlyWeatherResponse: Decodable {
@@ -287,6 +316,7 @@ struct DailyWeatherResponse: Decodable {
     let temperature_2m_min: [Double]
     let sunrise: [String]
     let sunset: [String]
+    let uv_index_max: [Double]
 }
 
 struct WeatherTheme {

@@ -211,6 +211,9 @@ struct ContentView: View {
             
             // 7-Day Forecast Section
             dailyForecastSection(weather)
+            
+            // Details Grid Section
+            detailsSection(weather)
         }
         .padding(.vertical, 10)
     }
@@ -288,8 +291,11 @@ struct ContentView: View {
     
     // MARK: - Daily Forecast View
     private func dailyForecastSection(_ weather: CityWeather) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("7-DAY")
+        let weekMin = weather.dailyForecasts.map { $0.minTemp }.min() ?? 0
+        let weekMax = weather.dailyForecasts.map { $0.maxTemp }.max() ?? 100
+        
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("THIS WEEK")
                 .font(.custom("ManropeExtraLight-Bold", size: 12))
                 .foregroundColor(currentTheme.secondaryText)
                 .padding(.horizontal, 4)
@@ -300,26 +306,32 @@ struct ContentView: View {
                         Text(forecast.day)
                             .font(.custom("ManropeExtraLight-Bold", size: 16))
                             .foregroundColor(currentTheme.primaryText)
-                            .frame(width: 80, alignment: .leading)
+                            .frame(width: 60, alignment: .leading)
                         
                         Spacer()
                         
-                        Text(forecast.condition.description)
-                            .font(.custom("ManropeExtraLight-Medium", size: 15))
+                        Text(String(format: "%.0f°", forecast.minTemp))
+                            .font(.custom("ManropeExtraLight-Medium", size: 16))
                             .foregroundColor(currentTheme.secondaryText)
+                            .frame(width: 30, alignment: .trailing)
                         
                         Spacer()
                         
-                        HStack(spacing: 12) {
-                            Text(String(format: "%.0f°", forecast.minTemp))
-                                .font(.custom("ManropeExtraLight-Medium", size: 16))
-                                .foregroundColor(currentTheme.secondaryText)
-                            
-                            Text(String(format: "%.0f°", forecast.maxTemp))
-                                .font(.custom("ManropeExtraLight-Bold", size: 16))
-                                .foregroundColor(currentTheme.primaryText)
-                        }
-                        .frame(width: 80, alignment: .trailing)
+                        TempBarView(
+                            minTemp: forecast.minTemp,
+                            maxTemp: forecast.maxTemp,
+                            weekMin: weekMin,
+                            weekMax: weekMax,
+                            theme: currentTheme
+                        )
+                        .frame(width: 120)
+                        
+                        Spacer()
+                        
+                        Text(String(format: "%.0f°", forecast.maxTemp))
+                            .font(.custom("ManropeExtraLight-Bold", size: 16))
+                            .foregroundColor(currentTheme.primaryText)
+                            .frame(width: 30, alignment: .trailing)
                     }
                     .padding(.vertical, 14)
                     
@@ -328,6 +340,54 @@ struct ContentView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Details Grid
+    private func detailsSection(_ weather: CityWeather) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("DETAILS")
+                .font(.custom("ManropeExtraLight-Bold", size: 12))
+                .foregroundColor(currentTheme.secondaryText)
+                .padding(.horizontal, 4)
+            
+            VStack(spacing: 0) {
+                detailRow(label: "Sunrise", value: weather.sunriseFormatted)
+                detailRow(label: "Sunset", value: weather.sunsetFormatted)
+                detailRow(label: "Wind", value: String(format: "%.0f km/h", weather.windSpeed))
+                detailRow(label: "Humidity", value: "\(weather.humidity)%")
+                detailRow(label: "UV index", value: formatUVIndex(weather.uvIndex))
+            }
+        }
+    }
+    
+    private func detailRow(label: String, value: String) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(label)
+                    .font(.custom("ManropeExtraLight-Medium", size: 15))
+                    .foregroundColor(currentTheme.secondaryText)
+                
+                Spacer()
+                
+                Text(value)
+                    .font(.custom("ManropeExtraLight-Bold", size: 15))
+                    .foregroundColor(currentTheme.primaryText)
+            }
+            .padding(.vertical, 14)
+            
+            Divider()
+                .background(currentTheme.dividerColor)
+        }
+    }
+    
+    private func formatUVIndex(_ val: Double) -> String {
+        let category: String
+        if val <= 2 { category = "Low" }
+        else if val <= 5 { category = "Moderate" }
+        else if val <= 7 { category = "High" }
+        else if val <= 10 { category = "Very High" }
+        else { category = "Extreme" }
+        return "\(String(format: "%.0f", val)) · \(category)"
     }
     
     // MARK: - Helper Local Time Method
@@ -363,6 +423,37 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 20)
                 .stroke(currentTheme.dividerColor, lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Custom Temperature range progress bar View
+struct TempBarView: View {
+    let minTemp: Double
+    let maxTemp: Double
+    let weekMin: Double
+    let weekMax: Double
+    let theme: WeatherTheme
+    
+    var body: some View {
+        GeometryReader { geo in
+            let range = max(weekMax - weekMin, 1)
+            let left = CGFloat((minTemp - weekMin) / range) * geo.size.width
+            let right = CGFloat((maxTemp - weekMin) / range) * geo.size.width
+            let width = max(right - left, 3)
+            
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(theme.dividerColor)
+                    .frame(height: 4)
+                
+                Capsule()
+                    .fill(theme.primaryText)
+                    .frame(width: width, height: 4)
+                    .offset(x: left)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 4)
     }
 }
 
