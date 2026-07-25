@@ -30,6 +30,7 @@ struct TestRunner {
         {
             "latitude": -33.8688,
             "longitude": 151.2093,
+            "utc_offset_seconds": 36000,
             "current": {
                 "temperature_2m": 22.5,
                 "relative_humidity_2m": 60.0,
@@ -95,6 +96,7 @@ struct TestRunner {
         let response = WeatherResponse(
             latitude: -33.8688,
             longitude: 151.2093,
+            utc_offset_seconds: 36000,
             current: CurrentWeatherResponse(
                 temperature_2m: 22.5,
                 relative_humidity_2m: 60.0,
@@ -150,6 +152,7 @@ struct TestRunner {
         let response = WeatherResponse(
             latitude: -33.8688,
             longitude: 151.2093,
+            utc_offset_seconds: 36000,
             current: CurrentWeatherResponse(
                 temperature_2m: 22.5,
                 relative_humidity_2m: 60.0,
