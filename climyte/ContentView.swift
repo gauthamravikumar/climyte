@@ -344,50 +344,166 @@ struct ContentView: View {
     
     // MARK: - Details Grid
     private func detailsSection(_ weather: CityWeather) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("DETAILS")
-                .font(.custom("ManropeExtraLight-Bold", size: 12))
-                .foregroundColor(currentTheme.secondaryText)
-                .padding(.horizontal, 4)
-            
-            VStack(spacing: 0) {
-                detailRow(label: "Sunrise", value: weather.sunriseFormatted)
-                detailRow(label: "Sunset", value: weather.sunsetFormatted)
-                detailRow(label: "Wind", value: String(format: "%.0f km/h", weather.windSpeed))
-                detailRow(label: "Humidity", value: "\(weather.humidity)%")
-                detailRow(label: "UV index", value: formatUVIndex(weather.uvIndex))
-            }
-        }
-    }
-    
-    private func detailRow(label: String, value: String) -> some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(label)
-                    .font(.custom("ManropeExtraLight-Medium", size: 15))
+            // Row 1: Sunrise & Sunset
+            HStack(spacing: 0) {
+                // Sunrise
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sun.max")
+                            .font(.system(size: 14))
+                        Text("SUNRISE")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                    }
                     .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(weather.sunriseFormatted)
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Spacer()
+                // Vertical divider
+                Rectangle()
+                    .fill(currentTheme.dividerColor)
+                    .frame(width: 1, height: 45)
+                    .padding(.horizontal, 16)
                 
-                Text(value)
-                    .font(.custom("ManropeExtraLight-Bold", size: 15))
-                    .foregroundColor(currentTheme.primaryText)
+                // Sunset
+                VStack(alignment: .trailing, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("SUNSET")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                        Image(systemName: "moon.fill")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(weather.sunsetFormatted)
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .padding(.vertical, 14)
+            .padding(.vertical, 18)
             
             Divider()
                 .background(currentTheme.dividerColor)
+            
+            // Row 2: Wind & Humidity
+            HStack(alignment: .top) {
+                // Wind
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wind")
+                            .font(.system(size: 14))
+                        Text("WIND")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                    }
+                    .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(String(format: "%.0f km/h", weather.windSpeed))
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                    
+                    Text(windDescription(weather.windSpeed))
+                        .font(.custom("ManropeExtraLight-Medium", size: 14))
+                        .foregroundColor(currentTheme.secondaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Humidity
+                VStack(alignment: .trailing, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text("HUMIDITY")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                        Image(systemName: "drop.fill")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text("\(weather.humidity)%")
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                    
+                    // Humidity Progress Bar (right-aligned)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(currentTheme.dividerColor)
+                            Capsule()
+                                .fill(currentTheme.primaryText)
+                                .frame(width: geo.size.width * CGFloat(Double(weather.humidity) / 100.0))
+                        }
+                    }
+                    .frame(width: 80, height: 4)
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding(.vertical, 18)
+            
+            Divider()
+                .background(currentTheme.dividerColor)
+            
+            // Row 3: UV Index & Visibility
+            HStack {
+                // UV Index
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sun.max")
+                            .font(.system(size: 14))
+                        Text("UV INDEX")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                    }
+                    .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(formatUVIndex(weather.uvIndex))
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Visibility
+                VStack(alignment: .trailing, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Text("VISIBILITY")
+                            .font(.custom("ManropeExtraLight-Bold", size: 12))
+                        Image(systemName: "eye")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(currentTheme.secondaryText)
+                    
+                    Text(String(format: "%.0f km", weather.visibility))
+                        .font(.custom("ManropeExtraLight-Bold", size: 20))
+                        .foregroundColor(currentTheme.primaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .padding(.vertical, 18)
         }
     }
     
     private func formatUVIndex(_ val: Double) -> String {
         let category: String
         if val <= 2 { category = "Low" }
-        else if val <= 5 { category = "Moderate" }
+        else if val <= 5 { category = "Mod" }
         else if val <= 7 { category = "High" }
         else if val <= 10 { category = "Very High" }
         else { category = "Extreme" }
-        return "\(String(format: "%.0f", val)) · \(category)"
+        return "\(String(format: "%.0f", val)) \(category)"
+    }
+    
+    private func windDescription(_ speed: Double) -> String {
+        switch speed {
+        case ..<5: return "Light air"
+        case 5..<12: return "Light breeze"
+        case 12..<20: return "Gentle breeze"
+        case 20..<29: return "Moderate breeze"
+        case 29..<39: return "Fresh breeze"
+        case 39..<50: return "Strong breeze"
+        default: return "High wind"
+        }
     }
     
     // MARK: - Helper Local Time Method

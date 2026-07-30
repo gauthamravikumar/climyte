@@ -135,6 +135,7 @@ struct CityWeather: Identifiable {
     let uvIndex: Double
     let sunriseFormatted: String
     let sunsetFormatted: String
+    let visibility: Double
     
     var theme: WeatherTheme {
         WeatherTheme.forIsNight(isNight)
@@ -190,6 +191,7 @@ struct CityWeather: Identifiable {
         self.humidity = Int(response.current.relative_humidity_2m)
         self.windSpeed = response.current.wind_speed_10m
         self.uvIndex = response.daily.uv_index_max.first ?? 0.0
+        self.visibility = response.current.visibility / 1000.0
         
         let sunTimeFormatter = DateFormatter()
         sunTimeFormatter.dateFormat = "h:mm a"
@@ -301,6 +303,7 @@ struct CurrentWeatherResponse: Decodable {
     let weather_code: Int
     let relative_humidity_2m: Double
     let wind_speed_10m: Double
+    let visibility: Double
 }
 
 struct HourlyWeatherResponse: Decodable {

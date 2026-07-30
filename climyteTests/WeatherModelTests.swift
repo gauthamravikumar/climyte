@@ -37,7 +37,8 @@ struct TestRunner {
                 "is_day": 1,
                 "weather_code": 0,
                 "relative_humidity_2m": 60.0,
-                "wind_speed_10m": 12.0
+                "wind_speed_10m": 12.0,
+                "visibility": 10000.0
             },
             "hourly": {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
@@ -102,7 +103,8 @@ struct TestRunner {
                 is_day: 1,
                 weather_code: 0,
                 relative_humidity_2m: 60.0,
-                wind_speed_10m: 12.0
+                wind_speed_10m: 12.0,
+                visibility: 10000.0
             ),
             hourly: HourlyWeatherResponse(
                 time: times,
@@ -157,7 +159,8 @@ struct TestRunner {
                 is_day: 1,
                 weather_code: 0,
                 relative_humidity_2m: 60.0,
-                wind_speed_10m: 12.0
+                wind_speed_10m: 12.0,
+                visibility: 10000.0
             ),
             hourly: HourlyWeatherResponse(
                 time: times, // length 10
