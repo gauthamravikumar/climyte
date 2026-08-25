@@ -2,13 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- The target uses a file-system synchronized group, which flattens the
+	     Fonts/ directory into the bundle root. These names must stay unqualified. -->
 	<key>UIAppFonts</key>
 	<array>
-		<string>Fonts/Manrope-Regular.ttf</string>
-		<string>Fonts/Manrope-Medium.ttf</string>
-		<string>Fonts/Manrope-SemiBold.ttf</string>
-		<string>Fonts/Manrope-Bold.ttf</string>
-		<string>Fonts/Manrope-ExtraBold.ttf</string>
+		<string>Manrope-Regular.ttf</string>
+		<string>Manrope-Medium.ttf</string>
+		<string>Manrope-SemiBold.ttf</string>
+		<string>Manrope-Bold.ttf</string>
+		<string>Manrope-ExtraBold.ttf</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Climyte uses your location to show weather for your current area.</string>
