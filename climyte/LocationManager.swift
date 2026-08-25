@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import CoreLocation
 
 /// Thin CoreLocation wrapper exposing a single async "where am I?" call.
@@ -65,7 +66,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
                 return (city: city, country: country)
             }
         } catch {
-            print("Reverse geocoding error: \(error)")
+            Log.location.error("Reverse geocoding failed: \(error.localizedDescription)")
         }
         return nil
     }
@@ -79,7 +80,7 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("Location error: \(error.localizedDescription)")
+        Log.location.error("Location request failed: \(error.localizedDescription)")
         locationContinuation?.resume(returning: nil)
         locationContinuation = nil
     }
