@@ -7,51 +7,53 @@
 
 import Foundation
 import CoreLocation
-import Combine
 
-class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+/// Thin CoreLocation wrapper exposing a single async "where am I?" call.
+/// Deliberately not an `ObservableObject` — no view observes it directly.
+final class LocationManager: NSObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
-    
-    @Published var location: CLLocation?
-    @Published var authorizationStatus: CLAuthorizationStatus
-    @Published var cityName: String?
-    @Published var countryName: String?
-    
+
     private var locationContinuation: CheckedContinuation<CLLocation?, Never>?
-    
+    private var authorizationContinuation: CheckedContinuation<CLAuthorizationStatus, Never>?
+
     override init() {
-        self.authorizationStatus = manager.authorizationStatus
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
-    
-    /// Request location permission and fetch current location.
-    /// Returns the location if successful, nil otherwise.
+
+    /// Requests permission if needed, then fetches the current location.
+    /// Returns nil when permission is refused or the fix fails.
     func requestCurrentLocation() async -> CLLocation? {
-        // Request permission if not yet determined
-        if authorizationStatus == .notDetermined {
-            manager.requestWhenInUseAuthorization()
-            // Wait briefly for the authorization callback
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+        var status = manager.authorizationStatus
+
+        // Wait for the user's actual answer rather than guessing at a duration.
+        if status == .notDetermined {
+            status = await withCheckedContinuation { continuation in
+                guard authorizationContinuation == nil else {
+                    // A prior request is already in flight; don't strand its continuation.
+                    continuation.resume(returning: manager.authorizationStatus)
+                    return
+                }
+                authorizationContinuation = continuation
+                manager.requestWhenInUseAuthorization()
+            }
         }
-        
-        #if os(iOS)
-        guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
+
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else {
             return nil
         }
-        #else
-        guard authorizationStatus == .authorizedAlways else {
-            return nil
-        }
-        #endif
-        
+
         return await withCheckedContinuation { continuation in
-            self.locationContinuation = continuation
+            guard locationContinuation == nil else {
+                continuation.resume(returning: nil)
+                return
+            }
+            locationContinuation = continuation
             manager.requestLocation()
         }
     }
-    
+
     /// Reverse geocode a location to get the city and country name.
     func reverseGeocode(_ location: CLLocation) async -> (city: String, country: String)? {
         let geocoder = CLGeocoder()
@@ -60,12 +62,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             if let placemark = placemarks.first {
                 let city = placemark.locality ?? placemark.name ?? "Unknown"
                 let country = placemark.country ?? ""
-                
-                await MainActor.run {
-                    self.cityName = city
-                    self.countryName = country
-                }
-                
                 return (city: city, country: country)
             }
         } catch {
@@ -73,24 +69,26 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         return nil
     }
-    
+
     // MARK: - CLLocationManagerDelegate
-    
+
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        if let loc = locations.first {
-            self.location = loc
-            locationContinuation?.resume(returning: loc)
-            locationContinuation = nil
-        }
+        guard let loc = locations.first else { return }
+        locationContinuation?.resume(returning: loc)
+        locationContinuation = nil
     }
-    
+
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         print("Location error: \(error.localizedDescription)")
         locationContinuation?.resume(returning: nil)
         locationContinuation = nil
     }
-    
+
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        self.authorizationStatus = manager.authorizationStatus
+        let status = manager.authorizationStatus
+        // Fires once when the delegate is set, before the user has answered.
+        guard status != .notDetermined else { return }
+        authorizationContinuation?.resume(returning: status)
+        authorizationContinuation = nil
     }
 }
