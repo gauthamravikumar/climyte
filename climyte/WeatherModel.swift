@@ -147,6 +147,7 @@ struct CityWeather: Identifiable {
             }
             
             let forecast = DailyForecast(
+                id: dateStr,
                 day: dayLabel,
                 condition: WeatherCondition.from(wmoCode: response.daily.weather_code[i]),
                 minTemp: response.daily.temperature_2m_min[i],
@@ -211,6 +212,7 @@ struct CityWeather: Identifiable {
                     let formattedHour = hourFormatter.string(from: date).lowercased()
 
                     let forecast = HourlyForecast(
+                        id: timeString,
                         time: formattedHour,
                         condition: WeatherCondition.from(wmoCode: response.hourly.weather_code[i]),
                         temperature: response.hourly.temperature_2m[i]
@@ -224,16 +226,19 @@ struct CityWeather: Identifiable {
     }
 }
 
+/// `id` is the raw API timestamp rather than a fresh UUID, so the same hour
+/// keeps its identity across refreshes and SwiftUI animates the value change
+/// instead of rebuilding every row.
 struct HourlyForecast: Identifiable {
-    let id = UUID()
+    let id: String   // e.g. "2026-07-25T23:00"
     let time: String // e.g. "11 pm"
     let condition: WeatherCondition
     let temperature: Double
 }
 
 struct DailyForecast: Identifiable {
-    let id = UUID()
-    let day: String
+    let id: String  // e.g. "2026-07-25"
+    let day: String // e.g. "Today", "Wed"
     let condition: WeatherCondition
     let minTemp: Double
     let maxTemp: Double
