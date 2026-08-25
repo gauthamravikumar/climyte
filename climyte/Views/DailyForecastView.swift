@@ -9,6 +9,8 @@ struct DailyForecastView: View {
     let forecasts: [DailyForecast]
     let theme: WeatherTheme
 
+    @Environment(\.unitSystem) private var units
+
     @ScaledMetric(relativeTo: .body) private var dayColumnWidth: CGFloat = 60
     @ScaledMetric(relativeTo: .body) private var tempColumnWidth: CGFloat = 34
     @ScaledMetric(relativeTo: .body) private var barWidth: CGFloat = 120
@@ -46,7 +48,7 @@ struct DailyForecastView: View {
 
             Spacer(minLength: 8)
 
-            Text(CurrentConditionsView.degrees(forecast.minTemp))
+            Text(units.temperature(forecast.minTemp))
                 .font(.dayLowTemperature)
                 .foregroundColor(theme.secondaryText)
                 .lineLimit(1)
@@ -67,7 +69,7 @@ struct DailyForecastView: View {
                 Spacer(minLength: 8)
             }
 
-            Text(CurrentConditionsView.degrees(forecast.maxTemp))
+            Text(units.temperature(forecast.maxTemp))
                 .font(.dayHighTemperature)
                 .foregroundColor(theme.primaryText)
                 .lineLimit(1)
@@ -76,7 +78,7 @@ struct DailyForecastView: View {
         .padding(.vertical, 14)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(forecast.day), low \(Int(forecast.minTemp.rounded())), high \(Int(forecast.maxTemp.rounded())) degrees"
+            "\(forecast.day), low \(units.temperatureValue(forecast.minTemp)), high \(units.temperatureValue(forecast.maxTemp)) degrees"
         )
     }
 

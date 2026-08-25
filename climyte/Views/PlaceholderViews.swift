@@ -46,6 +46,7 @@ struct WeatherErrorView: View {
 /// Shown when a refresh failed but previously loaded weather is still visible.
 struct StaleDataNotice: View {
     let message: String
+    var fetchedAt: Date?
     let theme: WeatherTheme
 
     var body: some View {
@@ -54,7 +55,7 @@ struct StaleDataNotice: View {
                 .font(.system(size: 13))
                 .accessibilityHidden(true)
 
-            Text(message)
+            Text(fullMessage)
                 .font(.inlineNotice)
 
             Spacer()
@@ -62,6 +63,25 @@ struct StaleDataNotice: View {
         .foregroundColor(theme.secondaryText)
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var fullMessage: String {
+        guard let fetchedAt else { return message }
+        return "\(message) \(Self.age(of: fetchedAt))"
+    }
+
+    /// How old the reading on screen is, so "no internet connection" doesn't
+    /// leave the user guessing whether they're looking at today's weather.
+    static func age(of date: Date, relativeTo now: Date = Date()) -> String {
+        let minutes = Int(now.timeIntervalSince(date) / 60)
+
+        switch minutes {
+        case ..<1: return "Showing readings from just now."
+        case ..<60: return "Showing readings from \(minutes)m ago."
+        case ..<(60 * 24): return "Showing readings from \(minutes / 60)h ago."
+        default: return "Showing readings from \(minutes / (60 * 24))d ago."
+        }
     }
 }
 

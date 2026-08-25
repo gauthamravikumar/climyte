@@ -10,11 +10,48 @@ final class FormattingTests: XCTestCase {
 
     // MARK: - Temperature
 
-    func testDegreesRoundsToNearestWholeNumber() {
-        XCTAssertEqual(CurrentConditionsView.degrees(22.4), "22°")
-        XCTAssertEqual(CurrentConditionsView.degrees(22.5), "23°")
-        XCTAssertEqual(CurrentConditionsView.degrees(-0.4), "0°")
-        XCTAssertEqual(CurrentConditionsView.degrees(-3.6), "-4°")
+    func testMetricTemperatureRoundsToNearestWholeNumber() {
+        XCTAssertEqual(UnitSystem.metric.temperature(22.4), "22°")
+        XCTAssertEqual(UnitSystem.metric.temperature(22.5), "23°")
+        XCTAssertEqual(UnitSystem.metric.temperature(-0.4), "0°")
+        XCTAssertEqual(UnitSystem.metric.temperature(-3.6), "-4°")
+    }
+
+    func testImperialTemperatureConvertsFromCelsius() {
+        XCTAssertEqual(UnitSystem.imperial.temperature(0), "32°")
+        XCTAssertEqual(UnitSystem.imperial.temperature(100), "212°")
+        XCTAssertEqual(UnitSystem.imperial.temperature(-40), "-40°")
+        XCTAssertEqual(UnitSystem.imperial.temperature(22.5), "73°")
+    }
+
+    func testWindSpeedConvertsAndLabelsItsUnit() {
+        XCTAssertEqual(UnitSystem.metric.windSpeed(12), "12 km/h")
+        XCTAssertEqual(UnitSystem.imperial.windSpeed(100), "62 mph")
+        XCTAssertEqual(UnitSystem.imperial.windSpeed(0), "0 mph")
+    }
+
+    func testVisibilityConvertsAndLabelsItsUnit() {
+        XCTAssertEqual(UnitSystem.metric.visibility(10), "10 km")
+        XCTAssertEqual(UnitSystem.imperial.visibility(10), "6 mi")
+    }
+
+    func testToggleFlipsBetweenSystems() {
+        XCTAssertEqual(UnitSystem.metric.toggled, .imperial)
+        XCTAssertEqual(UnitSystem.imperial.toggled, .metric)
+    }
+
+    // MARK: - Stale data age
+
+    func testStaleAgeUsesTheLargestSensibleUnit() {
+        let now = Date()
+        func age(_ secondsAgo: TimeInterval) -> String {
+            StaleDataNotice.age(of: now.addingTimeInterval(-secondsAgo), relativeTo: now)
+        }
+
+        XCTAssertEqual(age(10), "Showing readings from just now.")
+        XCTAssertEqual(age(60 * 5), "Showing readings from 5m ago.")
+        XCTAssertEqual(age(60 * 90), "Showing readings from 1h ago.")
+        XCTAssertEqual(age(60 * 60 * 50), "Showing readings from 2d ago.")
     }
 
     // MARK: - UV index

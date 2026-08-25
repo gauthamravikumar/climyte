@@ -11,18 +11,29 @@ final class WeatherViewModelTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
+    private var cacheDirectory: URL!
+    private var cache: WeatherCache!
 
     override func setUp() {
         super.setUp()
-        // An isolated suite so tests never read or clobber the real app's state.
+        // An isolated suite and cache directory so tests never read or clobber
+        // the real app's state, and can't leak into each other.
         suiteName = "climyteTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
+
+        cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("climyteTests-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        cache = WeatherCache(directory: cacheDirectory)
     }
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suiteName)
+        try? FileManager.default.removeItem(at: cacheDirectory)
         defaults = nil
         suiteName = nil
+        cacheDirectory = nil
+        cache = nil
         super.tearDown()
     }
 
@@ -141,10 +152,86 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.activeWeather?.temperature, 30, "Newest fetch should win")
     }
 
+    // MARK: - Caching
+
+    func testSuccessfulFetchIsWrittenToTheCache() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather(cityName: "Oslo"))
+        let viewModel = makeViewModel(service: service)
+
+        await viewModel.fetchWeatherForActiveCity()
+
+        let cached = cache.load()
+        XCTAssertNotNil(cached)
+        XCTAssertEqual(cached?.city, viewModel.activeCity)
+        XCTAssertNotNil(viewModel.lastUpdated)
+    }
+
+    /// A cold launch should show the last reading immediately rather than a
+    /// spinner, even before any network call resolves.
+    func testCachedWeatherIsRestoredOnInitWithoutFetching() throws {
+        let city = City(id: UUID(), name: "Lisbon", country: "Portugal", latitude: 38.7, longitude: -9.1)
+        defaults.set(try JSONEncoder().encode(city), forKey: "saved_active_city")
+
+        let fetchedAt = Date().addingTimeInterval(-3600)
+        cache.save(city: city, response: makeResponse(temperature: 19), at: fetchedAt)
+
+        let viewModel = makeViewModel()
+
+        XCTAssertNotNil(viewModel.activeWeather, "Cached weather should be on screen immediately")
+        XCTAssertEqual(viewModel.activeWeather?.city.name, "Lisbon")
+        XCTAssertEqual(viewModel.activeWeather?.temperature, 19)
+        XCTAssertEqual(viewModel.lastUpdated, fetchedAt)
+    }
+
+    /// The cache holds one city; showing Lisbon's weather under Sydney's name
+    /// would be worse than showing nothing.
+    func testCacheForADifferentCityIsIgnored() {
+        let cachedCity = City(id: UUID(), name: "Lisbon", country: "Portugal", latitude: 38.7, longitude: -9.1)
+        cache.save(city: cachedCity, response: makeResponse(temperature: 19))
+
+        // No saved active city, so the view model defaults to Sydney.
+        let viewModel = makeViewModel()
+
+        XCTAssertEqual(viewModel.activeCity.name, "Sydney")
+        XCTAssertNil(viewModel.activeWeather)
+    }
+
+    func testCacheRoundTripsThroughDisk() {
+        let city = City(id: UUID(), name: "Reykjavik", country: "Iceland", latitude: 64.1, longitude: -21.9)
+        cache.save(city: city, response: makeResponse(temperature: 3))
+
+        let reloaded = WeatherCache(directory: cacheDirectory).load()
+
+        XCTAssertEqual(reloaded?.city.name, "Reykjavik")
+        XCTAssertEqual(reloaded?.response.current.temperature_2m, 3)
+    }
+
+    func testLoadReturnsNilWhenNothingHasBeenCached() {
+        XCTAssertNil(cache.load())
+    }
+
+    // MARK: - Units
+
+    func testUnitSystemDefaultsToTheDeviceRegion() {
+        let viewModel = makeViewModel()
+        XCTAssertEqual(viewModel.unitSystem, UnitSystem.deviceDefault)
+    }
+
+    func testTogglingUnitsPersistsTheChoice() {
+        let viewModel = makeViewModel()
+        let original = viewModel.unitSystem
+
+        viewModel.toggleUnitSystem()
+
+        XCTAssertEqual(viewModel.unitSystem, original.toggled)
+        XCTAssertEqual(makeViewModel().unitSystem, original.toggled, "Choice should survive a relaunch")
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(service: WeatherFetching? = nil) -> WeatherViewModel {
-        WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults)
+        WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults, cache: cache)
     }
 
     private func makeTokyoResult() -> GeocodingResult {
@@ -153,8 +240,11 @@ final class WeatherViewModelTests: XCTestCase {
 
     private func makeCityWeather(cityName: String = "Sydney", temperature: Double = 22.5) -> CityWeather {
         let city = City(id: UUID(), name: cityName, country: "Australia", latitude: -33.8688, longitude: 151.2093)
+        return CityWeather(city: city, response: makeResponse(temperature: temperature))
+    }
 
-        let response = WeatherResponse(
+    private func makeResponse(temperature: Double) -> WeatherResponse {
+        WeatherResponse(
             latitude: -33.8688,
             longitude: 151.2093,
             utc_offset_seconds: 36000,
@@ -173,8 +263,6 @@ final class WeatherViewModelTests: XCTestCase {
                 temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: []
             )
         )
-
-        return CityWeather(city: city, response: response)
     }
 }
 

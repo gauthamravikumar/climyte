@@ -38,6 +38,7 @@ struct ContentView: View {
                 await viewModel.fetchWeatherForActiveCity()
             }
         }
+        .environment(\.unitSystem, viewModel.unitSystem)
         .task {
             await viewModel.loadWeatherOnLaunch()
         }
@@ -63,9 +64,14 @@ struct ContentView: View {
                 .scaleEffect(1.5)
                 .padding(.top, 80)
         } else if let weather = viewModel.activeWeather {
-            // A refresh can fail while stale data is still on screen.
+            // A refresh can fail while cached data is still on screen — say so,
+            // and say how old what they're looking at is.
             if let message = viewModel.errorMessage {
-                StaleDataNotice(message: message, theme: theme)
+                StaleDataNotice(
+                    message: message,
+                    fetchedAt: viewModel.lastUpdated,
+                    theme: theme
+                )
             }
 
             weatherLayout(weather)
@@ -84,7 +90,8 @@ struct ContentView: View {
             CurrentConditionsView(
                 weather: weather,
                 theme: theme,
-                isUsingCurrentLocation: viewModel.isUsingCurrentLocation
+                isUsingCurrentLocation: viewModel.isUsingCurrentLocation,
+                onToggleUnits: viewModel.toggleUnitSystem
             )
 
             ThemeDivider(theme: theme)

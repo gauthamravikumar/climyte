@@ -9,6 +9,8 @@ struct HourlyForecastView: View {
     let hours: [HourlyForecast]
     let theme: WeatherTheme
 
+    @Environment(\.unitSystem) private var units
+
     /// Scales with Dynamic Type so larger labels don't collide with each other.
     @ScaledMetric(relativeTo: .caption) private var columnWidth: CGFloat = 65
 
@@ -61,7 +63,7 @@ struct HourlyForecastView: View {
         HStack(spacing: 0) {
             ForEach(hours) { hour in
                 VStack(spacing: 6) {
-                    Text(CurrentConditionsView.degrees(hour.temperature))
+                    Text(units.temperature(hour.temperature))
                         .font(.hourTemperature)
                         .foregroundColor(theme.primaryText)
 
@@ -71,7 +73,7 @@ struct HourlyForecastView: View {
                 }
                 .frame(width: columnWidth)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(hour.time), \(Int(hour.temperature.rounded())) degrees")
+                .accessibilityLabel("\(hour.time), \(units.temperatureValue(hour.temperature)) degrees")
             }
         }
     }

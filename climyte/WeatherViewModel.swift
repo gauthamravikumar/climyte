@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import Combine
 import CoreLocation
 
@@ -30,6 +31,16 @@ class WeatherViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isUsingCurrentLocation: Bool = false
 
+    /// When the displayed reading was fetched — may predate this launch, since
+    /// cached weather is shown before the network answers.
+    @Published var lastUpdated: Date?
+
+    @Published var unitSystem: UnitSystem {
+        didSet {
+            defaults.set(unitSystem.rawValue, forKey: unitSystemKey)
+        }
+    }
+
     /// Setting this only persists the choice. Fetching is always explicit, so
     /// callers control ordering instead of inheriting a hidden side effect.
     @Published var activeCity: City {
@@ -37,8 +48,10 @@ class WeatherViewModel: ObservableObject {
     }
 
     private let activeCityKey = "saved_active_city"
+    private let unitSystemKey = "unit_system"
     private let service: WeatherFetching
     private let defaults: UserDefaults
+    private let cache: WeatherCache
     private var searchTask: Task<Void, Never>?
 
     /// Monotonic counter identifying the newest in-flight fetch. Results from
@@ -50,9 +63,12 @@ class WeatherViewModel: ObservableObject {
     /// `service` defaults to the shared instance. It is resolved inside the
     /// initialiser rather than as a default argument, because default arguments
     /// are evaluated in a nonisolated context.
-    init(service: WeatherFetching? = nil, defaults: UserDefaults = .standard) {
+    init(service: WeatherFetching? = nil,
+         defaults: UserDefaults = .standard,
+         cache: WeatherCache? = nil) {
         self.service = service ?? WeatherService.shared
         self.defaults = defaults
+        self.cache = cache ?? WeatherCache()
 
         // Load persistently or default to Sydney
         if let data = defaults.data(forKey: activeCityKey),
@@ -61,6 +77,28 @@ class WeatherViewModel: ObservableObject {
         } else {
             self.activeCity = City(id: UUID(), name: "Sydney", country: "Australia", latitude: -33.8688, longitude: 151.2093)
         }
+
+        // Seed from the device's region until the user says otherwise.
+        if let stored = defaults.string(forKey: unitSystemKey),
+           let system = UnitSystem(rawValue: stored) {
+            self.unitSystem = system
+        } else {
+            self.unitSystem = .deviceDefault
+        }
+
+        restoreCachedWeather()
+    }
+
+    /// Puts the last successful fetch on screen immediately, so a cold launch
+    /// shows real data rather than a spinner while the network is in flight.
+    private func restoreCachedWeather() {
+        guard let cached = cache.load(), cached.city == activeCity else { return }
+        activeWeather = CityWeather(city: cached.city, response: cached.response)
+        lastUpdated = cached.fetchedAt
+    }
+
+    func toggleUnitSystem() {
+        unitSystem = unitSystem.toggled
     }
 
     private func saveActiveCity() {
@@ -123,8 +161,11 @@ class WeatherViewModel: ObservableObject {
             let weather = try await service.fetchWeather(for: city)
             guard token == fetchToken else { return }
             activeWeather = weather
+            lastUpdated = Date()
+            cache.save(city: city, response: weather.response)
         } catch {
             guard token == fetchToken else { return }
+            Log.weather.error("Fetch failed for \(city.name, privacy: .public): \(error.localizedDescription)")
             errorMessage = Self.userMessage(for: error, city: city)
         }
 
@@ -186,7 +227,7 @@ class WeatherViewModel: ObservableObject {
                     self.searchResults = results
                 }
             } catch {
-                print("Search error: \(error)")
+                Log.weather.error("City search failed: \(error.localizedDescription)")
             }
         }
     }

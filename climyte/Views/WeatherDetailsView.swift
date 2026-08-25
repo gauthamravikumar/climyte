@@ -9,6 +9,8 @@ struct WeatherDetailsView: View {
     let weather: CityWeather
     let theme: WeatherTheme
 
+    @Environment(\.unitSystem) private var units
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
@@ -29,7 +31,7 @@ struct WeatherDetailsView: View {
 
             HStack(alignment: .top) {
                 DetailCell(icon: "wind", title: "WIND",
-                           value: "\(Int(weather.windSpeed.rounded())) km/h",
+                           value: units.windSpeed(weather.windSpeed),
                            caption: Self.windDescription(weather.windSpeed),
                            alignment: .leading, theme: theme)
 
@@ -49,7 +51,7 @@ struct WeatherDetailsView: View {
                            alignment: .leading, theme: theme)
 
                 DetailCell(icon: "eye", title: "VISIBILITY",
-                           value: "\(Int(weather.visibility.rounded())) km",
+                           value: units.visibility(weather.visibility),
                            alignment: .trailing, theme: theme)
             }
             .padding(.vertical, 18)
