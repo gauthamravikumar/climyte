@@ -107,7 +107,11 @@ struct CityWeather: Identifiable {
     let sunriseFormatted: String
     let sunsetFormatted: String
     let visibility: Double
-    
+
+    /// The response this was built from, retained so a successful fetch can be
+    /// written to the cache and rebuilt later without a second parse.
+    let response: WeatherResponse
+
     var theme: WeatherTheme {
         WeatherTheme.forIsNight(isNight)
     }
@@ -115,6 +119,7 @@ struct CityWeather: Identifiable {
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
         self.city = city
+        self.response = response
         self.temperature = response.current.temperature_2m
         self.feelsLike = response.current.apparent_temperature
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
@@ -259,7 +264,7 @@ struct GeocodingResult: Decodable, Identifiable {
 }
 
 // MARK: - Open-Meteo Weather Decodable Structures
-struct WeatherResponse: Decodable {
+struct WeatherResponse: Codable {
     let latitude: Double
     let longitude: Double
     let utc_offset_seconds: Int
@@ -268,7 +273,7 @@ struct WeatherResponse: Decodable {
     let daily: DailyWeatherResponse
 }
 
-struct CurrentWeatherResponse: Decodable {
+struct CurrentWeatherResponse: Codable {
     let temperature_2m: Double
     let apparent_temperature: Double
     let is_day: Int
@@ -278,13 +283,13 @@ struct CurrentWeatherResponse: Decodable {
     let visibility: Double
 }
 
-struct HourlyWeatherResponse: Decodable {
+struct HourlyWeatherResponse: Codable {
     let time: [String]
     let temperature_2m: [Double]
     let weather_code: [Int]
 }
 
-struct DailyWeatherResponse: Decodable {
+struct DailyWeatherResponse: Codable {
     let time: [String]
     let weather_code: [Int]
     let temperature_2m_max: [Double]
