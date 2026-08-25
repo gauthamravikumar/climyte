@@ -56,34 +56,6 @@ enum WeatherCondition: String, Codable {
         }
     }
     
-    var iconName: String {
-        switch self {
-        case .sunny: return "sun.max.fill"
-        case .cloudy: return "cloud.sun.fill"
-        case .foggy: return "cloud.fog.fill"
-        case .rainy: return "cloud.rain.fill"
-        case .snowy: return "snowflake"
-        case .stormy: return "cloud.bolt.rain.fill"
-        }
-    }
-    
-    var backgroundColors: [Color] {
-        switch self {
-        case .sunny:
-            return [Color(hex: "2980B9"), Color(hex: "6DD5FA")] // Bright day gradient
-        case .cloudy:
-            return [Color(hex: "5C258D"), Color(hex: "4389A2")] // Deep dusk gradient
-        case .foggy:
-            return [Color(hex: "3A6073"), Color(hex: "3A6073").opacity(0.8)] // Moody mist
-        case .rainy:
-            return [Color(hex: "1F1C2C"), Color(hex: "928DAB")] // Stormy clouds
-        case .snowy:
-            return [Color(hex: "757F9A"), Color(hex: "D7DDE8")] // Soft wintry sky
-        case .stormy:
-            return [Color(hex: "0F2027"), Color(hex: "203A43"), Color(hex: "2C5364")] // Midnight storm
-        }
-    }
-    
     static func from(wmoCode: Int) -> WeatherCondition {
         switch wmoCode {
         case 0, 1:
@@ -123,7 +95,6 @@ struct CityWeather: Identifiable {
     let temperature: Double
     let feelsLike: Double
     let condition: WeatherCondition
-    let isDay: Bool
     let hourlyForecasts: [HourlyForecast]
     let utcOffsetSeconds: Int
     let isNight: Bool
@@ -147,7 +118,6 @@ struct CityWeather: Identifiable {
         self.temperature = response.current.temperature_2m
         self.feelsLike = response.current.apparent_temperature
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
-        self.isDay = response.current.is_day == 1
         self.utcOffsetSeconds = response.utc_offset_seconds
         
         let cityTimeZone = TimeZone(secondsFromGMT: response.utc_offset_seconds) ?? TimeZone.current
@@ -239,11 +209,9 @@ struct CityWeather: Identifiable {
                 // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
                     let formattedHour = hourFormatter.string(from: date).lowercased()
-                    let isTomorrowHour = !cityCalendar.isDateInToday(date)
-                    
+
                     let forecast = HourlyForecast(
                         time: formattedHour,
-                        isTomorrow: isTomorrowHour,
                         condition: WeatherCondition.from(wmoCode: response.hourly.weather_code[i]),
                         temperature: response.hourly.temperature_2m[i]
                     )
@@ -259,7 +227,6 @@ struct CityWeather: Identifiable {
 struct HourlyForecast: Identifiable {
     let id = UUID()
     let time: String // e.g. "11 pm"
-    let isTomorrow: Bool
     let condition: WeatherCondition
     let temperature: Double
 }
