@@ -33,13 +33,20 @@ struct ContentView: View {
                     } else {
                         if viewModel.isLoading && viewModel.activeWeather == nil {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                .progressViewStyle(CircularProgressViewStyle(tint: currentTheme.primaryText))
                                 .scaleEffect(1.5)
                                 .padding(.top, 80)
                         } else if let activeWeather = viewModel.activeWeather {
+                            // A refresh can fail while stale data is still on screen.
+                            if let message = viewModel.errorMessage {
+                                staleDataNotice(message)
+                            }
+
                             // Minimal Weather Layout
                             mainWeatherLayout(activeWeather)
                                 .transition(.opacity)
+                        } else if let message = viewModel.errorMessage {
+                            errorView(message)
                         } else {
                             noWeatherDataView
                         }
@@ -47,6 +54,9 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
+            }
+            .refreshable {
+                await viewModel.fetchWeatherForActiveCity()
             }
         }
         .task {
@@ -514,6 +524,57 @@ struct ContentView: View {
         return formatter.string(from: Date())
     }
     
+    // MARK: - Error States
+
+    /// Shown when there is nothing to fall back on.
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: 20) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 44, weight: .ultraLight))
+                .foregroundColor(currentTheme.secondaryText)
+
+            Text("Couldn't load weather")
+                .font(.custom("ManropeExtraLight-Bold", size: 20))
+                .foregroundColor(currentTheme.primaryText)
+
+            Text(message)
+                .font(.custom("ManropeExtraLight-Regular", size: 16))
+                .foregroundColor(currentTheme.secondaryText)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Button(action: {
+                Task { await viewModel.fetchWeatherForActiveCity() }
+            }) {
+                Text("Try again")
+                    .font(.custom("ManropeExtraLight-SemiBold", size: 15))
+                    .foregroundColor(currentTheme.primaryText)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .overlay(
+                        Capsule().stroke(currentTheme.dividerColor, lineWidth: 1)
+                    )
+            }
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 80)
+        .frame(maxWidth: .infinity)
+    }
+
+    /// Shown when a refresh failed but previously loaded weather is still visible.
+    private func staleDataNotice(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 13))
+            Text(message)
+                .font(.custom("ManropeExtraLight-Medium", size: 13))
+            Spacer()
+        }
+        .foregroundColor(currentTheme.secondaryText)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Empty State View
     private var noWeatherDataView: some View {
         VStack(spacing: 20) {
