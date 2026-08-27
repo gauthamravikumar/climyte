@@ -85,6 +85,14 @@ extension Array {
     }
 }
 
+extension Array {
+    /// Bounds-checked access to an array of optionals, flattening the double
+    /// optional that `self[safe:]` would otherwise produce.
+    func value<T>(at index: Int) -> T? where Element == T? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
 // MARK: - App Domain Models
 struct City: Identifiable, Codable, Equatable {
     let id: UUID
@@ -172,67 +180,82 @@ struct CityWeather: Identifiable {
         // yesterday, which means index 0 is *yesterday*, not today. Find today
         // by date rather than assuming a position — that stays correct however
         // many past days are requested.
+        // Dates are yyyy-MM-dd so they compare lexicographically. If today is
+        // not present, take the first day at or after it — falling back to
+        // index 0 would silently render yesterday as today, which looks
+        // entirely plausible and is wrong.
         let todayKey = dateParser.string(from: Date())
-        let todayIndex = response.daily.time.firstIndex(of: todayKey) ?? 0
+        let todayIndex = response.daily.time.firstIndex(of: todayKey)
+            ?? response.daily.time.firstIndex { $0 >= todayKey }
+            ?? max(response.daily.time.count - 1, 0)
 
         var dailyList: [DailyForecast] = []
         let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
         
-        for i in todayIndex..<dailyCount {
+        // Clamped: mismatched array lengths can put todayIndex past dailyCount,
+        // and `todayIndex..<dailyCount` traps when the range is reversed.
+        for i in min(todayIndex, dailyCount)..<dailyCount {
             let dateStr = response.daily.time[i]
+
+            // Drop a day the API has no readings for rather than charting a
+            // zero, which would put a false trough in the week's ribbon.
+            guard let code: Int = response.daily.weather_code.value(at: i),
+                  let low: Double = response.daily.temperature_2m_min.value(at: i),
+                  let high: Double = response.daily.temperature_2m_max.value(at: i) else { continue }
+
             var dayLabel = dateStr
             if let date = dateParser.date(from: dateStr) {
                 dayLabel = cityCalendar.isDateInToday(date)
                     ? String(localized: "Today", comment: "Row label for today in the weekly forecast")
                     : dayFormatter.string(from: date)
             }
-            
+
             let forecast = DailyForecast(
                 id: dateStr,
                 day: dayLabel,
-                condition: WeatherCondition.from(wmoCode: response.daily.weather_code[i]),
-                minTemp: response.daily.temperature_2m_min[i],
-                maxTemp: response.daily.temperature_2m_max[i]
+                condition: WeatherCondition.from(wmoCode: code),
+                minTemp: low,
+                maxTemp: high
             )
             dailyList.append(forecast)
         }
         self.dailyForecasts = dailyList
-        self.maxTemp = response.daily.temperature_2m_max[safe: todayIndex] ?? response.current.temperature_2m
-        self.minTemp = response.daily.temperature_2m_min[safe: todayIndex] ?? response.current.temperature_2m
+        self.maxTemp = response.daily.temperature_2m_max.value(at: todayIndex) ?? response.current.temperature_2m
+        self.minTemp = response.daily.temperature_2m_min.value(at: todayIndex) ?? response.current.temperature_2m
         
         self.humidity = Int(response.current.relative_humidity_2m)
         self.dewPoint = response.current.dew_point_2m
         self.windGusts = response.current.wind_gusts_10m
 
-        self.precipitationChance = response.daily.precipitation_probability_max[safe: todayIndex] ?? nil
-        self.precipitationAmount = response.daily.precipitation_sum[safe: todayIndex] ?? nil
-        self.precipitationHours = response.daily.precipitation_hours[safe: todayIndex] ?? nil
+        self.precipitationChance = response.daily.precipitation_probability_max.value(at: todayIndex)
+        self.precipitationAmount = response.daily.precipitation_sum.value(at: todayIndex)
+        self.precipitationHours = response.daily.precipitation_hours.value(at: todayIndex)
 
-        let daylightToday = response.daily.daylight_duration[safe: todayIndex] ?? nil
+        let daylightToday: Double? = response.daily.daylight_duration.value(at: todayIndex)
         self.daylightSeconds = daylightToday
         if let daylightToday,
            todayIndex > 0,
-           let yesterday = response.daily.daylight_duration[safe: todayIndex - 1] ?? nil {
+           let yesterday: Double = response.daily.daylight_duration.value(at: todayIndex - 1) {
             self.daylightChangeSeconds = daylightToday - yesterday
         } else {
             self.daylightChangeSeconds = nil
         }
         self.windSpeed = response.current.wind_speed_10m
-        self.uvIndex = response.daily.uv_index_max[safe: todayIndex] ?? 0.0
+        self.uvIndex = response.daily.uv_index_max.value(at: todayIndex) ?? 0.0
         self.visibility = response.current.visibility / 1000.0
         
         let sunTimeFormatter = DateFormatter()
         sunTimeFormatter.dateFormat = "h:mm a"
         sunTimeFormatter.timeZone = cityTimeZone
         
-        if let sunriseStr = response.daily.sunrise[safe: todayIndex],
+        if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
            let sunriseDate = isoFormatter.date(from: sunriseStr) {
             self.sunriseFormatted = sunTimeFormatter.string(from: sunriseDate).lowercased()
         } else {
             self.sunriseFormatted = "--"
         }
         
-        if let sunsetStr = response.daily.sunset[safe: todayIndex],
+        if let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.sunsetFormatted = sunTimeFormatter.string(from: sunsetDate).lowercased()
         } else {
@@ -240,8 +263,8 @@ struct CityWeather: Identifiable {
         }
         
         let now = Date()
-        if let sunriseStr = response.daily.sunrise[safe: todayIndex],
-           let sunsetStr = response.daily.sunset[safe: todayIndex],
+        if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
+           let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
            let sunriseDate = isoFormatter.date(from: sunriseStr),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.isNight = now < sunriseDate || now > sunsetDate
@@ -346,15 +369,17 @@ struct HourlyWeatherResponse: Codable {
 
 struct DailyWeatherResponse: Codable {
     let time: [String]
-    let weather_code: [Int]
-    let temperature_2m_max: [Double]
-    let temperature_2m_min: [Double]
-    let sunrise: [String]
-    let sunset: [String]
-    let uv_index_max: [Double]
 
-    /// Open-Meteo returns null for these beyond its probability horizon, so
-    /// the elements are optional; a non-optional array fails the whole decode.
+    /// Every value here is optional because Open-Meteo sends null past the
+    /// horizon of the model backing it, and a single null in a non-optional
+    /// array fails the entire decode — blanking the city rather than the one
+    /// day that is missing.
+    let weather_code: [Int?]
+    let temperature_2m_max: [Double?]
+    let temperature_2m_min: [Double?]
+    let sunrise: [String?]
+    let sunset: [String?]
+    let uv_index_max: [Double?]
     let precipitation_probability_max: [Int?]
     let precipitation_sum: [Double?]
     let precipitation_hours: [Double?]

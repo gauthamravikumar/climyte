@@ -138,6 +138,60 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertEqual(weather.uvIndex, 0.0)
     }
 
+    // MARK: - Robustness of the daily arrays
+
+    /// Open-Meteo sends null past the horizon of the model backing a field.
+    /// One null must cost that one day, not the whole city.
+    func testANullDayIsSkippedRatherThanFailingTheWholeResponse() {
+        let base = makeResponse(hourOffsets: 0..<3)
+        let response = withDaily(base, days: [
+            ("today", 20, 26), ("null", nil, nil), ("later", 15, 21),
+        ])
+
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.dailyForecasts.count, 2, "The null day is dropped, the others survive")
+        XCTAssertFalse(weather.dailyForecasts.contains { $0.minTemp == 0 },
+                       "A missing day must not chart as zero")
+    }
+
+    /// Falling back to index 0 would render yesterday as today — plausible
+    /// looking and wrong. When today is absent, take the next day forward.
+    func testMissingTodayPicksTheNextDayForwardNotYesterday() {
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(secondsFromGMT: 36000)
+
+        let yesterday = day.string(from: Date().addingTimeInterval(-86_400))
+        let tomorrow = day.string(from: Date().addingTimeInterval(86_400))
+
+        let base = makeResponse(hourOffsets: 0..<3)
+        let response = withDailyTimes(base, times: [yesterday, tomorrow],
+                                      maxTemps: [99, 21], minTemps: [98, 15])
+
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.maxTemp, 21, "Should take tomorrow, not yesterday's 99")
+    }
+
+    /// Mismatched parallel array lengths can put today past the end of the
+    /// shortest array; the range must not be built reversed.
+    func testTodayIndexBeyondTheShortestArrayDoesNotTrap() {
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(secondsFromGMT: 36000)
+
+        var times = (0..<8).map { day.string(from: Date().addingTimeInterval(Double($0 - 5) * 86_400)) }
+        times[5] = day.string(from: Date())
+
+        let base = makeResponse(hourOffsets: 0..<3)
+        let response = withDailyTimes(base, times: times, maxTemps: [25, 24], minTemps: [15, 14])
+
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertTrue(weather.dailyForecasts.isEmpty, "No usable days, but no crash either")
+    }
+
     // MARK: - Derived values
 
     func testVisibilityIsConvertedFromMetresToKilometres() {
@@ -183,6 +237,45 @@ final class WeatherModelTests: XCTestCase {
     }
 
     // MARK: - Fixtures
+
+    private func withDaily(_ base: WeatherResponse,
+                           days: [(String, Double?, Double?)]) -> WeatherResponse {
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(secondsFromGMT: 36000)
+        let times = days.indices.map { day.string(from: Date().addingTimeInterval(Double($0) * 86_400)) }
+
+        return withDailyTimes(base, times: times,
+                              maxTemps: days.map(\.2), minTemps: days.map(\.1),
+                              codes: days.map { $0.1 == nil ? nil : 0 })
+    }
+
+    private func withDailyTimes(_ base: WeatherResponse,
+                                times: [String],
+                                maxTemps: [Double?],
+                                minTemps: [Double?],
+                                codes: [Int?]? = nil) -> WeatherResponse {
+        WeatherResponse(
+            latitude: base.latitude,
+            longitude: base.longitude,
+            utc_offset_seconds: base.utc_offset_seconds,
+            current: base.current,
+            hourly: base.hourly,
+            daily: DailyWeatherResponse(
+                time: times,
+                weather_code: codes ?? Array(repeating: 0, count: times.count),
+                temperature_2m_max: maxTemps,
+                temperature_2m_min: minTemps,
+                sunrise: Array(repeating: nil, count: times.count),
+                sunset: Array(repeating: nil, count: times.count),
+                uv_index_max: Array(repeating: nil, count: times.count),
+                precipitation_probability_max: Array(repeating: nil, count: times.count),
+                precipitation_sum: Array(repeating: nil, count: times.count),
+                precipitation_hours: Array(repeating: nil, count: times.count),
+                daylight_duration: Array(repeating: nil, count: times.count)
+            )
+        )
+    }
 
     /// Builds a response whose hourly/daily timestamps are relative to now, so
     /// the "current and future hours" filter has something realistic to chew on.
