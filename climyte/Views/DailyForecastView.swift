@@ -11,110 +11,162 @@ struct DailyForecastView: View {
 
     @Environment(\.unitSystem) private var units
 
-    @ScaledMetric(relativeTo: .body) private var dayColumnWidth: CGFloat = 60
-    @ScaledMetric(relativeTo: .body) private var tempColumnWidth: CGFloat = 34
-    @ScaledMetric(relativeTo: .body) private var barWidth: CGFloat = 120
-
-    /// At accessibility sizes the scaled columns plus the bar are wider than
-    /// the screen, which would push the whole layout off-viewport. Drop the
-    /// bar and let the text size itself instead — the numbers still carry it.
+    /// At accessibility sizes seven columns cannot fit across the screen, so
+    /// the chart is dropped and the week falls back to a plain list.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var isCompactLayout: Bool { dynamicTypeSize.isAccessibilitySize }
 
+    private let chartHeight: CGFloat = 68
+
+    /// A day whose high and low are close would otherwise collapse the band
+    /// into what looks like one thick line.
+    private let minimumBandThickness: CGFloat = 7
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             SectionRule(label: "7d",
                         accessibilityLabel: "Next 7 days",
                         theme: theme)
 
-            VStack(spacing: 0) {
-                ForEach(forecasts) { forecast in
-                    row(for: forecast)
-                    ThemeDivider(theme: theme)
-                }
+            if isCompactLayout {
+                compactList
+            } else {
+                ribbon
+                columns
             }
         }
     }
 
-    private func row(for forecast: DailyForecast) -> some View {
-        HStack(spacing: 8) {
-            Text(forecast.day)
-                .font(.dayLabel)
-                .foregroundColor(theme.primaryText)
-                .lineLimit(1)
-                .frame(minWidth: isCompactLayout ? nil : dayColumnWidth, alignment: .leading)
+    // MARK: - Ribbon
 
-            Spacer(minLength: 8)
+    /// The week as one shape: a band between the high and low lines. The
+    /// numbers live below rather than on the curve, so they can't collide
+    /// with it where the band narrows.
+    private var ribbon: some View {
+        GeometryReader { geo in
+            let xs = xPositions(width: geo.size.width)
+            let highs = forecasts.map { y(for: $0.maxTemp) }
+            let lows = zip(highs, forecasts.map { y(for: $0.minTemp) })
+                .map { high, low in max(low, high + minimumBandThickness) }
 
-            Text(units.temperature(forecast.minTemp))
-                .font(.dayLowTemperature)
-                .foregroundColor(theme.secondaryText)
-                .lineLimit(1)
-                .frame(minWidth: isCompactLayout ? nil : tempColumnWidth, alignment: .trailing)
+            ZStack {
+                band(xs: xs, highs: highs, lows: lows)
+                    .fill(theme.dividerColor)
 
-            if !isCompactLayout {
-                Spacer(minLength: 8)
+                line(xs: xs, ys: highs)
+                    .stroke(theme.primaryText, style: .init(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
-                TempBarView(
-                    minTemp: forecast.minTemp,
-                    maxTemp: forecast.maxTemp,
-                    weekMin: weekMin,
-                    weekMax: weekMax,
-                    theme: theme
-                )
-                .frame(width: barWidth)
-
-                Spacer(minLength: 8)
+                line(xs: xs, ys: lows)
+                    .stroke(theme.secondaryText, style: .init(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
             }
-
-            Text(units.temperature(forecast.maxTemp))
-                .font(.dayHighTemperature)
-                .foregroundColor(theme.primaryText)
-                .lineLimit(1)
-                .frame(minWidth: isCompactLayout ? nil : tempColumnWidth, alignment: .trailing)
         }
-        .padding(.vertical, 14)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(forecast.day), low \(units.temperatureValue(forecast.minTemp)), high \(units.temperatureValue(forecast.maxTemp)) degrees"
-        )
+        .frame(height: chartHeight)
+        .accessibilityHidden(true)
+    }
+
+    private func band(xs: [CGFloat], highs: [CGFloat], lows: [CGFloat]) -> Path {
+        Path { path in
+            guard let firstX = xs.first else { return }
+            path.move(to: CGPoint(x: firstX, y: highs[0]))
+            for index in xs.indices {
+                path.addLine(to: CGPoint(x: xs[index], y: highs[index]))
+            }
+            for index in xs.indices.reversed() {
+                path.addLine(to: CGPoint(x: xs[index], y: lows[index]))
+            }
+            path.closeSubpath()
+        }
+    }
+
+    private func line(xs: [CGFloat], ys: [CGFloat]) -> Path {
+        Path { path in
+            guard let firstX = xs.first else { return }
+            path.move(to: CGPoint(x: firstX, y: ys[0]))
+            for index in xs.indices.dropFirst() {
+                path.addLine(to: CGPoint(x: xs[index], y: ys[index]))
+            }
+        }
+    }
+
+    /// Vertices sit at the centre of each column below, so the shape and the
+    /// numbers line up.
+    private func xPositions(width: CGFloat) -> [CGFloat] {
+        let step = width / CGFloat(max(forecasts.count, 1))
+        return forecasts.indices.map { step * (CGFloat($0) + 0.5) }
+    }
+
+    private func y(for temperature: Double) -> CGFloat {
+        let inset: CGFloat = 3
+        let usable = chartHeight - inset * 2 - minimumBandThickness
+        let range = max(weekMax - weekMin, 1)
+        let fraction = (temperature - weekMin) / range
+        return inset + usable * CGFloat(1 - fraction)
+    }
+
+    // MARK: - Numbers
+
+    private var columns: some View {
+        HStack(spacing: 0) {
+            ForEach(forecasts) { forecast in
+                VStack(spacing: 3) {
+                    Text(units.temperature(forecast.maxTemp))
+                        .font(.weekColumnHigh)
+                        .foregroundColor(theme.primaryText)
+
+                    Text(units.temperature(forecast.minTemp))
+                        .font(.weekColumnLow)
+                        .foregroundColor(theme.secondaryText)
+
+                    Text(forecast.day)
+                        .font(.weekColumnDay)
+                        .foregroundColor(theme.secondaryText)
+                        .padding(.top, 2)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(
+                    "\(forecast.day), low \(units.temperatureValue(forecast.minTemp)), high \(units.temperatureValue(forecast.maxTemp)) degrees"
+                )
+            }
+        }
+    }
+
+    // MARK: - Accessibility-size fallback
+
+    private var compactList: some View {
+        VStack(spacing: 0) {
+            ForEach(forecasts) { forecast in
+                HStack(spacing: 8) {
+                    Text(forecast.day)
+                        .font(.dayLabel)
+                        .foregroundColor(theme.primaryText)
+
+                    Spacer(minLength: 8)
+
+                    Text(units.temperature(forecast.minTemp))
+                        .font(.dayLowTemperature)
+                        .foregroundColor(theme.secondaryText)
+
+                    Text(units.temperature(forecast.maxTemp))
+                        .font(.dayHighTemperature)
+                        .foregroundColor(theme.primaryText)
+                }
+                .padding(.vertical, 14)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(
+                    "\(forecast.day), low \(units.temperatureValue(forecast.minTemp)), high \(units.temperatureValue(forecast.maxTemp)) degrees"
+                )
+
+                ThemeDivider(theme: theme)
+            }
+        }
     }
 
     private var weekMin: Double { forecasts.map(\.minTemp).min() ?? 0 }
 
     private var weekMax: Double { forecasts.map(\.maxTemp).max() ?? 100 }
-}
-
-/// Horizontal bar showing where a day's range sits within the week's range.
-struct TempBarView: View {
-    let minTemp: Double
-    let maxTemp: Double
-    let weekMin: Double
-    let weekMax: Double
-    let theme: WeatherTheme
-
-    var body: some View {
-        GeometryReader { geo in
-            let range = max(weekMax - weekMin, 1)
-            let left = CGFloat((minTemp - weekMin) / range) * geo.size.width
-            let right = CGFloat((maxTemp - weekMin) / range) * geo.size.width
-            let width = max(right - left, 3)
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(theme.dividerColor)
-                    .frame(height: 4)
-
-                Capsule()
-                    .fill(theme.primaryText)
-                    .frame(width: width, height: 4)
-                    .offset(x: left)
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .frame(height: 4)
-        // The row already announces both temperatures.
-        .accessibilityHidden(true)
-    }
 }

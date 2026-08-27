@@ -47,6 +47,10 @@ extension Font {
     static let dayLowTemperature = manrope(.medium, 16, relativeTo: .body)
     static let dayHighTemperature = manrope(.bold, 16, relativeTo: .body)
 
+    static let weekColumnHigh = manrope(.bold, 13, relativeTo: .caption)
+    static let weekColumnLow = manrope(.medium, 12, relativeTo: .caption2)
+    static let weekColumnDay = manrope(.medium, 12, relativeTo: .caption2)
+
     static let detailValue = manrope(.bold, 20, relativeTo: .title3)
     static let detailCaption = manrope(.medium, 14, relativeTo: .caption)
 
