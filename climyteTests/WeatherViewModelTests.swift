@@ -266,8 +266,10 @@ final class WeatherViewModelTests: XCTestCase {
             for: WeatherService.WeatherError.networkError(underlying), city: city
         )
 
-        XCTAssertTrue(message.contains("\(underlying.code.rawValue)"),
-                      "Expected the raw code in: \(message)")
+        XCTAssertTrue(message.contains("-1007"),
+                      "Expected an ungrouped code in: \(message)")
+        XCTAssertFalse(message.contains(","),
+                       "An error code must not be thousands-separated: \(message)")
     }
 
     // MARK: - Caching

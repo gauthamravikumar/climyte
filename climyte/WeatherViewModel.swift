@@ -314,7 +314,13 @@ class WeatherViewModel: ObservableObject {
                 // identifies an otherwise anonymous failure, and it is what
                 // someone can actually report back.
                 if let urlError = underlying as? URLError {
-                    return String(localized: "Couldn't load weather (error \(urlError.code.rawValue)).")
+                    // Interpolated as a String, not an Int: integer
+                    // interpolation applies a grouping separator, rendering
+                    // URLError -1007 as "-1,007" — or "-1.007" in locales that
+                    // group with periods. An error code is an identifier, not
+                    // a quantity.
+                    let code = String(urlError.code.rawValue)
+                    return String(localized: "Couldn't load weather (error \(code)).")
                 }
                 break
             case .invalidURL:

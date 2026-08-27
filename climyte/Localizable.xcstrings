@@ -179,13 +179,13 @@
         }
       }
     },
-    "Couldn't load weather (error %lld).": {
+    "Couldn't load weather (error %@).": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Couldn't load weather (error %lld)."
+            "value": "Couldn't load weather (error %@)."
           }
         }
       }
