@@ -79,24 +79,3 @@ struct CityPageView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
-/// Page indicator drawn by hand so it can follow the app's theme — the system
-/// index view can't be tinted per page.
-struct PageDots: View {
-    let count: Int
-    let selectedIndex: Int
-    let theme: WeatherTheme
-
-    var body: some View {
-        HStack(spacing: 7) {
-            ForEach(0..<count, id: \.self) { index in
-                Circle()
-                    .fill(index == selectedIndex ? theme.primaryText : theme.secondaryText.opacity(0.35))
-                    .frame(width: 6, height: 6)
-            }
-        }
-        .padding(.vertical, 10)
-        .accessibilityElement()
-        .accessibilityLabel("Page \(selectedIndex + 1) of \(count)")
-    }
-}

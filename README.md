@@ -9,7 +9,9 @@ looking at — not the system appearance.
 ## What it does
 
 - **Swipe between saved cities.** One page each; the theme follows the visible
-  page, so swiping from a daytime city to a night-time one inverts the app.
+  page, so swiping from a daytime city to a night-time one inverts the app. The
+  page indicator is set in type rather than dots — it names what's either side
+  of you, and you can tap a name to jump straight there.
 - **Current location** is resolved on launch and pinned first, but never blocks
   the first render — saved cities paint immediately from cache.
 - **Works offline.** The last successful fetch for every saved city is cached,

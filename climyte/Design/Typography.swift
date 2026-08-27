@@ -54,4 +54,7 @@ extension Font {
     static let stateBody = manrope(.regular, 16, relativeTo: .body)
     static let stateAction = manrope(.semiBold, 15, relativeTo: .subheadline)
     static let inlineNotice = manrope(.medium, 13, relativeTo: .caption)
+
+    static let cityStripActive = manrope(.bold, 13, relativeTo: .caption)
+    static let cityStrip = manrope(.medium, 13, relativeTo: .caption)
 }

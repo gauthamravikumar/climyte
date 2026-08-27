@@ -17,10 +17,6 @@ struct ContentView: View {
         viewModel.selectedEntry?.weather?.theme ?? WeatherTheme.forIsNight(false)
     }
 
-    private var selectedIndex: Int {
-        viewModel.entries.firstIndex { $0.id == viewModel.selectedCityKey } ?? 0
-    }
-
     var body: some View {
         ZStack {
             theme.background
@@ -99,10 +95,13 @@ struct ContentView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
 
             if viewModel.entries.count > 1 {
-                PageDots(
-                    count: viewModel.entries.count,
-                    selectedIndex: selectedIndex,
-                    theme: theme
+                CityNameStrip(
+                    entries: viewModel.entries,
+                    selectedKey: viewModel.selectedCityKey,
+                    theme: theme,
+                    onSelect: { entry in
+                        withAnimation { viewModel.selectEntry(entry) }
+                    }
                 )
             }
         }
