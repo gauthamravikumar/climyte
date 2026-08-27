@@ -11,8 +11,14 @@ struct ContentView: View {
     @StateObject private var viewModel = WeatherViewModel()
     @State private var isSearching = false
 
+    /// The theme follows whichever city is on screen, so swiping from a
+    /// daytime city to a night-time one inverts the whole app.
     private var theme: WeatherTheme {
-        viewModel.activeWeather?.theme ?? WeatherTheme.forIsNight(false)
+        viewModel.selectedEntry?.weather?.theme ?? WeatherTheme.forIsNight(false)
+    }
+
+    private var selectedIndex: Int {
+        viewModel.entries.firstIndex { $0.id == viewModel.selectedCityKey } ?? 0
     }
 
     var body: some View {
@@ -21,21 +27,22 @@ struct ContentView: View {
                 .ignoresSafeArea()
                 .animation(.easeInOut(duration: 0.5), value: theme.background)
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 16) {
-                    SearchBarView(
-                        query: $viewModel.searchQuery,
-                        isSearching: $isSearching,
-                        theme: theme
-                    )
-
-                    content
-                }
+            VStack(spacing: 16) {
+                SearchBarView(
+                    query: $viewModel.searchQuery,
+                    isSearching: $isSearching,
+                    theme: theme
+                )
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
-            }
-            .refreshable {
-                await viewModel.fetchWeatherForActiveCity()
+
+                if isSearching {
+                    searchOverlay
+                        .padding(.horizontal, 24)
+                    Spacer(minLength: 0)
+                } else {
+                    pager
+                }
             }
         }
         .environment(\.unitSystem, viewModel.unitSystem)
@@ -44,9 +51,25 @@ struct ContentView: View {
         }
     }
 
+    /// Focused with an empty field shows the saved cities; typing searches.
     @ViewBuilder
-    private var content: some View {
-        if isSearching && !viewModel.searchQuery.isEmpty {
+    private var searchOverlay: some View {
+        if viewModel.searchQuery.isEmpty {
+            SavedCitiesView(
+                entries: viewModel.entries,
+                selectedKey: viewModel.selectedCityKey,
+                theme: theme,
+                canRemove: viewModel.canRemoveCities,
+                onSelect: { entry in
+                    withAnimation {
+                        viewModel.selectEntry(entry)
+                        isSearching = false
+                    }
+                },
+                onDelete: viewModel.removeCities
+            )
+            .transition(.opacity)
+        } else {
             SearchResultsView(
                 state: viewModel.searchState,
                 theme: theme,
@@ -59,53 +82,32 @@ struct ContentView: View {
                 onRetry: viewModel.retrySearch
             )
             .transition(.opacity.combined(with: .move(edge: .top)))
-        } else if viewModel.isLoading && viewModel.activeWeather == nil {
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: theme.primaryText))
-                .scaleEffect(1.5)
-                .padding(.top, 80)
-        } else if let weather = viewModel.activeWeather {
-            // A refresh can fail while cached data is still on screen — say so,
-            // and say how old what they're looking at is.
-            if let message = viewModel.errorMessage {
-                StaleDataNotice(
-                    message: message,
-                    fetchedAt: viewModel.lastUpdated,
-                    theme: theme
-                )
-            }
-
-            weatherLayout(weather)
-                .transition(.opacity)
-        } else if let message = viewModel.errorMessage {
-            WeatherErrorView(message: message, theme: theme) {
-                Task { await viewModel.fetchWeatherForActiveCity() }
-            }
-        } else {
-            NoWeatherDataView(theme: theme)
         }
     }
 
-    private func weatherLayout(_ weather: CityWeather) -> some View {
-        VStack(alignment: .leading, spacing: 20) {
-            CurrentConditionsView(
-                weather: weather,
-                theme: theme,
-                isUsingCurrentLocation: viewModel.isUsingCurrentLocation,
-                onToggleUnits: viewModel.toggleUnitSystem
-            )
+    private var pager: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $viewModel.selectedCityKey) {
+                ForEach(viewModel.entries) { entry in
+                    CityPageView(
+                        entry: entry,
+                        theme: theme,
+                        onToggleUnits: viewModel.toggleUnitSystem,
+                        onRefresh: { await viewModel.refresh(cityKey: entry.id) }
+                    )
+                    .tag(entry.id)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
 
-            ThemeDivider(theme: theme)
-                .padding(.vertical, 8)
-
-            HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
-
-            DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
-
-            WeatherDetailsView(weather: weather, theme: theme)
+            if viewModel.entries.count > 1 {
+                PageDots(
+                    count: viewModel.entries.count,
+                    selectedIndex: selectedIndex,
+                    theme: theme
+                )
+            }
         }
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

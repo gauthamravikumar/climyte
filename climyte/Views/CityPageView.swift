@@ -1,0 +1,101 @@
+//
+//  CityPageView.swift
+//  climyte
+//
+
+import SwiftUI
+
+/// One city's worth of weather — a single page in the pager.
+///
+/// Owns its own ScrollView so each page scrolls and refreshes independently.
+struct CityPageView: View {
+    let entry: CityEntry
+    let theme: WeatherTheme
+    let onToggleUnits: () -> Void
+    let onRefresh: () async -> Void
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 16) {
+                content
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .refreshable {
+            await onRefresh()
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if entry.isLoading && entry.weather == nil {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: theme.primaryText))
+                .scaleEffect(1.5)
+                .padding(.top, 80)
+        } else if let weather = entry.weather {
+            // A refresh can fail while cached data is still on screen — say so,
+            // and say how old what they're looking at is.
+            if let message = entry.errorMessage {
+                StaleDataNotice(
+                    message: message,
+                    fetchedAt: entry.lastUpdated,
+                    theme: theme
+                )
+            }
+
+            weatherLayout(weather)
+                .transition(.opacity)
+        } else if let message = entry.errorMessage {
+            WeatherErrorView(message: message, theme: theme) {
+                Task { await onRefresh() }
+            }
+        } else {
+            NoWeatherDataView(theme: theme)
+        }
+    }
+
+    private func weatherLayout(_ weather: CityWeather) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            CurrentConditionsView(
+                weather: weather,
+                theme: theme,
+                isUsingCurrentLocation: entry.isCurrentLocation,
+                onToggleUnits: onToggleUnits
+            )
+
+            ThemeDivider(theme: theme)
+                .padding(.vertical, 8)
+
+            HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
+
+            DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
+
+            WeatherDetailsView(weather: weather, theme: theme)
+        }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Page indicator drawn by hand so it can follow the app's theme — the system
+/// index view can't be tinted per page.
+struct PageDots: View {
+    let count: Int
+    let selectedIndex: Int
+    let theme: WeatherTheme
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(0..<count, id: \.self) { index in
+                Circle()
+                    .fill(index == selectedIndex ? theme.primaryText : theme.secondaryText.opacity(0.35))
+                    .frame(width: 6, height: 6)
+            }
+        }
+        .padding(.vertical, 10)
+        .accessibilityElement()
+        .accessibilityLabel("Page \(selectedIndex + 1) of \(count)")
+    }
+}

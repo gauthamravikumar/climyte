@@ -30,7 +30,14 @@ enum SearchState: Equatable {
 
 @MainActor
 class WeatherViewModel: ObservableObject {
-    @Published var activeWeather: CityWeather?
+
+    /// One entry per saved city, in page order. The located city, when there
+    /// is one, is always first.
+    @Published private(set) var entries: [CityEntry] = []
+
+    /// Which page is showing. Keyed rather than indexed so a reorder or
+    /// deletion can't silently select a different city.
+    @Published var selectedCityKey: String = ""
 
     /// What the search field should be showing. A single state replaces the
     /// old results array, which couldn't distinguish "no matches" from
@@ -42,19 +49,6 @@ class WeatherViewModel: ObservableObject {
             performSearch()
         }
     }
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
-    @Published var isUsingCurrentLocation: Bool = false
-
-    /// Convenience for callers that only care about the successful case.
-    var searchResults: [GeocodingResult] {
-        if case .results(let results) = searchState { return results }
-        return []
-    }
-
-    /// When the displayed reading was fetched — may predate this launch, since
-    /// cached weather is shown before the network answers.
-    @Published var lastUpdated: Date?
 
     @Published var unitSystem: UnitSystem {
         didSet {
@@ -62,24 +56,35 @@ class WeatherViewModel: ObservableObject {
         }
     }
 
-    /// Setting this only persists the choice. Fetching is always explicit, so
-    /// callers control ordering instead of inheriting a hidden side effect.
-    @Published var activeCity: City {
-        didSet { saveActiveCity() }
+    /// Convenience for callers that only care about the successful case.
+    var searchResults: [GeocodingResult] {
+        if case .results(let results) = searchState { return results }
+        return []
     }
 
-    private let activeCityKey = "saved_active_city"
+    var selectedEntry: CityEntry? {
+        entries.first { $0.id == selectedCityKey } ?? entries.first
+    }
+
+    var canRemoveCities: Bool { entries.count > 1 }
+
+    private let savedCitiesKey = "saved_cities"
     private let unitSystemKey = "unit_system"
     private let service: WeatherFetching
     private let defaults: UserDefaults
     private let cache: WeatherCache
     private var searchTask: Task<Void, Never>?
 
-    /// Monotonic counter identifying the newest in-flight fetch. Results from
-    /// superseded fetches are discarded so a slow one can't overwrite a newer one.
-    private var fetchToken = 0
+    /// Newest in-flight fetch per city. Results from superseded fetches are
+    /// discarded so a slow one can't overwrite a newer one.
+    private var fetchTokens: [String: Int] = [:]
 
     let locationManager = LocationManager()
+
+    static let defaultCity = City(
+        id: UUID(), name: "Sydney", country: "Australia",
+        latitude: -33.8688, longitude: 151.2093
+    )
 
     /// `service` defaults to the shared instance. It is resolved inside the
     /// initialiser rather than as a default argument, because default arguments
@@ -91,64 +96,64 @@ class WeatherViewModel: ObservableObject {
         self.defaults = defaults
         self.cache = cache ?? WeatherCache()
 
-        // Load persistently or default to Sydney
-        if let data = defaults.data(forKey: activeCityKey),
-           let saved = try? JSONDecoder().decode(City.self, from: data) {
-            self.activeCity = saved
-        } else {
-            self.activeCity = City(id: UUID(), name: "Sydney", country: "Australia", latitude: -33.8688, longitude: 151.2093)
-        }
+        let cities = Self.loadSavedCities(from: defaults, key: savedCitiesKey)
+        self.unitSystem = Self.loadUnitSystem(from: defaults, key: unitSystemKey)
 
-        // Seed from the device's region until the user says otherwise.
-        if let stored = defaults.string(forKey: unitSystemKey),
-           let system = UnitSystem(rawValue: stored) {
-            self.unitSystem = system
-        } else {
-            self.unitSystem = .deviceDefault
-        }
+        self.entries = cities.map { CityEntry(city: $0) }
+        self.selectedCityKey = entries.first?.id ?? ""
 
         restoreCachedWeather()
     }
 
-    /// Puts the last successful fetch on screen immediately, so a cold launch
-    /// shows real data rather than a spinner while the network is in flight.
-    private func restoreCachedWeather() {
-        guard let cached = cache.load(), cached.city == activeCity else { return }
-        activeWeather = CityWeather(city: cached.city, response: cached.response)
-        lastUpdated = cached.fetchedAt
+    // MARK: - Persistence
+
+    private static func loadSavedCities(from defaults: UserDefaults, key: String) -> [City] {
+        if let data = defaults.data(forKey: key),
+           let saved = try? JSONDecoder().decode([City].self, from: data),
+           !saved.isEmpty {
+            return saved
+        }
+
+        // Migrate anyone upgrading from the single-city build.
+        if let data = defaults.data(forKey: "saved_active_city"),
+           let legacy = try? JSONDecoder().decode(City.self, from: data) {
+            return [legacy]
+        }
+
+        return [defaultCity]
     }
+
+    private static func loadUnitSystem(from defaults: UserDefaults, key: String) -> UnitSystem {
+        if let stored = defaults.string(forKey: key),
+           let system = UnitSystem(rawValue: stored) {
+            return system
+        }
+        return .deviceDefault
+    }
+
+    private func saveCities() {
+        if let encoded = try? JSONEncoder().encode(entries.map(\.city)) {
+            defaults.set(encoded, forKey: savedCitiesKey)
+        }
+    }
+
+    /// Puts the last successful fetch for every saved city on screen
+    /// immediately, so a cold launch renders real data rather than a spinner.
+    private func restoreCachedWeather() {
+        for index in entries.indices {
+            guard let cached = cache.load(for: entries[index].city) else { continue }
+            entries[index].weather = CityWeather(city: cached.city, response: cached.response)
+            entries[index].lastUpdated = cached.fetchedAt
+        }
+    }
+
+    // MARK: - Cities
 
     func toggleUnitSystem() {
         unitSystem = unitSystem.toggled
     }
 
-    private func saveActiveCity() {
-        if let encoded = try? JSONEncoder().encode(activeCity) {
-            defaults.set(encoded, forKey: activeCityKey)
-        }
-    }
-
-    /// Called on app launch. Paints the saved city immediately, then upgrades to
-    /// the device's current location if and when CoreLocation produces one — so
-    /// a slow or refused permission prompt never holds up the first render.
-    func loadWeatherOnLaunch() async {
-        let savedCity = activeCity
-        let savedToken = nextFetchToken()
-        let savedCityFetch = Task { await self.performFetch(city: savedCity, token: savedToken) }
-
-        if let located = await currentLocationCity() {
-            isUsingCurrentLocation = true
-            activeCity = located
-            await performFetch(city: located, token: nextFetchToken())
-        }
-
-        await savedCityFetch.value
-    }
-
-    func fetchWeatherForActiveCity() async {
-        await performFetch(city: activeCity, token: nextFetchToken())
-    }
-
+    /// Adds a searched city, or selects it if already saved.
     func selectCity(_ result: GeocodingResult) {
         let newCity = City(
             id: UUID(),
@@ -157,40 +162,138 @@ class WeatherViewModel: ObservableObject {
             latitude: result.latitude,
             longitude: result.longitude
         )
-        isUsingCurrentLocation = false
-        activeCity = newCity
 
-        // Clear search
         searchQuery = ""
 
-        Task { await self.fetchWeatherForActiveCity() }
+        if let existing = entries.first(where: { $0.city.key == newCity.key }) {
+            selectedCityKey = existing.id
+            return
+        }
+
+        entries.append(CityEntry(city: newCity))
+        selectedCityKey = newCity.key
+        saveCities()
+
+        Task { await self.refresh(cityKey: newCity.key) }
+    }
+
+    func selectEntry(_ entry: CityEntry) {
+        selectedCityKey = entry.id
+    }
+
+    /// Removes a city. The last remaining city can't be removed — an empty app
+    /// has nothing to show and no way back.
+    func removeCity(_ entry: CityEntry) {
+        guard canRemoveCities, let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+
+        entries.remove(at: index)
+        if selectedCityKey == entry.id {
+            selectedCityKey = entries[min(index, entries.count - 1)].id
+        }
+
+        saveCities()
+        cache.prune(keeping: entries.map(\.city))
+    }
+
+    func removeCities(at offsets: IndexSet) {
+        for index in offsets.sorted(by: >) where entries.indices.contains(index) {
+            removeCity(entries[index])
+        }
+    }
+
+    // MARK: - Launch
+
+    /// Paints saved cities immediately, then upgrades to the device's current
+    /// location if and when CoreLocation produces one — so a slow or refused
+    /// permission prompt never holds up the first render.
+    func loadWeatherOnLaunch() async {
+        let selectedFirst = refreshSelectedThenRest()
+
+        if let located = await currentLocationCity() {
+            upsertCurrentLocation(located)
+            await refresh(cityKey: located.key)
+        }
+
+        await selectedFirst.value
+    }
+
+    /// The visible page is fetched first; the rest follow concurrently so
+    /// swiping to another city finds it already loaded.
+    private func refreshSelectedThenRest() -> Task<Void, Never> {
+        Task {
+            if let selected = self.selectedEntry {
+                await self.refresh(cityKey: selected.id)
+            }
+
+            await withTaskGroup(of: Void.self) { group in
+                for entry in self.entries where entry.id != self.selectedCityKey {
+                    group.addTask { await self.refresh(cityKey: entry.id) }
+                }
+            }
+        }
+    }
+
+    /// Replaces the previous located entry rather than accumulating one per
+    /// trip, and keeps it pinned to the front.
+    private func upsertCurrentLocation(_ city: City) {
+        entries.removeAll { $0.isCurrentLocation && $0.city.key != city.key }
+
+        if let index = entries.firstIndex(where: { $0.city.key == city.key }) {
+            entries[index].isCurrentLocation = true
+            let entry = entries.remove(at: index)
+            entries.insert(entry, at: 0)
+        } else {
+            entries.insert(CityEntry(city: city, isCurrentLocation: true), at: 0)
+        }
+
+        selectedCityKey = city.key
+        saveCities()
+    }
+
+    func refreshSelected() async {
+        guard let selected = selectedEntry else { return }
+        await refresh(cityKey: selected.id)
     }
 
     // MARK: - Fetching
 
-    private func nextFetchToken() -> Int {
-        fetchToken += 1
-        return fetchToken
+    private func nextFetchToken(for cityKey: String) -> Int {
+        let next = (fetchTokens[cityKey] ?? 0) + 1
+        fetchTokens[cityKey] = next
+        return next
     }
 
-    private func performFetch(city: City, token: Int) async {
-        isLoading = true
-        errorMessage = nil
+    /// Fetches one city, writing the result back into its entry. Safe to call
+    /// concurrently for different cities; a superseded fetch for the same city
+    /// discards its own result.
+    func refresh(cityKey: String) async {
+        guard let startIndex = index(of: cityKey) else { return }
+
+        let city = entries[startIndex].city
+        let token = nextFetchToken(for: cityKey)
+
+        entries[startIndex].isLoading = true
+        entries[startIndex].errorMessage = nil
 
         do {
             let weather = try await service.fetchWeather(for: city)
-            guard token == fetchToken else { return }
-            activeWeather = weather
-            lastUpdated = Date()
+            guard fetchTokens[cityKey] == token, let i = index(of: cityKey) else { return }
+            entries[i].weather = weather
+            entries[i].lastUpdated = Date()
+            entries[i].isLoading = false
             cache.save(city: city, response: weather.response)
         } catch {
-            guard token == fetchToken else { return }
+            guard fetchTokens[cityKey] == token, let i = index(of: cityKey) else { return }
             Log.weather.error("Fetch failed for \(city.name, privacy: .public): \(error.localizedDescription)")
-            errorMessage = Self.userMessage(for: error, city: city)
+            entries[i].errorMessage = Self.userMessage(for: error, city: city)
+            entries[i].isLoading = false
         }
+    }
 
-        guard token == fetchToken else { return }
-        isLoading = false
+    /// Re-resolves the index after awaiting — the array may have been
+    /// reordered or had a city removed while the request was in flight.
+    private func index(of cityKey: String) -> Int? {
+        entries.firstIndex { $0.id == cityKey }
     }
 
     private func currentLocationCity() async -> City? {
