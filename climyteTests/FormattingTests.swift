@@ -127,6 +127,62 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(description(120), "High wind")
     }
 
+    // MARK: - Condition summary
+
+    func testSummaryOmitsApparentTemperatureWhenItMatches() {
+        XCTAssertEqual(
+            CurrentConditionsView.summary(condition: "Sunny", actual: 61, apparent: 61),
+            "Sunny"
+        )
+    }
+
+    func testSummaryReportsAWarmerApparentTemperature() {
+        XCTAssertEqual(
+            CurrentConditionsView.summary(condition: "Cloudy", actual: 21, apparent: 23),
+            "Cloudy · feels 2° warmer"
+        )
+    }
+
+    func testSummaryReportsACoolerApparentTemperatureAsAPositiveNumber() {
+        XCTAssertEqual(
+            CurrentConditionsView.summary(condition: "Windy", actual: 12, apparent: 8),
+            "Windy · feels 4° cooler"
+        )
+    }
+
+    /// The difference is taken from already-converted values, so a 2°C gap
+    /// reads as 4° to a Fahrenheit reader rather than 2°.
+    func testDifferenceIsExpressedInTheDisplayedUnit() {
+        let actualC = 20.0, apparentC = 22.0
+
+        let metric = CurrentConditionsView.summary(
+            condition: "Cloudy",
+            actual: UnitSystem.metric.temperatureValue(actualC),
+            apparent: UnitSystem.metric.temperatureValue(apparentC)
+        )
+        let imperial = CurrentConditionsView.summary(
+            condition: "Cloudy",
+            actual: UnitSystem.imperial.temperatureValue(actualC),
+            apparent: UnitSystem.imperial.temperatureValue(apparentC)
+        )
+
+        XCTAssertEqual(metric, "Cloudy · feels 2° warmer")
+        XCTAssertEqual(imperial, "Cloudy · feels 4° warmer")
+    }
+
+    /// Rounding can collapse a sub-degree difference to nothing; the line
+    /// should disappear rather than claim "0° warmer".
+    func testSubDegreeDifferenceIsTreatedAsNoDifference() {
+        XCTAssertEqual(
+            CurrentConditionsView.summary(
+                condition: "Sunny",
+                actual: UnitSystem.metric.temperatureValue(21.1),
+                apparent: UnitSystem.metric.temperatureValue(21.4)
+            ),
+            "Sunny"
+        )
+    }
+
     // MARK: - Local time
 
     func testLocalTimeReflectsTheCitysOffsetRatherThanTheDevices() {

@@ -81,9 +81,32 @@ struct CurrentConditionsView: View {
     }
 
     private var summary: some View {
-        Text("\(weather.condition.description) · feels like \(units.temperature(weather.feelsLike))")
-            .font(.conditionSummary)
-            .foregroundColor(theme.secondaryText)
+        Text(Self.summary(
+            condition: weather.condition.description,
+            actual: units.temperatureValue(weather.temperature),
+            apparent: units.temperatureValue(weather.feelsLike)
+        ))
+        .font(.conditionSummary)
+        .foregroundColor(theme.secondaryText)
+    }
+
+    /// The condition line, mentioning apparent temperature only when it
+    /// differs from the reading — "feels like 61°" directly under a 61°
+    /// reading is noise, and it made the line easy to stop reading.
+    ///
+    /// Both values arrive already converted, so the difference is expressed in
+    /// whatever unit is on screen; a 2°C gap is a 4°F gap and must not be
+    /// reported as "2° warmer" to a Fahrenheit reader.
+    static func summary(condition: String, actual: Int, apparent: Int) -> String {
+        let difference = apparent - actual
+
+        if difference > 0 {
+            return String(localized: "\(condition) · feels \(difference)° warmer")
+        } else if difference < 0 {
+            return String(localized: "\(condition) · feels \(-difference)° cooler")
+        } else {
+            return condition
+        }
     }
 
     // MARK: - Formatting

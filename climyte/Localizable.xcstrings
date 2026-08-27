@@ -2,13 +2,24 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
-    "%@ · feels like %@": {
+    "%@ · feels %lld° cooler": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ · feels like %@"
+            "value": "%@ · feels %lld° cooler"
+          }
+        }
+      }
+    },
+    "%@ · feels %lld° warmer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · feels %lld° warmer"
           }
         }
       }
