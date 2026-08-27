@@ -57,5 +57,12 @@ struct SearchBarView: View {
         .onChange(of: isFocused) { _, focused in
             withAnimation { isSearching = focused }
         }
+        // The parent dismisses search by setting the binding (after picking a
+        // city, say). Without this, focus stays on the field while isSearching
+        // is false, and the next tap can't change isFocused — so onChange never
+        // fires and the search bar goes dead until relaunch.
+        .onChange(of: isSearching) { _, searching in
+            if !searching { isFocused = false }
+        }
     }
 }
