@@ -19,10 +19,9 @@ struct HourlyForecastView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("HOURLY")
-                .font(.sectionHeading)
-                .foregroundColor(theme.secondaryText)
-                .padding(.horizontal, 4)
+            SectionRule(label: "24h",
+                        accessibilityLabel: "Next 24 hours",
+                        theme: theme)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(spacing: 12) {

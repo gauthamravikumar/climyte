@@ -53,27 +53,29 @@ struct CurrentConditionsView: View {
     }
 
     private var temperature: some View {
-        HStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(units.temperature(weather.temperature))
                 .font(.temperatureHero)
                 .foregroundColor(theme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("H:\(units.temperature(weather.maxTemp))")
-                Text("L:\(units.temperature(weather.minTemp))")
-            }
-            .font(.highLow)
-            .foregroundColor(theme.secondaryText)
+            // The day's range, set as a span rather than two labelled values.
+            // Only the reading itself carries a degree sign; these inherit it.
+            Text("\(units.temperatureValue(weather.minTemp))  ·  \(units.temperatureValue(weather.maxTemp))")
+                .font(.temperatureRange)
+                .foregroundColor(theme.secondaryText)
+                .padding(.leading, 4)
         }
         .padding(.vertical, -10)
         .accessibilityElement(children: .combine)
+        // Terse on screen, explicit to VoiceOver — the visual shorthand
+        // shouldn't cost a screen-reader user the meaning.
         .accessibilityLabel(
             """
             \(units.temperatureValue(weather.temperature)) degrees, \
-            high \(units.temperatureValue(weather.maxTemp)), \
-            low \(units.temperatureValue(weather.minTemp))
+            low \(units.temperatureValue(weather.minTemp)), \
+            high \(units.temperatureValue(weather.maxTemp))
             """
         )
     }

@@ -66,9 +66,6 @@ struct CityPageView: View {
                 isUsingCurrentLocation: entry.isCurrentLocation
             )
 
-            ThemeDivider(theme: theme)
-                .padding(.vertical, 8)
-
             HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
 
             DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)

@@ -35,13 +35,46 @@
         }
       }
     },
-    "%lld degrees, high %lld, low %lld": {
+    "%lld  ·  %lld": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld degrees, high %lld, low %lld"
+            "value": "%lld  ·  %lld"
+          }
+        }
+      }
+    },
+    "%lld degrees, low %lld, high %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld degrees, low %lld, high %lld"
+          }
+        }
+      }
+    },
+    "24h": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24h"
+          }
+        }
+      }
+    },
+    "7d": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7d"
           }
         }
       }
@@ -146,17 +179,6 @@
         }
       }
     },
-    "Double tap to switch between Celsius and Fahrenheit": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Double tap to switch between Celsius and Fahrenheit"
-          }
-        }
-      }
-    },
     "Extreme": {
       "comment": "UV index category",
       "extractionState": "manual",
@@ -203,28 +225,6 @@
         }
       }
     },
-    "H:%@": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "H:%@"
-          }
-        }
-      }
-    },
-    "HOURLY": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "HOURLY"
-          }
-        }
-      }
-    },
     "HUMIDITY": {
       "extractionState": "manual",
       "localizations": {
@@ -255,17 +255,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "High wind"
-          }
-        }
-      }
-    },
-    "L:%@": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "L:%@"
           }
         }
       }
@@ -338,6 +327,28 @@
         }
       }
     },
+    "Next 24 hours": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 24 hours"
+          }
+        }
+      }
+    },
+    "Next 7 days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next 7 days"
+          }
+        }
+      }
+    },
     "No internet connection.": {
       "extractionState": "manual",
       "localizations": {
@@ -356,17 +367,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "No weather data available"
-          }
-        }
-      }
-    },
-    "Page %lld of %lld": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Page %lld of %lld"
           }
         }
       }
@@ -503,17 +503,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sunny"
-          }
-        }
-      }
-    },
-    "THIS WEEK": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "THIS WEEK"
           }
         }
       }

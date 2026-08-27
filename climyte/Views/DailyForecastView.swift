@@ -24,10 +24,9 @@ struct DailyForecastView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("THIS WEEK")
-                .font(.sectionHeading)
-                .foregroundColor(theme.secondaryText)
-                .padding(.horizontal, 4)
+            SectionRule(label: "7d",
+                        accessibilityLabel: "Next 7 days",
+                        theme: theme)
 
             VStack(spacing: 0) {
                 ForEach(forecasts) { forecast in

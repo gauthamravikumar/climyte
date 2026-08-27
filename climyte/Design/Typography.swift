@@ -35,7 +35,7 @@ extension Font {
     static let cityName = manrope(.bold, 28, relativeTo: .title)
     static let localTime = manrope(.medium, 18, relativeTo: .body)
     static let temperatureHero = manrope(.regular, 100, relativeTo: .largeTitle)
-    static let highLow = manrope(.medium, 14, relativeTo: .caption)
+    static let temperatureRange = manrope(.medium, 15, relativeTo: .subheadline)
     static let conditionSummary = manrope(.medium, 16, relativeTo: .body)
 
     static let sectionHeading = manrope(.bold, 12, relativeTo: .caption2)
