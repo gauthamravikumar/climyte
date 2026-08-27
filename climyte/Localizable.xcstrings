@@ -179,6 +179,17 @@
         }
       }
     },
+    "Couldn't load weather (error %lld).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load weather (error %lld)."
+          }
+        }
+      }
+    },
     "Couldn't load weather for %@.": {
       "extractionState": "manual",
       "localizations": {
@@ -186,6 +197,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't load weather for %@."
+          }
+        }
+      }
+    },
+    "Couldn't reach the weather service.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't reach the weather service."
           }
         }
       }
@@ -471,6 +493,17 @@
         }
       }
     },
+    "Secure connection failed — check the date and time on your device.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure connection failed — check the date and time on your device."
+          }
+        }
+      }
+    },
     "Showing readings from %lldd ago.": {
       "extractionState": "manual",
       "localizations": {
@@ -580,6 +613,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sunset"
+          }
+        }
+      }
+    },
+    "The request timed out.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The request timed out."
           }
         }
       }

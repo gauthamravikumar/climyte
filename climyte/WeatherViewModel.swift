@@ -303,7 +303,21 @@ class WeatherViewModel: ObservableObject {
                 return String(localized: "The weather service is unavailable right now.")
             case .decodingError:
                 return String(localized: "Couldn't read the weather data for \(city.name).")
-            case .invalidURL, .networkError:
+            case .timedOut:
+                return String(localized: "The request timed out.")
+            case .unreachable:
+                return String(localized: "Couldn't reach the weather service.")
+            case .insecureConnection:
+                return String(localized: "Secure connection failed — check the date and time on your device.")
+            case .networkError(let underlying):
+                // Naming the code is ugly but it is the only thing that
+                // identifies an otherwise anonymous failure, and it is what
+                // someone can actually report back.
+                if let urlError = underlying as? URLError {
+                    return String(localized: "Couldn't load weather (error \(urlError.code.rawValue)).")
+                }
+                break
+            case .invalidURL:
                 break
             }
         }
@@ -352,6 +366,12 @@ class WeatherViewModel: ObservableObject {
                 return String(localized: "No internet connection.")
             case .serverError:
                 return String(localized: "City search is unavailable right now.")
+            case .timedOut:
+                return String(localized: "The request timed out.")
+            case .unreachable:
+                return String(localized: "Couldn't reach the weather service.")
+            case .insecureConnection:
+                return String(localized: "Secure connection failed — check the date and time on your device.")
             case .decodingError, .invalidURL, .networkError:
                 break
             }

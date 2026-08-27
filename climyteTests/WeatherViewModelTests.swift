@@ -235,6 +235,41 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.entries[0].weather, "Tokyo's result must not land on Sydney")
     }
 
+    /// Every network fault used to collapse into one sentence that named
+    /// nothing. These are genuinely different problems with different fixes.
+    func testDistinctNetworkFaultsGetDistinctMessages() {
+        let city = City(id: UUID(), name: "Oslo", country: "Norway",
+                        countryCode: "NO", latitude: 59.91, longitude: 10.75)
+
+        func message(_ error: WeatherService.WeatherError) -> String {
+            WeatherViewModel.userMessage(for: error, city: city)
+        }
+
+        XCTAssertEqual(message(.timedOut), "The request timed out.")
+        XCTAssertEqual(message(.unreachable), "Couldn't reach the weather service.")
+        XCTAssertEqual(message(.insecureConnection),
+                       "Secure connection failed — check the date and time on your device.")
+        XCTAssertEqual(message(.offline), "No internet connection.")
+
+        XCTAssertNotEqual(message(.timedOut), message(.unreachable))
+        XCTAssertNotEqual(message(.unreachable), message(.insecureConnection))
+    }
+
+    /// An unrecognised URLError still names its code, so a report identifies
+    /// the fault even when the app has no friendly wording for it.
+    func testUnrecognisedURLErrorNamesItsCode() {
+        let city = City(id: UUID(), name: "Oslo", country: "Norway",
+                        countryCode: "NO", latitude: 59.91, longitude: 10.75)
+        let underlying = URLError(.httpTooManyRedirects)
+
+        let message = WeatherViewModel.userMessage(
+            for: WeatherService.WeatherError.networkError(underlying), city: city
+        )
+
+        XCTAssertTrue(message.contains("\(underlying.code.rawValue)"),
+                      "Expected the raw code in: \(message)")
+    }
+
     // MARK: - Caching
 
     func testSuccessfulFetchIsWrittenToTheCache() async {

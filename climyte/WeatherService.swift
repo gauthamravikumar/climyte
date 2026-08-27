@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 class WeatherService {
     static let shared = WeatherService()
@@ -16,6 +17,9 @@ class WeatherService {
         case serverError(statusCode: Int)
         case decodingError
         case offline
+        case timedOut
+        case unreachable
+        case insecureConnection
         case networkError(Error)
 
         var errorDescription: String? {
@@ -28,6 +32,12 @@ class WeatherService {
                 return "Failed to parse the weather data response."
             case .offline:
                 return "No internet connection."
+            case .timedOut:
+                return "The request timed out."
+            case .unreachable:
+                return "Could not reach the weather service."
+            case .insecureConnection:
+                return "The secure connection failed."
             case .networkError(let error):
                 return "Network error: \(error.localizedDescription)"
             }
@@ -90,9 +100,23 @@ class WeatherService {
         } catch let error as WeatherError {
             throw error
         } catch let error as URLError {
+            // Log the raw code: the user-facing message is deliberately plain,
+            // but the code is what actually identifies the fault.
+            Log.weather.error("URLError \(error.code.rawValue) for \(url.host() ?? "?", privacy: .public): \(error.localizedDescription)")
+
             switch error.code {
-            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
+            case .notConnectedToInternet, .networkConnectionLost,
+                 .dataNotAllowed, .internationalRoamingOff:
                 throw WeatherError.offline
+            case .timedOut:
+                throw WeatherError.timedOut
+            case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+                 .resourceUnavailable, .notConnectedToInternet:
+                throw WeatherError.unreachable
+            case .secureConnectionFailed, .serverCertificateUntrusted,
+                 .serverCertificateHasBadDate, .serverCertificateNotYetValid,
+                 .appTransportSecurityRequiresSecureConnection:
+                throw WeatherError.insecureConnection
             default:
                 throw WeatherError.networkError(error)
             }
