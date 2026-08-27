@@ -74,14 +74,18 @@ final class FormattingTests: XCTestCase {
     // MARK: - Wind
 
     func testWindDescriptionCoversTheBeaufortBands() {
-        XCTAssertEqual(WeatherDetailsView.windDescription(0), "Light air")
-        XCTAssertEqual(WeatherDetailsView.windDescription(4.9), "Light air")
-        XCTAssertEqual(WeatherDetailsView.windDescription(5), "Light breeze")
-        XCTAssertEqual(WeatherDetailsView.windDescription(19.9), "Gentle breeze")
-        XCTAssertEqual(WeatherDetailsView.windDescription(20), "Moderate breeze")
-        XCTAssertEqual(WeatherDetailsView.windDescription(49.9), "Strong breeze")
-        XCTAssertEqual(WeatherDetailsView.windDescription(50), "High wind")
-        XCTAssertEqual(WeatherDetailsView.windDescription(120), "High wind")
+        func description(_ speed: Double) -> String {
+            String(localized: WeatherDetailsView.windDescription(speed))
+        }
+
+        XCTAssertEqual(description(0), "Light air")
+        XCTAssertEqual(description(4.9), "Light air")
+        XCTAssertEqual(description(5), "Light breeze")
+        XCTAssertEqual(description(19.9), "Gentle breeze")
+        XCTAssertEqual(description(20), "Moderate breeze")
+        XCTAssertEqual(description(49.9), "Strong breeze")
+        XCTAssertEqual(description(50), "High wind")
+        XCTAssertEqual(description(120), "High wind")
     }
 
     // MARK: - Local time

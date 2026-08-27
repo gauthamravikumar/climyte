@@ -45,14 +45,15 @@ enum WeatherCondition: String, Codable {
     case snowy
     case stormy
     
+    /// Shown to the user, so localized rather than the raw case name.
     var description: String {
         switch self {
-        case .sunny: return "Sunny"
-        case .cloudy: return "Cloudy"
-        case .foggy: return "Foggy"
-        case .rainy: return "Rainy"
-        case .snowy: return "Snowy"
-        case .stormy: return "Stormy"
+        case .sunny: return String(localized: "Sunny", comment: "Weather condition")
+        case .cloudy: return String(localized: "Cloudy", comment: "Weather condition")
+        case .foggy: return String(localized: "Foggy", comment: "Weather condition")
+        case .rainy: return String(localized: "Rainy", comment: "Weather condition")
+        case .snowy: return String(localized: "Snowy", comment: "Weather condition")
+        case .stormy: return String(localized: "Stormy", comment: "Weather condition")
         }
     }
     
@@ -148,7 +149,9 @@ struct CityWeather: Identifiable {
             let dateStr = response.daily.time[i]
             var dayLabel = dateStr
             if let date = dateParser.date(from: dateStr) {
-                dayLabel = cityCalendar.isDateInToday(date) ? "Today" : dayFormatter.string(from: date)
+                dayLabel = cityCalendar.isDateInToday(date)
+                    ? String(localized: "Today", comment: "Row label for today in the weekly forecast")
+                    : dayFormatter.string(from: date)
             }
             
             let forecast = DailyForecast(

@@ -77,10 +77,14 @@ struct StaleDataNotice: View {
         let minutes = Int(now.timeIntervalSince(date) / 60)
 
         switch minutes {
-        case ..<1: return "Showing readings from just now."
-        case ..<60: return "Showing readings from \(minutes)m ago."
-        case ..<(60 * 24): return "Showing readings from \(minutes / 60)h ago."
-        default: return "Showing readings from \(minutes / (60 * 24))d ago."
+        case ..<1:
+            return String(localized: "Showing readings from just now.")
+        case ..<60:
+            return String(localized: "Showing readings from \(minutes)m ago.")
+        case ..<(60 * 24):
+            return String(localized: "Showing readings from \(minutes / 60)h ago.")
+        default:
+            return String(localized: "Showing readings from \(minutes / (60 * 24))d ago.")
         }
     }
 }

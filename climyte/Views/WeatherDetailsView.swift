@@ -63,16 +63,17 @@ struct WeatherDetailsView: View {
     static func uvIndex(_ value: Double) -> String {
         let category: String
         switch value {
-        case ..<2.5: category = "Low"
-        case ..<5.5: category = "Mod"
-        case ..<7.5: category = "High"
-        case ..<10.5: category = "Very High"
-        default: category = "Extreme"
+        case ..<2.5: category = String(localized: "Low", comment: "UV index category")
+        case ..<5.5: category = String(localized: "Mod", comment: "UV index category, abbreviated 'Moderate'")
+        case ..<7.5: category = String(localized: "High", comment: "UV index category")
+        case ..<10.5: category = String(localized: "Very High", comment: "UV index category")
+        default: category = String(localized: "Extreme", comment: "UV index category")
         }
         return "\(Int(value.rounded())) \(category)"
     }
 
-    static func windDescription(_ speed: Double) -> String {
+    /// Beaufort-style description of the wind speed, in km/h.
+    static func windDescription(_ speed: Double) -> LocalizedStringResource {
         switch speed {
         case ..<5: return "Light air"
         case 5..<12: return "Light breeze"
@@ -91,9 +92,13 @@ struct WeatherDetailsView: View {
 /// mirror that so the pair frames the row.
 private struct DetailCell<Accessory: View>: View {
     let icon: String
-    let title: String
+    /// LocalizedStringResource rather than String or LocalizedStringKey:
+    /// `Text(String)` skips translation lookup entirely, and unlike a
+    /// LocalizedStringKey a resource can also be resolved back to a String
+    /// for the accessibility label below.
+    let title: LocalizedStringResource
     let value: String
-    var caption: String?
+    var caption: LocalizedStringResource?
     let alignment: HorizontalAlignment
     let theme: WeatherTheme
     @ViewBuilder var accessory: () -> Accessory
@@ -127,7 +132,13 @@ private struct DetailCell<Accessory: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title.capitalized), \(value)\(caption.map { ", \($0)" } ?? "")")
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        let heading = String(localized: title).capitalized
+        guard let caption else { return "\(heading), \(value)" }
+        return "\(heading), \(value), \(String(localized: caption))"
     }
 
     /// Shrinks rather than wrapping — "VISIBILITY" breaking to "VISIBILIT/Y"
@@ -141,7 +152,8 @@ private struct DetailCell<Accessory: View>: View {
 }
 
 extension DetailCell where Accessory == EmptyView {
-    init(icon: String, title: String, value: String, caption: String? = nil,
+    init(icon: String, title: LocalizedStringResource, value: String,
+         caption: LocalizedStringResource? = nil,
          alignment: HorizontalAlignment, theme: WeatherTheme) {
         self.init(icon: icon, title: title, value: value, caption: caption,
                   alignment: alignment, theme: theme) { EmptyView() }

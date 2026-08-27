@@ -316,16 +316,16 @@ class WeatherViewModel: ObservableObject {
         if let weatherError = error as? WeatherService.WeatherError {
             switch weatherError {
             case .offline:
-                return "No internet connection."
+                return String(localized: "No internet connection.")
             case .serverError:
-                return "The weather service is unavailable right now."
+                return String(localized: "The weather service is unavailable right now.")
             case .decodingError:
-                return "Couldn't read the weather data for \(city.name)."
+                return String(localized: "Couldn't read the weather data for \(city.name).")
             case .invalidURL, .networkError:
                 break
             }
         }
-        return "Couldn't load weather for \(city.name)."
+        return String(localized: "Couldn't load weather for \(city.name).")
     }
 
     // MARK: - Search
@@ -367,13 +367,13 @@ class WeatherViewModel: ObservableObject {
         if let weatherError = error as? WeatherService.WeatherError {
             switch weatherError {
             case .offline:
-                return "No internet connection."
+                return String(localized: "No internet connection.")
             case .serverError:
-                return "City search is unavailable right now."
+                return String(localized: "City search is unavailable right now.")
             case .decodingError, .invalidURL, .networkError:
                 break
             }
         }
-        return "Couldn't search for cities."
+        return String(localized: "Couldn't search for cities.")
     }
 }
