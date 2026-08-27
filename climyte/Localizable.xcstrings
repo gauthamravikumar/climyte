@@ -2,6 +2,17 @@
   "sourceLanguage": "en",
   "version": "1.0",
   "strings": {
+    "%@ over %lldh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ over %lldh"
+          }
+        }
+      }
+    },
     "%@ · feels %lld° cooler": {
       "extractionState": "manual",
       "localizations": {
@@ -64,6 +75,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld degrees, low %lld, high %lld"
+          }
+        }
+      }
+    },
+    "%lldm longer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldm longer"
+          }
+        }
+      }
+    },
+    "%lldm shorter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldm shorter"
           }
         }
       }
@@ -190,6 +223,28 @@
         }
       }
     },
+    "Daylight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daylight"
+          }
+        }
+      }
+    },
+    "Dry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dry"
+          }
+        }
+      }
+    },
     "Extreme": {
       "comment": "UV index category",
       "extractionState": "manual",
@@ -236,17 +291,6 @@
         }
       }
     },
-    "HUMIDITY": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "HUMIDITY"
-          }
-        }
-      }
-    },
     "High": {
       "comment": "UV index category",
       "extractionState": "manual",
@@ -266,6 +310,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "High wind"
+          }
+        }
+      }
+    },
+    "Humid": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Humid"
           }
         }
       }
@@ -382,6 +437,17 @@
         }
       }
     },
+    "Rain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rain"
+          }
+        }
+      }
+    },
     "Rainy": {
       "comment": "Weather condition",
       "extractionState": "manual",
@@ -390,28 +456,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rainy"
-          }
-        }
-      }
-    },
-    "SUNRISE": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SUNRISE"
-          }
-        }
-      }
-    },
-    "SUNSET": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SUNSET"
           }
         }
       }
@@ -518,6 +562,28 @@
         }
       }
     },
+    "Sunrise": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunrise"
+          }
+        }
+      }
+    },
+    "Sunset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunset"
+          }
+        }
+      }
+    },
     "The weather service is unavailable right now.": {
       "extractionState": "manual",
       "localizations": {
@@ -563,24 +629,13 @@
         }
       }
     },
-    "UV INDEX": {
+    "UV": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "UV INDEX"
-          }
-        }
-      }
-    },
-    "VISIBILITY": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VISIBILITY"
+            "value": "UV"
           }
         }
       }
@@ -597,13 +652,46 @@
         }
       }
     },
-    "WIND": {
+    "Visibility": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "WIND"
+            "value": "Visibility"
+          }
+        }
+      }
+    },
+    "Wind": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wind"
+          }
+        }
+      }
+    },
+    "dew point %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dew point %@"
+          }
+        }
+      }
+    },
+    "gusts %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gusts %@"
           }
         }
       }

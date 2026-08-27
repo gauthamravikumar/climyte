@@ -51,8 +51,9 @@ extension Font {
     static let weekColumnLow = manrope(.medium, 12, relativeTo: .caption2)
     static let weekColumnDay = manrope(.medium, 12, relativeTo: .caption2)
 
-    static let detailValue = manrope(.bold, 20, relativeTo: .title3)
-    static let detailCaption = manrope(.medium, 14, relativeTo: .caption)
+    static let detailRowLabel = manrope(.medium, 14, relativeTo: .subheadline)
+    static let detailRowValue = manrope(.bold, 16, relativeTo: .body)
+    static let detailRowCaption = manrope(.medium, 13, relativeTo: .caption)
 
     static let stateTitle = manrope(.bold, 20, relativeTo: .title3)
     static let stateBody = manrope(.regular, 16, relativeTo: .body)

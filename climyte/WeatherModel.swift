@@ -77,6 +77,14 @@ enum WeatherCondition: String, Codable {
     }
 }
 
+extension Array {
+    /// Index access that returns nil rather than trapping. The daily arrays are
+    /// parallel but the API does not guarantee they are the same length.
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
 // MARK: - App Domain Models
 struct City: Identifiable, Codable, Equatable {
     let id: UUID
@@ -114,6 +122,19 @@ struct CityWeather: Identifiable {
     let sunsetFormatted: String
     let visibility: Double
 
+    let dewPoint: Double
+    let windGusts: Double
+
+    /// Chance of precipitation today, 0-100. Nil when the API has no
+    /// probability for the day.
+    let precipitationChance: Int?
+    let precipitationAmount: Double?
+    let precipitationHours: Double?
+
+    let daylightSeconds: Double?
+    /// Today's daylight minus yesterday's. Nil when yesterday is unavailable.
+    let daylightChangeSeconds: Double?
+
     /// The response this was built from, retained so a successful fetch can be
     /// written to the cache and rebuilt later without a second parse.
     let response: WeatherResponse
@@ -147,10 +168,17 @@ struct CityWeather: Identifiable {
         dateParser.dateFormat = "yyyy-MM-dd"
         dateParser.timeZone = cityTimeZone
         
+        // The request asks for one past day so day length can be compared with
+        // yesterday, which means index 0 is *yesterday*, not today. Find today
+        // by date rather than assuming a position — that stays correct however
+        // many past days are requested.
+        let todayKey = dateParser.string(from: Date())
+        let todayIndex = response.daily.time.firstIndex(of: todayKey) ?? 0
+
         var dailyList: [DailyForecast] = []
         let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
         
-        for i in 0..<dailyCount {
+        for i in todayIndex..<dailyCount {
             let dateStr = response.daily.time[i]
             var dayLabel = dateStr
             if let date = dateParser.date(from: dateStr) {
@@ -169,26 +197,42 @@ struct CityWeather: Identifiable {
             dailyList.append(forecast)
         }
         self.dailyForecasts = dailyList
-        self.maxTemp = response.daily.temperature_2m_max.first ?? response.current.temperature_2m
-        self.minTemp = response.daily.temperature_2m_min.first ?? response.current.temperature_2m
+        self.maxTemp = response.daily.temperature_2m_max[safe: todayIndex] ?? response.current.temperature_2m
+        self.minTemp = response.daily.temperature_2m_min[safe: todayIndex] ?? response.current.temperature_2m
         
         self.humidity = Int(response.current.relative_humidity_2m)
+        self.dewPoint = response.current.dew_point_2m
+        self.windGusts = response.current.wind_gusts_10m
+
+        self.precipitationChance = response.daily.precipitation_probability_max[safe: todayIndex] ?? nil
+        self.precipitationAmount = response.daily.precipitation_sum[safe: todayIndex] ?? nil
+        self.precipitationHours = response.daily.precipitation_hours[safe: todayIndex] ?? nil
+
+        let daylightToday = response.daily.daylight_duration[safe: todayIndex] ?? nil
+        self.daylightSeconds = daylightToday
+        if let daylightToday,
+           todayIndex > 0,
+           let yesterday = response.daily.daylight_duration[safe: todayIndex - 1] ?? nil {
+            self.daylightChangeSeconds = daylightToday - yesterday
+        } else {
+            self.daylightChangeSeconds = nil
+        }
         self.windSpeed = response.current.wind_speed_10m
-        self.uvIndex = response.daily.uv_index_max.first ?? 0.0
+        self.uvIndex = response.daily.uv_index_max[safe: todayIndex] ?? 0.0
         self.visibility = response.current.visibility / 1000.0
         
         let sunTimeFormatter = DateFormatter()
         sunTimeFormatter.dateFormat = "h:mm a"
         sunTimeFormatter.timeZone = cityTimeZone
         
-        if let sunriseStr = response.daily.sunrise.first,
+        if let sunriseStr = response.daily.sunrise[safe: todayIndex],
            let sunriseDate = isoFormatter.date(from: sunriseStr) {
             self.sunriseFormatted = sunTimeFormatter.string(from: sunriseDate).lowercased()
         } else {
             self.sunriseFormatted = "--"
         }
         
-        if let sunsetStr = response.daily.sunset.first,
+        if let sunsetStr = response.daily.sunset[safe: todayIndex],
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.sunsetFormatted = sunTimeFormatter.string(from: sunsetDate).lowercased()
         } else {
@@ -196,8 +240,8 @@ struct CityWeather: Identifiable {
         }
         
         let now = Date()
-        if let sunriseStr = response.daily.sunrise.first,
-           let sunsetStr = response.daily.sunset.first,
+        if let sunriseStr = response.daily.sunrise[safe: todayIndex],
+           let sunsetStr = response.daily.sunset[safe: todayIndex],
            let sunriseDate = isoFormatter.date(from: sunriseStr),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.isNight = now < sunriseDate || now > sunsetDate
@@ -288,7 +332,9 @@ struct CurrentWeatherResponse: Codable {
     let is_day: Int
     let weather_code: Int
     let relative_humidity_2m: Double
+    let dew_point_2m: Double
     let wind_speed_10m: Double
+    let wind_gusts_10m: Double
     let visibility: Double
 }
 
@@ -306,6 +352,13 @@ struct DailyWeatherResponse: Codable {
     let sunrise: [String]
     let sunset: [String]
     let uv_index_max: [Double]
+
+    /// Open-Meteo returns null for these beyond its probability horizon, so
+    /// the elements are optional; a non-optional array fails the whole decode.
+    let precipitation_probability_max: [Int?]
+    let precipitation_sum: [Double?]
+    let precipitation_hours: [Double?]
+    let daylight_duration: [Double?]
 }
 
 struct WeatherTheme {

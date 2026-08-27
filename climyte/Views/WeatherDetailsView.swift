@@ -5,6 +5,11 @@
 
 import SwiftUI
 
+/// The details section: one row per thing worth saying.
+///
+/// Rows rather than a tile grid, because the number of details varies with the
+/// weather and a grid would orphan a cell on odd counts. Rows also let a value
+/// carry its full phrase — "9.5 mm over 7h" does not fit a tile.
 struct WeatherDetailsView: View {
     let weather: CityWeather
     let theme: WeatherTheme
@@ -13,49 +18,35 @@ struct WeatherDetailsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                DetailCell(icon: "sun.max", title: "SUNRISE", value: weather.sunriseFormatted,
-                           alignment: .leading, theme: theme)
-
-                Rectangle()
-                    .fill(theme.dividerColor)
-                    .frame(width: 1, height: 45)
-                    .padding(.horizontal, 16)
-
-                DetailCell(icon: "moon.fill", title: "SUNSET", value: weather.sunsetFormatted,
-                           alignment: .trailing, theme: theme)
+            ForEach(WeatherDetails.build(for: weather, units: units)) { detail in
+                row(detail)
+                ThemeDivider(theme: theme)
             }
-            .padding(.vertical, 18)
-
-            ThemeDivider(theme: theme)
-
-            HStack(alignment: .top) {
-                DetailCell(icon: "wind", title: "WIND",
-                           value: units.windSpeed(weather.windSpeed),
-                           caption: Self.windDescription(weather.windSpeed),
-                           alignment: .leading, theme: theme)
-
-                DetailCell(icon: "drop.fill", title: "HUMIDITY",
-                           value: "\(weather.humidity)%",
-                           alignment: .trailing, theme: theme) {
-                    HumidityBar(humidity: weather.humidity, theme: theme)
-                }
-            }
-            .padding(.vertical, 18)
-
-            ThemeDivider(theme: theme)
-
-            HStack {
-                DetailCell(icon: "sun.max", title: "UV INDEX",
-                           value: Self.uvIndex(weather.uvIndex),
-                           alignment: .leading, theme: theme)
-
-                DetailCell(icon: "eye", title: "VISIBILITY",
-                           value: units.visibility(weather.visibility),
-                           alignment: .trailing, theme: theme)
-            }
-            .padding(.vertical, 18)
         }
+    }
+
+    private func row(_ detail: WeatherDetail) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(detail.label)
+                .font(.detailRowLabel)
+                .foregroundColor(theme.secondaryText)
+
+            Spacer(minLength: 12)
+
+            Text(detail.value)
+                .font(.detailRowValue)
+                .foregroundColor(theme.primaryText)
+
+            if let caption = detail.caption {
+                Text(caption)
+                    .font(.detailRowCaption)
+                    .foregroundColor(theme.secondaryText)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.vertical, 13)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Formatting
@@ -83,100 +74,5 @@ struct WeatherDetailsView: View {
         case 39..<50: return "Strong breeze"
         default: return "High wind"
         }
-    }
-}
-
-// MARK: - Cell
-
-/// One labelled reading. Leading cells read icon-then-title; trailing cells
-/// mirror that so the pair frames the row.
-private struct DetailCell<Accessory: View>: View {
-    let icon: String
-    /// LocalizedStringResource rather than String or LocalizedStringKey:
-    /// `Text(String)` skips translation lookup entirely, and unlike a
-    /// LocalizedStringKey a resource can also be resolved back to a String
-    /// for the accessibility label below.
-    let title: LocalizedStringResource
-    let value: String
-    var caption: LocalizedStringResource?
-    let alignment: HorizontalAlignment
-    let theme: WeatherTheme
-    @ViewBuilder var accessory: () -> Accessory
-
-    var body: some View {
-        VStack(alignment: alignment, spacing: 8) {
-            HStack(spacing: 6) {
-                if alignment == .leading {
-                    Image(systemName: icon).font(.system(size: 14))
-                    heading
-                } else {
-                    heading
-                    Image(systemName: icon).font(.system(size: 14))
-                }
-            }
-            .foregroundColor(theme.secondaryText)
-
-            Text(value)
-                .font(.detailValue)
-                .foregroundColor(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-
-            if let caption {
-                Text(caption)
-                    .font(.detailCaption)
-                    .foregroundColor(theme.secondaryText)
-            }
-
-            accessory()
-        }
-        .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityDescription)
-    }
-
-    private var accessibilityDescription: String {
-        let heading = String(localized: title).capitalized
-        guard let caption else { return "\(heading), \(value)" }
-        return "\(heading), \(value), \(String(localized: caption))"
-    }
-
-    /// Shrinks rather than wrapping — "VISIBILITY" breaking to "VISIBILIT/Y"
-    /// at accessibility sizes looks broken.
-    private var heading: some View {
-        Text(title)
-            .font(.sectionHeading)
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-    }
-}
-
-extension DetailCell where Accessory == EmptyView {
-    init(icon: String, title: LocalizedStringResource, value: String,
-         caption: LocalizedStringResource? = nil,
-         alignment: HorizontalAlignment, theme: WeatherTheme) {
-        self.init(icon: icon, title: title, value: value, caption: caption,
-                  alignment: alignment, theme: theme) { EmptyView() }
-    }
-}
-
-// MARK: - Humidity
-
-private struct HumidityBar: View {
-    let humidity: Int
-    let theme: WeatherTheme
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(theme.dividerColor)
-                Capsule()
-                    .fill(theme.primaryText)
-                    .frame(width: geo.size.width * CGFloat(humidity) / 100.0)
-            }
-        }
-        .frame(width: 80, height: 4)
-        .padding(.top, 4)
-        .accessibilityHidden(true)
     }
 }

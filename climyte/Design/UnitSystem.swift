@@ -68,6 +68,15 @@ enum UnitSystem: String, Codable, CaseIterable {
         }
     }
 
+    func precipitation(_ millimetres: Double) -> String {
+        switch self {
+        case .metric:
+            return String(format: "%.1f mm", millimetres)
+        case .imperial:
+            return String(format: "%.2f in", millimetres / 25.4)
+        }
+    }
+
     func visibility(_ kilometres: Double) -> String {
         switch self {
         case .metric:

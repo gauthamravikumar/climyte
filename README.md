@@ -20,8 +20,10 @@ looking at — not the system appearance.
 - **Each city in its own units.** A US city shows Fahrenheit, everywhere else
   Celsius, derived from the city's ISO country code. There is no global setting
   and no toggle.
-- **Hourly and 7-day forecasts**, plus sunrise/sunset, wind, humidity, UV and
-  visibility.
+- **Hourly and 7-day forecasts**, plus a details section that shows only what
+  is worth saying: rain when it is likely, UV in daylight above the protection
+  threshold, visibility when it is actually poor, gusts when they exceed the
+  average. A wet afternoon shows more rows than a still, clear night.
 
 Weather data comes from [Open-Meteo](https://open-meteo.com), which needs no API
 key. Coordinates are sent to fetch a forecast and nothing else — see

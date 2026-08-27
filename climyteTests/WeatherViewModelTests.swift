@@ -360,13 +360,17 @@ final class WeatherViewModelTests: XCTestCase {
                 is_day: 1,
                 weather_code: 0,
                 relative_humidity_2m: 60.0,
+                dew_point_2m: 10.0,
                 wind_speed_10m: 12.0,
+                wind_gusts_10m: 14.0,
                 visibility: 10000.0
             ),
             hourly: HourlyWeatherResponse(time: [], temperature_2m: [], weather_code: []),
             daily: DailyWeatherResponse(
                 time: [], weather_code: [], temperature_2m_max: [],
-                temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: []
+                temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: [],
+                precipitation_probability_max: [], precipitation_sum: [],
+                precipitation_hours: [], daylight_duration: []
             )
         )
     }
