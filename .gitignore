@@ -1,7 +1,39 @@
+## macOS
 .DS_Store
+
+## Xcode per-user state
+# Window positions, breakpoints, scheme ordering — personal to one machine and
+# a constant source of noise in diffs. Shared schemes live in xcshareddata/,
+# which IS tracked so `xcodebuild -scheme climyte` works from a clean clone.
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+## Build products
+build/
+DerivedData/
+derivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+
+## Test output
+*.xcresult
+
+## Swift Package Manager
+.build/
+.swiftpm/
+
+## Signing — nothing here today, but these must never be committed
+*.mobileprovision
+*.p12
+*.cer
+
+## Tooling scratch
 .superpowers/
 module-cache/
 test_runner
-derivedData/
-build/
-*.xcuserstate
