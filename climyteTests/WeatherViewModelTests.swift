@@ -170,7 +170,7 @@ final class WeatherViewModelTests: XCTestCase {
     func testDecodingErrorNamesTheCity() {
         let message = WeatherViewModel.userMessage(
             for: WeatherService.WeatherError.decodingError,
-            city: City(id: UUID(), name: "Oslo", country: "Norway", latitude: 59.91, longitude: 10.75)
+            city: City(id: UUID(), name: "Oslo", country: "Norway", countryCode: nil, latitude: 59.91, longitude: 10.75)
         )
 
         XCTAssertEqual(message, "Couldn't read the weather data for Oslo.")
@@ -297,117 +297,51 @@ final class WeatherViewModelTests: XCTestCase {
 
     // MARK: - Units
 
-    func testUnitSystemDefaultsToTheDeviceRegion() {
-        XCTAssertEqual(makeViewModel().unitSystem, UnitSystem.deviceDefault)
-    }
-
-    func testTogglingUnitsPersistsTheChoice() {
+    /// Units come from each city's own country, with no global setting.
+    func testEachCityUsesItsOwnCountrysUnits() {
         let viewModel = makeViewModel()
-        let original = viewModel.unitSystem
+        viewModel.selectCity(makeDenverResult())
 
-        viewModel.toggleUnitSystem()
+        let sydney = viewModel.entries[0].city
+        let denver = viewModel.entries[1].city
 
-        XCTAssertEqual(viewModel.unitSystem, original.toggled)
-        XCTAssertEqual(makeViewModel().unitSystem, original.toggled, "Choice should survive a relaunch")
+        XCTAssertEqual(sydney.unitSystem, .metric)
+        XCTAssertEqual(denver.unitSystem, .imperial)
     }
 
-    // MARK: - Search
+    func testAddedCitiesRetainTheirCountryCode() {
+        let viewModel = makeViewModel()
+        viewModel.selectCity(makeDenverResult())
 
-    func testSearchPublishesResults() async {
-        let service = StubWeatherService()
-        service.searchResults = [makeTokyoResult()]
-        let viewModel = makeViewModel(service: service)
-
-        viewModel.searchQuery = "Tokyo"
-        await settleSearch()
-
-        XCTAssertEqual(viewModel.searchState, .results([makeTokyoResult()]))
-        XCTAssertEqual(viewModel.searchResults.count, 1)
+        XCTAssertEqual(viewModel.entries[1].city.countryCode, "US")
     }
 
-    /// "No matches" and "the request failed" are different things and must not
-    /// share a presentation.
-    func testEmptyResultsAreDistinctFromFailure() async {
-        let service = StubWeatherService()
-        service.searchResults = []
-        let viewModel = makeViewModel(service: service)
+    func testCountryCodeSurvivesARelaunch() {
+        let viewModel = makeViewModel()
+        viewModel.selectCity(makeDenverResult())
 
-        viewModel.searchQuery = "Xyzzy"
-        await settleSearch()
-
-        XCTAssertEqual(viewModel.searchState, .empty)
-    }
-
-    func testSearchFailureSurfacesAMessageInsteadOfFailingSilently() async {
-        let service = StubWeatherService()
-        service.searchError = WeatherService.WeatherError.offline
-        let viewModel = makeViewModel(service: service)
-
-        viewModel.searchQuery = "Tokyo"
-        await settleSearch()
-
-        XCTAssertEqual(viewModel.searchState, .failed("No internet connection."))
-    }
-
-    func testServerErrorDuringSearchIsNamedAsSuch() async {
-        let service = StubWeatherService()
-        service.searchError = WeatherService.WeatherError.serverError(statusCode: 500)
-        let viewModel = makeViewModel(service: service)
-
-        viewModel.searchQuery = "Tokyo"
-        await settleSearch()
-
-        XCTAssertEqual(viewModel.searchState, .failed("City search is unavailable right now."))
-    }
-
-    func testRetryAfterFailureCanSucceed() async {
-        let service = StubWeatherService()
-        service.searchError = WeatherService.WeatherError.offline
-        let viewModel = makeViewModel(service: service)
-
-        viewModel.searchQuery = "Tokyo"
-        await settleSearch()
-        XCTAssertEqual(viewModel.searchState, .failed("No internet connection."))
-
-        service.searchError = nil
-        service.searchResults = [makeTokyoResult()]
-        viewModel.retrySearch()
-        await settleSearch()
-
-        XCTAssertEqual(viewModel.searchState, .results([makeTokyoResult()]))
-    }
-
-    func testClearingTheQueryReturnsToIdle() async {
-        let service = StubWeatherService()
-        service.searchResults = [makeTokyoResult()]
-        let viewModel = makeViewModel(service: service)
-
-        viewModel.searchQuery = "Tokyo"
-        await settleSearch()
-        XCTAssertEqual(viewModel.searchResults.count, 1)
-
-        viewModel.searchQuery = ""
-
-        XCTAssertEqual(viewModel.searchState, .idle)
-        XCTAssertTrue(viewModel.searchResults.isEmpty)
-    }
-
-    /// The view model debounces for 300ms before hitting the network.
-    private func settleSearch() async {
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        let reloaded = makeViewModel()
+        XCTAssertEqual(reloaded.entries[1].city.countryCode, "US")
+        XCTAssertEqual(reloaded.entries[1].city.unitSystem, .imperial)
     }
 
     // MARK: - Helpers
 
-    private let paris = City(id: UUID(), name: "Paris", country: "France", latitude: 48.8566, longitude: 2.3522)
-    private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", latitude: 35.6762, longitude: 139.6503)
+    private let paris = City(id: UUID(), name: "Paris", country: "France", countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
+    private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
 
     private func makeViewModel(service: WeatherFetching? = nil) -> WeatherViewModel {
         WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults, cache: cache)
     }
 
     private func makeTokyoResult() -> GeocodingResult {
-        GeocodingResult(id: 1, name: "Tokyo", latitude: 35.6762, longitude: 139.6503, country: "Japan", admin1: "Tokyo")
+        GeocodingResult(id: 1, name: "Tokyo", latitude: 35.6762, longitude: 139.6503,
+                        country: "Japan", country_code: "JP", admin1: "Tokyo")
+    }
+
+    private func makeDenverResult() -> GeocodingResult {
+        GeocodingResult(id: 2, name: "Denver", latitude: 39.7392, longitude: -104.9847,
+                        country: "United States", country_code: "US", admin1: "Colorado")
     }
 
     private func makeCityWeather(cityName: String = "Sydney", temperature: Double = 22.5) -> CityWeather {

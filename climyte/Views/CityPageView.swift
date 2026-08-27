@@ -11,7 +11,6 @@ import SwiftUI
 struct CityPageView: View {
     let entry: CityEntry
     let theme: WeatherTheme
-    let onToggleUnits: () -> Void
     let onRefresh: () async -> Void
 
     var body: some View {
@@ -25,6 +24,9 @@ struct CityPageView: View {
         .refreshable {
             await onRefresh()
         }
+        // Each page shows its own city's units, so this is set per page
+        // rather than once for the whole app.
+        .environment(\.unitSystem, entry.city.unitSystem)
     }
 
     @ViewBuilder
@@ -61,8 +63,7 @@ struct CityPageView: View {
             CurrentConditionsView(
                 weather: weather,
                 theme: theme,
-                isUsingCurrentLocation: entry.isCurrentLocation,
-                onToggleUnits: onToggleUnits
+                isUsingCurrentLocation: entry.isCurrentLocation
             )
 
             ThemeDivider(theme: theme)

@@ -50,12 +50,6 @@ class WeatherViewModel: ObservableObject {
         }
     }
 
-    @Published var unitSystem: UnitSystem {
-        didSet {
-            defaults.set(unitSystem.rawValue, forKey: unitSystemKey)
-        }
-    }
-
     /// Convenience for callers that only care about the successful case.
     var searchResults: [GeocodingResult] {
         if case .results(let results) = searchState { return results }
@@ -69,7 +63,6 @@ class WeatherViewModel: ObservableObject {
     var canRemoveCities: Bool { entries.count > 1 }
 
     private let savedCitiesKey = "saved_cities"
-    private let unitSystemKey = "unit_system"
     private let service: WeatherFetching
     private let defaults: UserDefaults
     private let cache: WeatherCache
@@ -82,7 +75,7 @@ class WeatherViewModel: ObservableObject {
     let locationManager = LocationManager()
 
     static let defaultCity = City(
-        id: UUID(), name: "Sydney", country: "Australia",
+        id: UUID(), name: "Sydney", country: "Australia", countryCode: "AU",
         latitude: -33.8688, longitude: 151.2093
     )
 
@@ -97,7 +90,6 @@ class WeatherViewModel: ObservableObject {
         self.cache = cache ?? WeatherCache()
 
         let cities = Self.loadSavedCities(from: defaults, key: savedCitiesKey)
-        self.unitSystem = Self.loadUnitSystem(from: defaults, key: unitSystemKey)
 
         self.entries = cities.map { CityEntry(city: $0) }
         self.selectedCityKey = entries.first?.id ?? ""
@@ -123,14 +115,6 @@ class WeatherViewModel: ObservableObject {
         return [defaultCity]
     }
 
-    private static func loadUnitSystem(from defaults: UserDefaults, key: String) -> UnitSystem {
-        if let stored = defaults.string(forKey: key),
-           let system = UnitSystem(rawValue: stored) {
-            return system
-        }
-        return .deviceDefault
-    }
-
     private func saveCities() {
         if let encoded = try? JSONEncoder().encode(entries.map(\.city)) {
             defaults.set(encoded, forKey: savedCitiesKey)
@@ -149,16 +133,13 @@ class WeatherViewModel: ObservableObject {
 
     // MARK: - Cities
 
-    func toggleUnitSystem() {
-        unitSystem = unitSystem.toggled
-    }
-
     /// Adds a searched city, or selects it if already saved.
     func selectCity(_ result: GeocodingResult) {
         let newCity = City(
             id: UUID(),
             name: result.name,
             country: result.country ?? "",
+            countryCode: result.country_code,
             latitude: result.latitude,
             longitude: result.longitude
         )
@@ -306,6 +287,7 @@ class WeatherViewModel: ObservableObject {
             id: UUID(),
             name: geo.city,
             country: geo.country,
+            countryCode: geo.countryCode,
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude
         )

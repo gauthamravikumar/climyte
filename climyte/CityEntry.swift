@@ -14,6 +14,12 @@ extension City {
     var key: String {
         String(format: "%.4f,%.4f", latitude, longitude)
     }
+
+    /// Each city is shown in its own country's units. There is no global
+    /// setting and no override.
+    var unitSystem: UnitSystem {
+        UnitSystem.forCountry(code: countryCode, name: country)
+    }
 }
 
 /// One page in the app: a city and everything known about its weather.

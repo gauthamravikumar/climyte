@@ -15,8 +15,9 @@ looking at — not the system appearance.
 - **Works offline.** The last successful fetch for every saved city is cached,
   so a cold launch shows real data rather than a spinner, and a failed refresh
   says how old the readings on screen are.
-- **Metric or imperial.** Seeded from your region; tap the temperature to switch.
-  Conversion happens at display time, so it's instant and works offline.
+- **Each city in its own units.** A US city shows Fahrenheit, everywhere else
+  Celsius, derived from the city's ISO country code. There is no global setting
+  and no toggle.
 - **Hourly and 7-day forecasts**, plus sunrise/sunset, wind, humidity, UV and
   visibility.
 
@@ -82,8 +83,10 @@ Tools/
 - **Fetches are tokened per city**, and the write-back re-resolves its index
   after awaiting, because the array can be reordered or have a city removed
   while a request is in flight.
-- **Units convert at display time.** Asking the API for different units would
-  make switching a network round-trip and break it offline.
+- **Units come from the city, not the device.** Each `City` stores an ISO
+  country code and derives its own `UnitSystem`; the API is always asked for
+  metric and conversion happens at display time. Cities saved before the code
+  existed fall back to matching the country name.
 - **Font names are deliberately odd.** The bundled Manrope files report
   PostScript names like `ManropeExtraLight-Bold`; the type ramp in
   `Design/Typography.swift` matches the files, not the family. Re-downloading

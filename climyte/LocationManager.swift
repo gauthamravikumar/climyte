@@ -56,14 +56,14 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     /// Reverse geocode a location to get the city and country name.
-    func reverseGeocode(_ location: CLLocation) async -> (city: String, country: String)? {
+    func reverseGeocode(_ location: CLLocation) async -> (city: String, country: String, countryCode: String?)? {
         let geocoder = CLGeocoder()
         do {
             let placemarks = try await geocoder.reverseGeocodeLocation(location)
             if let placemark = placemarks.first {
                 let city = placemark.locality ?? placemark.name ?? "Unknown"
                 let country = placemark.country ?? ""
-                return (city: city, country: country)
+                return (city: city, country: country, countryCode: placemark.isoCountryCode)
             }
         } catch {
             Log.location.error("Reverse geocoding failed: \(error.localizedDescription)")

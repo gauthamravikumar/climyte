@@ -9,7 +9,6 @@ struct CurrentConditionsView: View {
     let weather: CityWeather
     let theme: WeatherTheme
     let isUsingCurrentLocation: Bool
-    let onToggleUnits: () -> Void
 
     @Environment(\.unitSystem) private var units
 
@@ -69,10 +68,6 @@ struct CurrentConditionsView: View {
             .foregroundColor(theme.secondaryText)
         }
         .padding(.vertical, -10)
-        // Tapping the temperature switches units — the app has no chrome to
-        // hang a control off, and this is the obvious target.
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onToggleUnits)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             """
@@ -81,8 +76,6 @@ struct CurrentConditionsView: View {
             low \(units.temperatureValue(weather.minTemp))
             """
         )
-        .accessibilityHint("Double tap to switch between Celsius and Fahrenheit")
-        .accessibilityAddTraits(.isButton)
     }
 
     private var summary: some View {

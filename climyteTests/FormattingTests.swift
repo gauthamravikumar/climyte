@@ -35,9 +35,48 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(UnitSystem.imperial.visibility(10), "6 mi")
     }
 
-    func testToggleFlipsBetweenSystems() {
-        XCTAssertEqual(UnitSystem.metric.toggled, .imperial)
-        XCTAssertEqual(UnitSystem.imperial.toggled, .metric)
+    // MARK: - Unit selection
+
+    func testFahrenheitCountriesUseImperial() {
+        XCTAssertEqual(UnitSystem.forCountry(code: "US", name: "United States"), .imperial)
+        XCTAssertEqual(UnitSystem.forCountry(code: "us", name: nil), .imperial, "Code match is case-insensitive")
+        XCTAssertEqual(UnitSystem.forCountry(code: "BZ", name: nil), .imperial)
+        XCTAssertEqual(UnitSystem.forCountry(code: "KY", name: nil), .imperial)
+    }
+
+    func testEverywhereElseUsesMetric() {
+        XCTAssertEqual(UnitSystem.forCountry(code: "AU", name: "Australia"), .metric)
+        XCTAssertEqual(UnitSystem.forCountry(code: "FR", name: "France"), .metric)
+        XCTAssertEqual(UnitSystem.forCountry(code: "GB", name: "United Kingdom"), .metric)
+        XCTAssertEqual(UnitSystem.forCountry(code: "JP", name: "Japan"), .metric)
+    }
+
+    /// Cities saved before the ISO code was stored decode without one; the
+    /// country name is the only thing left to go on.
+    func testFallsBackToCountryNameWhenNoCodeIsStored() {
+        XCTAssertEqual(UnitSystem.forCountry(code: nil, name: "United States"), .imperial)
+        XCTAssertEqual(UnitSystem.forCountry(code: nil, name: "France"), .metric)
+    }
+
+    /// A stored code wins outright — the name is not consulted, so a
+    /// mismatched pair can't flip a city to the wrong units.
+    func testAStoredCodeTakesPrecedenceOverTheName() {
+        XCTAssertEqual(UnitSystem.forCountry(code: "FR", name: "United States"), .metric)
+    }
+
+    func testUnknownCountryFallsBackToMetric() {
+        XCTAssertEqual(UnitSystem.forCountry(code: nil, name: nil), .metric)
+        XCTAssertEqual(UnitSystem.forCountry(code: "ZZ", name: "Nowhere"), .metric)
+    }
+
+    func testCityDerivesItsOwnUnits() {
+        let denver = City(id: UUID(), name: "Denver", country: "United States",
+                          countryCode: "US", latitude: 39.74, longitude: -104.98)
+        let paris = City(id: UUID(), name: "Paris", country: "France",
+                         countryCode: "FR", latitude: 48.85, longitude: 2.35)
+
+        XCTAssertEqual(denver.unitSystem, .imperial)
+        XCTAssertEqual(paris.unitSystem, .metric)
     }
 
     // MARK: - Stale data age

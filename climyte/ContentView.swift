@@ -45,7 +45,6 @@ struct ContentView: View {
                 }
             }
         }
-        .environment(\.unitSystem, viewModel.unitSystem)
         .task {
             await viewModel.loadWeatherOnLaunch()
         }
@@ -92,7 +91,6 @@ struct ContentView: View {
                     CityPageView(
                         entry: entry,
                         theme: theme,
-                        onToggleUnits: viewModel.toggleUnitSystem,
                         onRefresh: { await viewModel.refresh(cityKey: entry.id) }
                     )
                     .tag(entry.id)

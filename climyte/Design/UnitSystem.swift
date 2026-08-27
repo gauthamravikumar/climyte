@@ -13,17 +13,39 @@ enum UnitSystem: String, Codable, CaseIterable {
     case metric
     case imperial
 
-    /// Seeds the initial choice from the device's region.
+    /// The countries that report temperature in Fahrenheit. Everywhere else
+    /// uses Celsius, so metric is the default rather than a guess.
+    private static let fahrenheitCountryCodes: Set<String> = [
+        "US", // United States
+        "BS", // Bahamas
+        "BZ", // Belize
+        "KY", // Cayman Islands
+        "PW", // Palau
+        "FM", // Micronesia
+        "MH", // Marshall Islands
+        "LR", // Liberia
+    ]
+
+    /// Country names for the same set, used only for cities saved before the
+    /// ISO code was stored. New cities always carry a code.
+    private static let fahrenheitCountryNames: Set<String> = [
+        "United States", "Bahamas", "Belize", "Cayman Islands",
+        "Palau", "Micronesia", "Marshall Islands", "Liberia",
+    ]
+
+    /// Picks units from the country a city is in, not from the device.
     ///
     /// Note: the UK is treated as metric, which is right for temperature but
-    /// not for wind and distance. Splitting it out would mean a third state,
-    /// which the tap-to-toggle gesture can't express cleanly.
-    static var deviceDefault: UnitSystem {
-        Locale.current.measurementSystem == .us ? .imperial : .metric
-    }
-
-    var toggled: UnitSystem {
-        self == .metric ? .imperial : .metric
+    /// not for wind and distance. Splitting it out would need a third system
+    /// for one country's mixed conventions.
+    static func forCountry(code: String?, name: String?) -> UnitSystem {
+        if let code, fahrenheitCountryCodes.contains(code.uppercased()) {
+            return .imperial
+        }
+        if code == nil, let name, fahrenheitCountryNames.contains(name) {
+            return .imperial
+        }
+        return .metric
     }
 
     // MARK: - Conversion

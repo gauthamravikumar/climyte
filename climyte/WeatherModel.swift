@@ -82,6 +82,11 @@ struct City: Identifiable, Codable, Equatable {
     let id: UUID
     let name: String
     let country: String
+
+    /// ISO 3166-1 alpha-2, used to pick the city's units. Optional because
+    /// cities saved before this existed decode without one.
+    var countryCode: String?
+
     let latitude: Double
     let longitude: Double
     
@@ -263,6 +268,7 @@ struct GeocodingResult: Decodable, Identifiable, Equatable {
     let latitude: Double
     let longitude: Double
     let country: String?
+    let country_code: String?
     let admin1: String?
 }
 

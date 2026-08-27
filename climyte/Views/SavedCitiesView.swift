@@ -17,8 +17,6 @@ struct SavedCitiesView: View {
     let onSelect: (CityEntry) -> Void
     let onDelete: (IndexSet) -> Void
 
-    @Environment(\.unitSystem) private var units
-
     var body: some View {
         List {
             ForEach(entries) { entry in
@@ -56,7 +54,9 @@ struct SavedCitiesView: View {
             Spacer()
 
             if let weather = entry.weather {
-                Text(units.temperature(weather.temperature))
+                // Per row, not from the environment: each city in this list
+                // may be shown in different units.
+                Text(entry.city.unitSystem.temperature(weather.temperature))
                     .font(.searchResultCity)
                     .foregroundColor(theme.primaryText)
             }
