@@ -124,13 +124,13 @@ enum WeatherDetails {
         return String(localized: "\(units.precipitation(amount)) over \(Int(hours))h")
     }
 
-    static func duration(_ seconds: Double) -> String {
+    nonisolated static func duration(_ seconds: Double) -> String {
         let total = Int(seconds.rounded())
         return "\(total / 3600)h \((total % 3600) / 60)m"
     }
 
     /// Under a minute either way is not worth reporting as a change.
-    static func daylightChange(_ seconds: Double) -> String? {
+    nonisolated static func daylightChange(_ seconds: Double) -> String? {
         let minutes = Int((seconds / 60).rounded())
         guard minutes != 0 else { return nil }
         return minutes > 0
