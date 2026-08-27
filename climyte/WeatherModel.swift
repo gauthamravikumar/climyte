@@ -254,7 +254,7 @@ struct GeocodingResponse: Decodable {
     let results: [GeocodingResult]?
 }
 
-struct GeocodingResult: Decodable, Identifiable {
+struct GeocodingResult: Decodable, Identifiable, Equatable {
     let id: Int
     let name: String
     let latitude: Double

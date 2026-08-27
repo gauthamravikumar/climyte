@@ -18,10 +18,25 @@ protocol WeatherFetching {
 
 extension WeatherService: WeatherFetching {}
 
+/// The four things the search field can be showing. Modelling these explicitly
+/// keeps "no matches" from standing in for "the request failed".
+enum SearchState: Equatable {
+    case idle
+    case loading
+    case results([GeocodingResult])
+    case empty
+    case failed(String)
+}
+
 @MainActor
 class WeatherViewModel: ObservableObject {
     @Published var activeWeather: CityWeather?
-    @Published var searchResults: [GeocodingResult] = []
+
+    /// What the search field should be showing. A single state replaces the
+    /// old results array, which couldn't distinguish "no matches" from
+    /// "the request failed" from "still typing".
+    @Published private(set) var searchState: SearchState = .idle
+
     @Published var searchQuery: String = "" {
         didSet {
             performSearch()
@@ -30,6 +45,12 @@ class WeatherViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var isUsingCurrentLocation: Bool = false
+
+    /// Convenience for callers that only care about the successful case.
+    var searchResults: [GeocodingResult] {
+        if case .results(let results) = searchState { return results }
+        return []
+    }
 
     /// When the displayed reading was fetched — may predate this launch, since
     /// cached weather is shown before the network answers.
@@ -141,7 +162,6 @@ class WeatherViewModel: ObservableObject {
 
         // Clear search
         searchQuery = ""
-        searchResults = []
 
         Task { await self.fetchWeatherForActiveCity() }
     }
@@ -212,9 +232,11 @@ class WeatherViewModel: ObservableObject {
 
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            searchResults = []
+            searchState = .idle
             return
         }
+
+        searchState = .loading
 
         searchTask = Task {
             // Debounce for 300ms
@@ -223,12 +245,32 @@ class WeatherViewModel: ObservableObject {
 
             do {
                 let results = try await service.searchCities(query: query)
-                if !Task.isCancelled {
-                    self.searchResults = results
-                }
+                if Task.isCancelled { return }
+                searchState = results.isEmpty ? .empty : .results(results)
             } catch {
+                if Task.isCancelled { return }
                 Log.weather.error("City search failed: \(error.localizedDescription)")
+                searchState = .failed(Self.searchErrorMessage(for: error))
             }
         }
+    }
+
+    /// Re-runs the last search. Bound to the retry button on the failure state.
+    func retrySearch() {
+        performSearch()
+    }
+
+    static func searchErrorMessage(for error: Error) -> String {
+        if let weatherError = error as? WeatherService.WeatherError {
+            switch weatherError {
+            case .offline:
+                return "No internet connection."
+            case .serverError:
+                return "City search is unavailable right now."
+            case .decodingError, .invalidURL, .networkError:
+                break
+            }
+        }
+        return "Couldn't search for cities."
     }
 }

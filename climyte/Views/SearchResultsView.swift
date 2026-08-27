@@ -6,32 +6,47 @@
 import SwiftUI
 
 struct SearchResultsView: View {
-    let results: [GeocodingResult]
+    let state: SearchState
     let theme: WeatherTheme
     let onSelect: (GeocodingResult) -> Void
+    let onRetry: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            if results.isEmpty {
-                noMatches
-            } else {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(results) { result in
-                            Button {
-                                onSelect(result)
-                            } label: {
-                                row(for: result)
-                            }
+            switch state {
+            case .idle, .loading:
+                // Nothing yet. Staying blank avoids flashing "No matches" at
+                // someone who is still typing.
+                Color.clear.frame(height: 1)
 
-                            ThemeDivider(theme: theme)
-                        }
-                    }
-                }
-                .frame(maxHeight: 400)
+            case .results(let results):
+                list(results)
+
+            case .empty:
+                message(icon: "mappin.slash", title: "No matches")
+
+            case .failed(let reason):
+                failure(reason)
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    private func list(_ results: [GeocodingResult]) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(results) { result in
+                    Button {
+                        onSelect(result)
+                    } label: {
+                        row(for: result)
+                    }
+
+                    ThemeDivider(theme: theme)
+                }
+            }
+        }
+        .frame(maxHeight: 400)
     }
 
     private func row(for result: GeocodingResult) -> some View {
@@ -48,6 +63,7 @@ struct SearchResultsView: View {
         }
         .padding(.vertical, 18)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 
     private func region(for result: GeocodingResult) -> String {
@@ -56,14 +72,39 @@ struct SearchResultsView: View {
             .joined(separator: ", ")
     }
 
-    private var noMatches: some View {
+    private func failure(_ reason: String) -> some View {
         VStack(spacing: 12) {
-            Image(systemName: "mappin.slash")
+            Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 24))
                 .foregroundColor(theme.secondaryText)
                 .accessibilityHidden(true)
 
-            Text("No matches")
+            Text(reason)
+                .font(.searchResultCity)
+                .foregroundColor(theme.secondaryText)
+                .multilineTextAlignment(.center)
+
+            Button(action: onRetry) {
+                Text("Try again")
+                    .font(.searchResultRegion)
+                    .foregroundColor(theme.primaryText)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .overlay(Capsule().stroke(theme.dividerColor, lineWidth: 1))
+            }
+        }
+        .padding(.vertical, 40)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func message(icon: String, title: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 24))
+                .foregroundColor(theme.secondaryText)
+                .accessibilityHidden(true)
+
+            Text(title)
                 .font(.searchResultCity)
                 .foregroundColor(theme.secondaryText)
         }

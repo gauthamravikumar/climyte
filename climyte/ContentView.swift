@@ -48,14 +48,15 @@ struct ContentView: View {
     private var content: some View {
         if isSearching && !viewModel.searchQuery.isEmpty {
             SearchResultsView(
-                results: viewModel.searchResults,
+                state: viewModel.searchState,
                 theme: theme,
                 onSelect: { result in
                     withAnimation {
                         viewModel.selectCity(result)
                         isSearching = false
                     }
-                }
+                },
+                onRetry: viewModel.retrySearch
             )
             .transition(.opacity.combined(with: .move(edge: .top)))
         } else if viewModel.isLoading && viewModel.activeWeather == nil {

@@ -59,7 +59,6 @@ final class WeatherViewModelTests: XCTestCase {
     func testSelectCityUpdatesActiveCityAndClearsSearch() {
         let viewModel = makeViewModel()
         viewModel.searchQuery = "Tokyo"
-        viewModel.searchResults = [makeTokyoResult()]
 
         viewModel.selectCity(makeTokyoResult())
 
@@ -69,6 +68,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.activeCity.longitude, 139.6503)
         XCTAssertEqual(viewModel.searchQuery, "")
         XCTAssertTrue(viewModel.searchResults.isEmpty)
+        XCTAssertEqual(viewModel.searchState, .idle)
         XCTAssertFalse(viewModel.isUsingCurrentLocation)
     }
 
@@ -228,6 +228,92 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(makeViewModel().unitSystem, original.toggled, "Choice should survive a relaunch")
     }
 
+    // MARK: - Search
+
+    func testSearchPublishesResults() async {
+        let service = StubWeatherService()
+        service.searchResults = [makeTokyoResult()]
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Tokyo"
+        await settleSearch()
+
+        XCTAssertEqual(viewModel.searchState, .results([makeTokyoResult()]))
+        XCTAssertEqual(viewModel.searchResults.count, 1)
+    }
+
+    /// "No matches" and "the request failed" are different things and must not
+    /// share a presentation.
+    func testEmptyResultsAreDistinctFromFailure() async {
+        let service = StubWeatherService()
+        service.searchResults = []
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Xyzzy"
+        await settleSearch()
+
+        XCTAssertEqual(viewModel.searchState, .empty)
+    }
+
+    func testSearchFailureSurfacesAMessageInsteadOfFailingSilently() async {
+        let service = StubWeatherService()
+        service.searchError = WeatherService.WeatherError.offline
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Tokyo"
+        await settleSearch()
+
+        XCTAssertEqual(viewModel.searchState, .failed("No internet connection."))
+    }
+
+    func testServerErrorDuringSearchIsNamedAsSuch() async {
+        let service = StubWeatherService()
+        service.searchError = WeatherService.WeatherError.serverError(statusCode: 500)
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Tokyo"
+        await settleSearch()
+
+        XCTAssertEqual(viewModel.searchState, .failed("City search is unavailable right now."))
+    }
+
+    func testRetryAfterFailureCanSucceed() async {
+        let service = StubWeatherService()
+        service.searchError = WeatherService.WeatherError.offline
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Tokyo"
+        await settleSearch()
+        XCTAssertEqual(viewModel.searchState, .failed("No internet connection."))
+
+        service.searchError = nil
+        service.searchResults = [makeTokyoResult()]
+        viewModel.retrySearch()
+        await settleSearch()
+
+        XCTAssertEqual(viewModel.searchState, .results([makeTokyoResult()]))
+    }
+
+    func testClearingTheQueryReturnsToIdle() async {
+        let service = StubWeatherService()
+        service.searchResults = [makeTokyoResult()]
+        let viewModel = makeViewModel(service: service)
+
+        viewModel.searchQuery = "Tokyo"
+        await settleSearch()
+        XCTAssertEqual(viewModel.searchResults.count, 1)
+
+        viewModel.searchQuery = ""
+
+        XCTAssertEqual(viewModel.searchState, .idle)
+        XCTAssertTrue(viewModel.searchResults.isEmpty)
+    }
+
+    /// The view model debounces for 300ms before hitting the network.
+    private func settleSearch() async {
+        try? await Task.sleep(nanoseconds: 500_000_000)
+    }
+
     // MARK: - Helpers
 
     private func makeViewModel(service: WeatherFetching? = nil) -> WeatherViewModel {
@@ -271,6 +357,7 @@ final class WeatherViewModelTests: XCTestCase {
 private final class StubWeatherService: WeatherFetching {
     var result: Result<CityWeather, Error>?
     var searchResults: [GeocodingResult] = []
+    var searchError: Error?
     var delayNanoseconds: UInt64 = 0
 
     func fetchWeather(for city: City) async throws -> CityWeather {
@@ -289,7 +376,8 @@ private final class StubWeatherService: WeatherFetching {
     }
 
     func searchCities(query: String) async throws -> [GeocodingResult] {
-        searchResults
+        if let searchError { throw searchError }
+        return searchResults
     }
 }
 
