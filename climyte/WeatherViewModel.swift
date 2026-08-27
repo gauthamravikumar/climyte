@@ -244,18 +244,36 @@ class WeatherViewModel: ObservableObject {
         return next
     }
 
-    /// Fetches one city, writing the result back into its entry. Safe to call
-    /// concurrently for different cities; a superseded fetch for the same city
-    /// discards its own result.
+    /// Fetches one city, writing the result back into its entry.
+    ///
+    /// The work runs in an unstructured task so it outlives whichever view
+    /// asked for it. `.refreshable` runs its closure in a task tied to the
+    /// refresh control, and the first thing a fetch does is set `isLoading`,
+    /// which republishes `entries`, rebuilds the `ForEach` inside the
+    /// `TabView` and tears that task down — cancelling the very request it
+    /// was awaiting. An unstructured task does not inherit that cancellation.
+    ///
+    /// Deliberately does not de-duplicate concurrent refreshes of one city:
+    /// joining an in-flight request would hand back a result fetched under
+    /// earlier conditions. `fetchToken` already discards superseded results.
     func refresh(cityKey: String) async {
         guard let startIndex = index(of: cityKey) else { return }
 
+        // Claim the token and mark loading synchronously, before the task hop.
+        // Two refreshes of one city must be ordered by when they were asked
+        // for, not by when their tasks happen to get scheduled — otherwise a
+        // background refresh started earlier can claim the higher token and
+        // overwrite the result of a later, more deliberate one.
         let city = entries[startIndex].city
         let token = nextFetchToken(for: cityKey)
 
         entries[startIndex].isLoading = true
         entries[startIndex].errorMessage = nil
 
+        await Task { await self.performRefresh(city: city, cityKey: cityKey, token: token) }.value
+    }
+
+    private func performRefresh(city: City, cityKey: String, token: Int) async {
         do {
             let weather = try await service.fetchWeather(for: city)
             guard fetchTokens[cityKey] == token, let i = index(of: cityKey) else { return }

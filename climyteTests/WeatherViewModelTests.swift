@@ -177,10 +177,13 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// One city failing must not blank out another city's page.
-    func testAFailureOnOneCityDoesNotAffectAnother() async {
+    func testAFailureOnOneCityDoesNotAffectAnother() async throws {
+        // Seeded through persistence rather than selectCity, which kicks off a
+        // background refresh whose timing would race the assertions below.
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+
         let service = StubWeatherService()
         let viewModel = makeViewModel(service: service)
-        viewModel.selectCity(makeTokyoResult())
 
         service.result = .success(makeCityWeather(temperature: 21))
         await viewModel.refresh(cityKey: viewModel.entries[0].id)
@@ -270,6 +273,29 @@ final class WeatherViewModelTests: XCTestCase {
                       "Expected an ungrouped code in: \(message)")
         XCTAssertFalse(message.contains(","),
                        "An error code must not be thousands-separated: \(message)")
+    }
+
+    /// `.refreshable` runs its closure in a task tied to the refresh control.
+    /// The first thing a fetch does is set isLoading, which republishes
+    /// `entries`, rebuilds the ForEach inside the TabView and tears that task
+    /// down — cancelling the request it was awaiting, so pull-to-refresh
+    /// always failed with URLError -999. The work must outlive its caller.
+    func testRefreshSurvivesCancellationOfTheCallingTask() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather(temperature: 30))
+        service.delayNanoseconds = 200_000_000
+        let viewModel = makeViewModel(service: service)
+        let key = viewModel.entries[0].id
+
+        let caller = Task { await viewModel.refresh(cityKey: key) }
+        try? await Task.sleep(nanoseconds: 30_000_000)
+        caller.cancel()
+        await caller.value
+
+        XCTAssertEqual(viewModel.entries[0].weather?.temperature, 30,
+                       "The fetch must complete despite its caller being cancelled")
+        XCTAssertNil(viewModel.entries[0].errorMessage,
+                     "A cancelled caller must not surface as a failure to the user")
     }
 
     // MARK: - Caching
@@ -420,11 +446,17 @@ private final class StubWeatherService: WeatherFetching {
     var searchResults: [GeocodingResult] = []
     var searchError: Error?
     var delayNanoseconds: UInt64 = 0
+    private(set) var fetchCount = 0
 
     func fetchWeather(for city: City) async throws -> CityWeather {
         if delayNanoseconds > 0 {
-            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            // Not `try?`: URLSession throws URLError.cancelled when its task
+            // is cancelled, and a stub that swallows cancellation cannot
+            // reproduce the bug this models.
+            try await Task.sleep(nanoseconds: delayNanoseconds)
         }
+        try Task.checkCancellation()
+        fetchCount += 1
 
         switch result {
         case .success(let weather):
