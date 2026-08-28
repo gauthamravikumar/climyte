@@ -11,6 +11,20 @@ struct ContentView: View {
     @StateObject private var viewModel = WeatherViewModel()
     @State private var isSearching = false
 
+    /// The theme change is a half-second crossfade of the entire screen
+    /// between near-white and near-black. That is exactly the kind of
+    /// large-area luminance flash Reduce Motion exists to suppress, and it
+    /// fires on every swipe between a daytime and a night-time city.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var themeAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.5)
+    }
+
+    private var transitionAnimation: Animation? {
+        reduceMotion ? nil : .default
+    }
+
     /// The theme follows whichever city is on screen, so swiping from a
     /// daytime city to a night-time one inverts the whole app.
     private var theme: WeatherTheme {
@@ -21,7 +35,7 @@ struct ContentView: View {
         ZStack {
             theme.background
                 .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.5), value: theme.background)
+                .animation(themeAnimation, value: theme.background)
 
             VStack(spacing: 16) {
                 SearchBarView(
@@ -56,7 +70,7 @@ struct ContentView: View {
                 theme: theme,
                 canRemove: viewModel.canRemoveCities,
                 onSelect: { entry in
-                    withAnimation {
+                    withAnimation(transitionAnimation) {
                         viewModel.selectEntry(entry)
                         isSearching = false
                     }
@@ -69,14 +83,15 @@ struct ContentView: View {
                 state: viewModel.searchState,
                 theme: theme,
                 onSelect: { result in
-                    withAnimation {
+                    withAnimation(transitionAnimation) {
                         viewModel.selectCity(result)
                         isSearching = false
                     }
                 },
                 onRetry: viewModel.retrySearch
             )
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            // Reduce Motion keeps the fade and drops the positional slide.
+            .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
         }
     }
 
@@ -100,7 +115,7 @@ struct ContentView: View {
                     selectedKey: viewModel.selectedCityKey,
                     theme: theme,
                     onSelect: { entry in
-                        withAnimation { viewModel.selectEntry(entry) }
+                        withAnimation(transitionAnimation) { viewModel.selectEntry(entry) }
                     }
                 )
             }

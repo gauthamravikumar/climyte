@@ -12,6 +12,9 @@ struct CurrentConditionsView: View {
 
     @Environment(\.unitSystem) private var units
 
+    /// Separates the city from the clock, and grows with the type ramp.
+    @ScaledMetric(relativeTo: .title) private var headerGap: CGFloat = 12
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             header
@@ -35,9 +38,16 @@ struct CurrentConditionsView: View {
                     .foregroundColor(theme.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                    // The page's identifier outranks the clock beside it. With
+                    // the priority the other way round, a long name truncated
+                    // to "Bandar Se…" at accessibility sizes so a secondary
+                    // reading could stay full size.
+                    .layoutPriority(1)
             }
 
-            Spacer(minLength: 8)
+            // Scales with the text, so the gap never collapses to the width of
+            // a letter space and read as one run: "Sydney5:40 pm".
+            Spacer(minLength: headerGap)
 
             // Re-renders every minute so the city's local time stays honest.
             TimelineView(.everyMinute) { context in
@@ -46,8 +56,12 @@ struct CurrentConditionsView: View {
                     .foregroundColor(theme.secondaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
-                    .layoutPriority(1)
+                    // accessibilityLabel replaces a Text's content, so naming
+                    // the element here without a value would leave the time
+                    // itself unspoken — the one thing this element exists for.
                     .accessibilityLabel("Local time in \(weather.city.name)")
+                    .accessibilityValue(Self.localTime(at: context.date,
+                                                       utcOffsetSeconds: weather.utcOffsetSeconds))
             }
         }
     }

@@ -16,6 +16,8 @@ struct CityNameStrip: View {
     let theme: WeatherTheme
     let onSelect: (CityEntry) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -36,7 +38,9 @@ struct CityNameStrip: View {
             // Keep the current city in view when it changes by swipe as well
             // as by tap, otherwise the strip and the page disagree.
             .onChange(of: selectedKey) { _, key in
-                withAnimation(.easeInOut(duration: 0.25)) {
+                // Unrequested auto-scroll: jump rather than glide when the
+                // reader has asked for less motion.
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                     proxy.scrollTo(key, anchor: .center)
                 }
             }
@@ -63,6 +67,10 @@ struct CityNameStrip: View {
         }
         .foregroundColor(isSelected ? theme.primaryText : theme.secondaryText)
         .opacity(isSelected ? 1 : 0.55)
+        // Without a minimum the target is only as wide as the name, so short
+        // ones like "Oslo" fell well under 44pt and the gaps between entries
+        // were dead space rather than shared target area.
+        .frame(minWidth: 44, minHeight: 44)
         .contentShape(Rectangle())
         .accessibilityLabel(entry.city.name)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)

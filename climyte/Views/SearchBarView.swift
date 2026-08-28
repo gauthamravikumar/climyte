@@ -12,6 +12,8 @@ struct SearchBarView: View {
 
     @FocusState private var isFocused: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
@@ -20,10 +22,24 @@ struct SearchBarView: View {
                     .font(.system(size: 16))
                     .accessibilityHidden(true)
 
-                TextField("Search city", text: $query)
+                TextField("", text: $query)
                     .focused($isFocused)
                     .font(.searchField)
                     .foregroundColor(theme.primaryText)
+                    // The built-in placeholder takes its colour from the
+                    // device's light/dark appearance rather than from the
+                    // theme, so on a night-themed city it rendered near-black
+                    // on near-black — measured at 1.13:1. Drawing it here ties
+                    // it to the same palette as everything else on screen.
+                    .overlay(alignment: .leading) {
+                        if query.isEmpty {
+                            Text("Search city")
+                                .font(.searchField)
+                                .foregroundColor(theme.secondaryText)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .accessibilityLabel("Search city")
                     .accentColor(theme.primaryText)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.words)
@@ -36,6 +52,11 @@ struct SearchBarView: View {
                         Image(systemName: "xmark")
                             .foregroundColor(theme.secondaryText)
                             .font(.system(size: 16, weight: .medium))
+                            // A 16pt glyph is roughly 13pt of actual ink. The
+                            // frame and hit shape give it the 44pt target the
+                            // glyph alone never had.
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Clear search")
                 }
@@ -55,7 +76,7 @@ struct SearchBarView: View {
         }
         .padding(.horizontal, 4)
         .onChange(of: isFocused) { _, focused in
-            withAnimation { isSearching = focused }
+            withAnimation(reduceMotion ? nil : .default) { isSearching = focused }
         }
         // The parent dismisses search by setting the binding (after picking a
         // city, say). Without this, focus stays on the field while isSearching
