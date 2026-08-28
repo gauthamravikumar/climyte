@@ -62,7 +62,8 @@ class WeatherViewModel: ObservableObject {
 
     var canRemoveCities: Bool { entries.count > 1 }
 
-    private let savedCitiesKey = "saved_cities"
+    private static let savedCitiesKeyName = "saved_cities"
+    private let savedCitiesKey = savedCitiesKeyName
     private let service: WeatherFetching
     private let defaults: UserDefaults
     private let cache: WeatherCache
@@ -82,9 +83,19 @@ class WeatherViewModel: ObservableObject {
     /// `service` defaults to the shared instance. It is resolved inside the
     /// initialiser rather than as a default argument, because default arguments
     /// are evaluated in a nonisolated context.
+    /// `legacyDefaults` is where pre-App-Group data is migrated from. It is
+    /// injectable because it defaults to `UserDefaults.standard`, which under
+    /// test is the host app's own storage — reading it unconditionally would
+    /// pull real cities into every isolated test suite.
     init(service: WeatherFetching? = nil,
-         defaults: UserDefaults = .standard,
-         cache: WeatherCache? = nil) {
+         defaults: UserDefaults? = nil,
+         cache: WeatherCache? = nil,
+         legacyDefaults: UserDefaults? = nil) {
+        let defaults = defaults ?? AppGroup.defaults
+        Self.migrateIfNeeded(from: legacyDefaults ?? .standard,
+                             into: defaults,
+                             key: Self.savedCitiesKeyName)
+
         self.service = service ?? WeatherService.shared
         self.defaults = defaults
         self.cache = cache ?? WeatherCache()
@@ -98,6 +109,24 @@ class WeatherViewModel: ObservableObject {
     }
 
     // MARK: - Persistence
+
+    /// Moves cities saved before the App Group existed into shared storage.
+    ///
+    /// Without this an existing install would silently reset to the default
+    /// city on upgrade, because the widget-readable suite starts empty while
+    /// the real data sits in `.standard`.
+    private static func migrateIfNeeded(from legacy: UserDefaults,
+                                       into defaults: UserDefaults,
+                                       key: String) {
+        guard legacy !== defaults else { return }
+        guard defaults.data(forKey: key) == nil else { return }
+
+        if let cities = legacy.data(forKey: key) {
+            defaults.set(cities, forKey: key)
+        } else if let single = legacy.data(forKey: "saved_active_city") {
+            defaults.set(single, forKey: "saved_active_city")
+        }
+    }
 
     private static func loadSavedCities(from defaults: UserDefaults, key: String) -> [City] {
         if let data = defaults.data(forKey: key),

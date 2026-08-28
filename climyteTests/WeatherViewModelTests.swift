@@ -13,6 +13,8 @@ final class WeatherViewModelTests: XCTestCase {
     private var suiteName: String!
     private var cacheDirectory: URL!
     private var cache: WeatherCache!
+    private var legacyDefaults: UserDefaults!
+    private var legacySuiteName: String!
 
     override func setUp() {
         super.setUp()
@@ -20,6 +22,9 @@ final class WeatherViewModelTests: XCTestCase {
         // the real app's state, and can't leak into each other.
         suiteName = "climyteTests.\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suiteName)
+
+        legacySuiteName = "climyteTests.legacy.\(UUID().uuidString)"
+        legacyDefaults = UserDefaults(suiteName: legacySuiteName)
 
         cacheDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("climyteTests-\(UUID().uuidString)")
@@ -29,11 +34,14 @@ final class WeatherViewModelTests: XCTestCase {
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suiteName)
+        legacyDefaults.removePersistentDomain(forName: legacySuiteName)
         try? FileManager.default.removeItem(at: cacheDirectory)
         defaults = nil
         suiteName = nil
         cacheDirectory = nil
         cache = nil
+        legacyDefaults = nil
+        legacySuiteName = nil
         super.tearDown()
     }
 
@@ -127,6 +135,37 @@ final class WeatherViewModelTests: XCTestCase {
         viewModel.removeCity(viewModel.entries[1])
 
         XCTAssertNil(cache.load(for: tokyo), "Removed cities shouldn't leave payloads on disk")
+    }
+
+    /// Moving storage into the App Group must not lose cities that were saved
+    /// before it existed — an upgrade that silently resets to Sydney would be
+    /// invisible in testing and infuriating in use.
+    func testCitiesSavedBeforeTheAppGroupAreMigrated() throws {
+        legacyDefaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        XCTAssertNil(defaults.data(forKey: "saved_cities"), "Shared suite starts empty")
+
+        let viewModel = makeViewModel()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"])
+        XCTAssertNotNil(defaults.data(forKey: "saved_cities"),
+                        "Migrated data should now live in the shared suite")
+    }
+
+    /// The single-city key predates both the list and the App Group, so it has
+    /// to survive two migrations in one hop.
+    func testTheLegacySingleCityKeyMigratesThroughTheAppGroup() throws {
+        legacyDefaults.set(try JSONEncoder().encode(paris), forKey: "saved_active_city")
+
+        XCTAssertEqual(makeViewModel().entries.map(\.city.name), ["Paris"])
+    }
+
+    /// Migration runs on every launch, not just the first, so it must never
+    /// overwrite cities already in shared storage.
+    func testMigrationDoesNotOverwriteExistingSharedCities() throws {
+        legacyDefaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
+        defaults.set(try JSONEncoder().encode([tokyo]), forKey: "saved_cities")
+
+        XCTAssertEqual(makeViewModel().entries.map(\.city.name), ["Tokyo"])
     }
 
     // MARK: - Fetching
@@ -394,7 +433,8 @@ final class WeatherViewModelTests: XCTestCase {
     private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
 
     private func makeViewModel(service: WeatherFetching? = nil) -> WeatherViewModel {
-        WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults, cache: cache)
+        WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
+                         cache: cache, legacyDefaults: legacyDefaults)
     }
 
     private func makeTokyoResult() -> GeocodingResult {

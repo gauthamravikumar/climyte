@@ -23,7 +23,11 @@ struct WeatherCache {
     private let fileURL: URL
 
     init(directory: URL? = nil) {
+        // The App Group container first, so the widget can read the same file.
+        // Caches remains the fallback: without the entitlement the app should
+        // still cache for itself rather than lose the feature entirely.
         let base = directory
+            ?? AppGroup.containerURL
             ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         self.fileURL = base.appendingPathComponent("cached-weather.json")
