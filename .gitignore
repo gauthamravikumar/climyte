@@ -33,6 +33,11 @@ derivedData/
 *.p12
 *.cer
 
+## Agent worktrees and local tooling state
+# .claude/worktrees holds nested git repositories; committing one produces a
+# broken clone that cannot fetch its contents.
+.claude/
+
 ## Tooling scratch
 .superpowers/
 module-cache/

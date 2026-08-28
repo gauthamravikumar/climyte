@@ -32,6 +32,11 @@
 			path = climyteTests;
 			sourceTree = "<group>";
 		};
+		C11A000000000000000000B1 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				7277A865301252FD0053E3ED /* climyte */,
+				C11A000000000000000000B1 /* Shared */,
 				C11A000000000000000000A2 /* climyteTests */,
 				7277A864301252FD0053E3ED /* Products */,
 			);
@@ -87,6 +93,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				7277A865301252FD0053E3ED /* climyte */,
+				C11A000000000000000000B1 /* Shared */,
 			);
 			name = climyte;
 			packageProductDependencies = (
