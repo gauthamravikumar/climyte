@@ -111,7 +111,7 @@ class WeatherService {
             case .timedOut:
                 throw WeatherError.timedOut
             case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
-                 .resourceUnavailable, .notConnectedToInternet:
+                 .resourceUnavailable:
                 throw WeatherError.unreachable
             case .secureConnectionFailed, .serverCertificateUntrusted,
                  .serverCertificateHasBadDate, .serverCertificateNotYetValid,
