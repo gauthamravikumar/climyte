@@ -129,25 +129,12 @@ class WeatherViewModel: ObservableObject {
     }
 
     private static func loadSavedCities(from defaults: UserDefaults, key: String) -> [City] {
-        if let data = defaults.data(forKey: key),
-           let saved = try? JSONDecoder().decode([City].self, from: data),
-           !saved.isEmpty {
-            return saved
-        }
-
-        // Migrate anyone upgrading from the single-city build.
-        if let data = defaults.data(forKey: "saved_active_city"),
-           let legacy = try? JSONDecoder().decode(City.self, from: data) {
-            return [legacy]
-        }
-
-        return [defaultCity]
+        let saved = SavedCities.load(from: defaults)
+        return saved.isEmpty ? [defaultCity] : saved
     }
 
     private func saveCities() {
-        if let encoded = try? JSONEncoder().encode(entries.map(\.city)) {
-            defaults.set(encoded, forKey: savedCitiesKey)
-        }
+        SavedCities.save(entries.map(\.city), to: defaults)
     }
 
     /// Puts the last successful fetch for every saved city on screen

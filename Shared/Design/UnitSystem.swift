@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// The API is always asked for metric and conversion happens at display time,
 /// so toggling is instant and works on cached data with no network.
-enum UnitSystem: String, Codable, CaseIterable {
+nonisolated enum UnitSystem: String, Codable, CaseIterable {
     case metric
     case imperial
 

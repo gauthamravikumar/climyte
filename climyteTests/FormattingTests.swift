@@ -98,23 +98,23 @@ final class FormattingTests: XCTestCase {
     /// The category has to agree with the rounded number shown beside it —
     /// 2.4 displays as "2", which the WHO scale calls Low, not Moderate.
     func testUVIndexCategoryMatchesTheRoundedValue() {
-        XCTAssertEqual(WeatherDetailsView.uvIndex(2.4), "2 Low")
-        XCTAssertEqual(WeatherDetailsView.uvIndex(2.6), "3 Mod")
-        XCTAssertEqual(WeatherDetailsView.uvIndex(5.4), "5 Mod")
-        XCTAssertEqual(WeatherDetailsView.uvIndex(5.6), "6 High")
-        XCTAssertEqual(WeatherDetailsView.uvIndex(7.6), "8 Very High")
-        XCTAssertEqual(WeatherDetailsView.uvIndex(11.0), "11 Extreme")
+        XCTAssertEqual(WeatherDetails.uvIndex(2.4), "2 Low")
+        XCTAssertEqual(WeatherDetails.uvIndex(2.6), "3 Mod")
+        XCTAssertEqual(WeatherDetails.uvIndex(5.4), "5 Mod")
+        XCTAssertEqual(WeatherDetails.uvIndex(5.6), "6 High")
+        XCTAssertEqual(WeatherDetails.uvIndex(7.6), "8 Very High")
+        XCTAssertEqual(WeatherDetails.uvIndex(11.0), "11 Extreme")
     }
 
     func testUVIndexHandlesZero() {
-        XCTAssertEqual(WeatherDetailsView.uvIndex(0), "0 Low")
+        XCTAssertEqual(WeatherDetails.uvIndex(0), "0 Low")
     }
 
     // MARK: - Wind
 
     func testWindDescriptionCoversTheBeaufortBands() {
         func description(_ speed: Double) -> String {
-            String(localized: WeatherDetailsView.windDescription(speed))
+            String(localized: WeatherDetails.windDescription(speed))
         }
 
         XCTAssertEqual(description(0), "Light air")

@@ -62,4 +62,17 @@ extension Font {
 
     static let cityStripActive = manrope(.bold, 13, relativeTo: .caption)
     static let cityStrip = manrope(.medium, 13, relativeTo: .caption)
+
+    // MARK: - Widget
+    //
+    // Smaller than the app's ramp because a small widget is 155pt square and
+    // has to hold a three-digit reading at accessibility sizes.
+
+    static let widgetCity = manrope(.semiBold, 11, relativeTo: .caption2)
+    static let widgetTemperature = manrope(.regular, 42, relativeTo: .title)
+    static let widgetDetail = manrope(.semiBold, 11, relativeTo: .caption2)
+    static let widgetCaption = manrope(.medium, 10, relativeTo: .caption2)
+
+    static let accessoryValue = manrope(.semiBold, 16, relativeTo: .body)
+    static let accessoryLabel = manrope(.medium, 11, relativeTo: .caption2)
 }

@@ -519,3 +519,47 @@ private extension WeatherService.WeatherError {
         .networkError(NSError(domain: "StubWeatherService", code: -1))
     }
 }
+
+/// The widget reads saved cities through this same type, so a disagreement
+/// here is a disagreement between the app and its widget.
+final class SavedCitiesTests: XCTestCase {
+
+    private var defaults: UserDefaults!
+    private var suiteName: String!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "climyteTests.saved.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
+    private let paris = City(id: UUID(), name: "Paris", country: "France",
+                             countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
+
+    func testEmptyStorageReturnsNoCitiesRatherThanADefault() {
+        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty,
+                      "Substituting a default here would make an unconfigured widget lie")
+    }
+
+    func testRoundTrip() {
+        SavedCities.save([paris], to: defaults)
+        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+    }
+
+    func testReadsTheLegacySingleCityKey() throws {
+        defaults.set(try JSONEncoder().encode(paris), forKey: SavedCities.legacySingleCityKey)
+        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+    }
+
+    func testCorruptDataDoesNotCrash() {
+        defaults.set(Data("not json".utf8), forKey: SavedCities.key)
+        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+    }
+}

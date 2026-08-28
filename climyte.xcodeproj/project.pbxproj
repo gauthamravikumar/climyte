@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C11A000000000000000000C8 /* climyteWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C11A000000000000000000C1 /* climyteWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		C11A000000000000000000CB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7277A85B301252FD0053E3ED /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C11A000000000000000000C3;
+			remoteInfo = climyteWidgetExtension;
+		};
 		C11A000000000000000000AB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 7277A85B301252FD0053E3ED /* Project object */;
@@ -19,11 +30,33 @@
 /* Begin PBXFileReference section */
 		7277A863301252FD0053E3ED /* climyte.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = climyte.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C11A000000000000000000A1 /* climyteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = climyteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C11A000000000000000000C1 /* climyteWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = climyteWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C11A000000000000000000CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				climyteWidget.entitlements,
+			);
+			target = C11A000000000000000000C3 /* climyteWidgetExtension */;
+		};
+		C11A000000000000000000CG /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				climyte.entitlements,
+			);
+			target = 7277A862301252FD0053E3ED /* climyte */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7277A865301252FD0053E3ED /* climyte */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C11A000000000000000000CG /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 			path = climyte;
 			sourceTree = "<group>";
 		};
@@ -35,6 +68,14 @@
 		C11A000000000000000000B1 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		C11A000000000000000000C2 /* climyteWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C11A000000000000000000CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			path = climyteWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -54,6 +95,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C11A000000000000000000C5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -62,6 +110,7 @@
 			children = (
 				7277A865301252FD0053E3ED /* climyte */,
 				C11A000000000000000000B1 /* Shared */,
+				C11A000000000000000000C2 /* climyteWidget */,
 				C11A000000000000000000A2 /* climyteTests */,
 				7277A864301252FD0053E3ED /* Products */,
 			);
@@ -72,6 +121,7 @@
 			children = (
 				7277A863301252FD0053E3ED /* climyte.app */,
 				C11A000000000000000000A1 /* climyteTests.xctest */,
+				C11A000000000000000000C1 /* climyteWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -86,10 +136,12 @@
 				7277A85F301252FD0053E3ED /* Sources */,
 				7277A860301252FD0053E3ED /* Frameworks */,
 				7277A861301252FD0053E3ED /* Resources */,
+				C11A000000000000000000C9 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C11A000000000000000000CA /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7277A865301252FD0053E3ED /* climyte */,
@@ -125,6 +177,29 @@
 			productReference = C11A000000000000000000A1 /* climyteTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C11A000000000000000000C3 /* climyteWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C11A000000000000000000C7 /* Build configuration list for PBXNativeTarget "climyteWidgetExtension" */;
+			buildPhases = (
+				C11A000000000000000000C4 /* Sources */,
+				C11A000000000000000000C5 /* Frameworks */,
+				C11A000000000000000000C6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C11A000000000000000000C2 /* climyteWidget */,
+				C11A000000000000000000B1 /* Shared */,
+			);
+			name = climyteWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = climyteWidgetExtension;
+			productReference = C11A000000000000000000C1 /* climyteWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -140,6 +215,9 @@
 					};
 					C11A000000000000000000A3 = {
 						TestTargetID = 7277A862301252FD0053E3ED;
+					};
+					C11A000000000000000000C3 = {
+						CreatedOnToolsVersion = 26.6;
 					};
 				};
 			};
@@ -159,6 +237,7 @@
 			targets = (
 				7277A862301252FD0053E3ED /* climyte */,
 				C11A000000000000000000A3 /* climyteTests */,
+				C11A000000000000000000C3 /* climyteWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -178,7 +257,28 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C11A000000000000000000C6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C11A000000000000000000C9 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C11A000000000000000000C8 /* climyteWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7277A85F301252FD0053E3ED /* Sources */ = {
@@ -195,6 +295,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C11A000000000000000000C4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -202,6 +309,11 @@
 			isa = PBXTargetDependency;
 			target = 7277A862301252FD0053E3ED /* climyte */;
 			targetProxy = C11A000000000000000000AB /* PBXContainerItemProxy */;
+		};
+		C11A000000000000000000CA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C11A000000000000000000C3 /* climyteWidgetExtension */;
+			targetProxy = C11A000000000000000000CB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -439,6 +551,67 @@
 			};
 			name = Release;
 		};
+		C11A000000000000000000CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = climyteWidget/climyteWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PQZ53PA2FD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = climyteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Climyte;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gauthamravikumar.climyte.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C11A000000000000000000CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = climyteWidget/climyteWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PQZ53PA2FD;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = climyteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Climyte;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gauthamravikumar.climyte.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -465,6 +638,15 @@
 			buildConfigurations = (
 				C11A000000000000000000A8 /* Debug */,
 				C11A000000000000000000A9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C11A000000000000000000C7 /* Build configuration list for PBXNativeTarget "climyteWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C11A000000000000000000CD /* Debug */,
+				C11A000000000000000000CE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

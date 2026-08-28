@@ -1,0 +1,116 @@
+//
+//  AccessoryViews.swift
+//  climyteWidget
+//
+
+import SwiftUI
+import WidgetKit
+
+/// Lock screen accessories.
+///
+/// These render in the system's vibrant monochrome mode, so the app's day and
+/// night palette does not apply — colour is the system's to decide. What
+/// carries across is the typography and the same editing-down of content.
+
+struct AccessoryCircularView: View {
+    let entry: WeatherEntry
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            // Only the reading fits legibly at this size. A city abbreviation
+            // was tried and rejected: any rule for shortening a name is wrong
+            // often enough to mislead, and position already distinguishes two
+            // circular widgets.
+            Text(temperature)
+                .font(.accessoryValue)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .padding(4)
+        }
+        .widgetAccessibilityLabel(entry, detail: false)
+    }
+
+    private var temperature: String {
+        guard let weather = entry.weather else { return "--" }
+        return entry.units.temperature(weather.temperature)
+    }
+}
+
+struct AccessoryRectangularView: View {
+    let entry: WeatherEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(entry.city?.name ?? "Climyte")
+                .font(.accessoryLabel)
+                .widgetAccentable()
+                .lineLimit(1)
+
+            if let weather = entry.weather {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(entry.units.temperature(weather.temperature))
+                        .font(.accessoryValue)
+                    Text("\(entry.units.temperatureValue(weather.minTemp)) · \(entry.units.temperatureValue(weather.maxTemp))")
+                        .font(.accessoryLabel)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+                Text(secondLine(weather))
+                    .font(.accessoryLabel)
+                    .lineLimit(1)
+            } else {
+                Text("No data yet").font(.accessoryLabel)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .widgetAccessibilityLabel(entry, detail: true)
+    }
+
+    private func secondLine(_ weather: CityWeather) -> String {
+        if let chance = weather.precipitationChance,
+           chance >= WeatherDetails.Threshold.rainChance {
+            return String(localized: "Rain \(chance)%")
+        }
+        return weather.condition.description
+    }
+}
+
+struct AccessoryInlineView: View {
+    let entry: WeatherEntry
+
+    var body: some View {
+        // A single line the system places beside the clock. It truncates
+        // aggressively, so the city and reading come first and anything else
+        // is expendable.
+        Text(text)
+    }
+
+    private var text: String {
+        guard let weather = entry.weather, let city = entry.city else { return "Climyte" }
+        return "\(city.name) \(entry.units.temperature(weather.temperature)) · \(weather.condition.description)"
+    }
+}
+
+private extension View {
+    /// Accessory text is terse by necessity; VoiceOver should not be.
+    func widgetAccessibilityLabel(_ entry: WeatherEntry, detail: Bool) -> some View {
+        let name = entry.city?.name ?? "Climyte"
+
+        guard let weather = entry.weather else {
+            return self.accessibilityLabel(Text("\(name), no data yet"))
+        }
+
+        let reading = entry.units.temperatureValue(weather.temperature)
+        guard detail else {
+            return self.accessibilityLabel(Text("\(name), \(reading) degrees"))
+        }
+
+        let low = entry.units.temperatureValue(weather.minTemp)
+        let high = entry.units.temperatureValue(weather.maxTemp)
+        return self.accessibilityLabel(
+            Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.condition.description)")
+        )
+    }
+}

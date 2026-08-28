@@ -5,7 +5,7 @@
 
 import Foundation
 
-extension City {
+nonisolated extension City {
     /// Stable identity across launches and decodes.
     ///
     /// `id` is a fresh UUID every time a City is created or decoded, so it

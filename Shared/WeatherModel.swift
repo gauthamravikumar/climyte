@@ -94,7 +94,7 @@ extension Array {
 }
 
 // MARK: - App Domain Models
-struct City: Identifiable, Codable, Equatable {
+nonisolated struct City: Identifiable, Codable, Equatable {
     let id: UUID
     let name: String
     let country: String
@@ -325,11 +325,11 @@ struct DailyForecast: Identifiable {
 }
 
 // MARK: - Open-Meteo Geocoding Decodable Structures
-struct GeocodingResponse: Decodable {
+nonisolated struct GeocodingResponse: Decodable {
     let results: [GeocodingResult]?
 }
 
-struct GeocodingResult: Decodable, Identifiable, Equatable {
+nonisolated struct GeocodingResult: Decodable, Identifiable, Equatable {
     let id: Int
     let name: String
     let latitude: Double
@@ -340,7 +340,7 @@ struct GeocodingResult: Decodable, Identifiable, Equatable {
 }
 
 // MARK: - Open-Meteo Weather Decodable Structures
-struct WeatherResponse: Codable {
+nonisolated struct WeatherResponse: Codable {
     let latitude: Double
     let longitude: Double
     let utc_offset_seconds: Int
@@ -349,7 +349,7 @@ struct WeatherResponse: Codable {
     let daily: DailyWeatherResponse
 }
 
-struct CurrentWeatherResponse: Codable {
+nonisolated struct CurrentWeatherResponse: Codable {
     let temperature_2m: Double
     let apparent_temperature: Double
     let is_day: Int
@@ -361,13 +361,13 @@ struct CurrentWeatherResponse: Codable {
     let visibility: Double
 }
 
-struct HourlyWeatherResponse: Codable {
+nonisolated struct HourlyWeatherResponse: Codable {
     let time: [String]
     let temperature_2m: [Double]
     let weather_code: [Int]
 }
 
-struct DailyWeatherResponse: Codable {
+nonisolated struct DailyWeatherResponse: Codable {
     let time: [String]
 
     /// Every value here is optional because Open-Meteo sends null past the

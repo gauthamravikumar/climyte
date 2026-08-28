@@ -48,31 +48,4 @@ struct WeatherDetailsView: View {
         .padding(.vertical, 13)
         .accessibilityElement(children: .combine)
     }
-
-    // MARK: - Formatting
-
-    static func uvIndex(_ value: Double) -> String {
-        let category: String
-        switch value {
-        case ..<2.5: category = String(localized: "Low", comment: "UV index category")
-        case ..<5.5: category = String(localized: "Mod", comment: "UV index category, abbreviated 'Moderate'")
-        case ..<7.5: category = String(localized: "High", comment: "UV index category")
-        case ..<10.5: category = String(localized: "Very High", comment: "UV index category")
-        default: category = String(localized: "Extreme", comment: "UV index category")
-        }
-        return "\(Int(value.rounded())) \(category)"
-    }
-
-    /// Beaufort-style description of the wind speed, in km/h.
-    static func windDescription(_ speed: Double) -> LocalizedStringResource {
-        switch speed {
-        case ..<5: return "Light air"
-        case 5..<12: return "Light breeze"
-        case 12..<20: return "Gentle breeze"
-        case 20..<29: return "Moderate breeze"
-        case 29..<39: return "Fresh breeze"
-        case 39..<50: return "Strong breeze"
-        default: return "High wind"
-        }
-    }
 }

@@ -10,7 +10,7 @@ import Foundation
 /// A widget runs in a separate process with its own container, so anything it
 /// needs to read has to live in an App Group rather than in the app's private
 /// Documents, Caches or standard defaults.
-enum AppGroup {
+nonisolated enum AppGroup {
     static let identifier = "group.com.gauthamravikumar.climyte"
 
     /// Defaults the widget can read. Falls back to `.standard` when the group
