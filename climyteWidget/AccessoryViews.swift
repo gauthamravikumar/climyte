@@ -80,16 +80,33 @@ struct AccessoryRectangularView: View {
 struct AccessoryInlineView: View {
     let entry: WeatherEntry
 
+    /// The system draws this line in its own font and colour — styling it is
+    /// pointless. What is ours to control is length, and the space available
+    /// varies by device and by what else sits beside the clock. Offering
+    /// progressively shorter forms lets the longest that actually fits win,
+    /// rather than shipping one string that truncates mid-word on smaller
+    /// screens.
     var body: some View {
-        // A single line the system places beside the clock. It truncates
-        // aggressively, so the city and reading come first and anything else
-        // is expendable.
-        Text(text)
+        ViewThatFits(in: .horizontal) {
+            Text(full)
+            Text(medium)
+            Text(short)
+        }
     }
 
-    private var text: String {
-        guard let weather = entry.weather, let city = entry.city else { return "Climyte" }
+    private var full: String {
+        guard let weather = entry.weather, let city = entry.city else { return short }
         return "\(city.name) \(entry.units.temperature(weather.temperature)) · \(weather.condition.description)"
+    }
+
+    private var medium: String {
+        guard let weather = entry.weather, let city = entry.city else { return short }
+        return "\(city.name) \(entry.units.temperature(weather.temperature))"
+    }
+
+    private var short: String {
+        guard let weather = entry.weather else { return "Climyte" }
+        return entry.units.temperature(weather.temperature)
     }
 }
 

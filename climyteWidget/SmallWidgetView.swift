@@ -9,18 +9,38 @@ import WidgetKit
 struct SmallWidgetView: View {
     let entry: WeatherEntry
 
+    /// Tinted and clear Home Screens render widgets in accented mode, where
+    /// the system removes the background and tints content by alpha rather
+    /// than luminance — every opaque region collapses to the same flat white.
+    /// The day/night fill cannot survive that, so in accented mode the view
+    /// stops asserting colour and lets the system own it.
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    /// False in StandBy and on the iPad Lock Screen, where the container
+    /// background is stripped and the content should fill the space.
+    @Environment(\.showsWidgetContainerBackground) private var showsBackground
+
+    private var isAccented: Bool { renderingMode == .accented }
+
+    private var primary: Color { isAccented ? .primary : entry.theme.primaryText }
+    private var secondary: Color { isAccented ? .secondary : entry.theme.secondaryText }
+    private var divider: Color { isAccented ? .secondary.opacity(0.4) : entry.theme.dividerColor }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(entry.city?.name ?? "Climyte")
                 .font(.widgetCity)
-                .foregroundStyle(entry.theme.primaryText)
+                .foregroundStyle(primary)
                 .lineLimit(1)
 
             Spacer(minLength: 2)
 
             Text(temperature)
                 .font(.widgetTemperature)
-                .foregroundStyle(entry.theme.primaryText)
+                .foregroundStyle(primary)
+                // The reading is what a glance is for, so it leads the accent
+                // group when the system recolours the widget.
+                .widgetAccentable()
                 .lineLimit(1)
                 // A three-digit Fahrenheit reading, or a large accessibility
                 // text size, must shrink rather than truncate.
@@ -31,6 +51,22 @@ struct SmallWidgetView: View {
             detail
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(showsBackground ? 0 : 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spokenLabel)
+    }
+
+    /// The tile is deliberately terse; VoiceOver should not be.
+    private var spokenLabel: String {
+        let name = entry.city?.name ?? "Climyte"
+        guard let weather = entry.weather else {
+            return String(localized: "\(name), no reading yet")
+        }
+        return String(localized: """
+            \(name), \(entry.units.temperatureValue(weather.temperature)) degrees, \
+            low \(entry.units.temperatureValue(weather.minTemp)), \
+            high \(entry.units.temperatureValue(weather.maxTemp))
+            """)
     }
 
     private var temperature: String {
@@ -42,7 +78,7 @@ struct SmallWidgetView: View {
     private var detail: some View {
         if let weather = entry.weather {
             VStack(alignment: .leading, spacing: 1) {
-                Divider().overlay(entry.theme.dividerColor)
+                Divider().overlay(divider)
                     .padding(.bottom, 4)
 
                 // Same rule as the app's details section: rain earns the line
@@ -51,20 +87,20 @@ struct SmallWidgetView: View {
                    chance >= WeatherDetails.Threshold.rainChance {
                     Text(rainLine(chance: chance, weather: weather))
                         .font(.widgetDetail)
-                        .foregroundStyle(entry.theme.primaryText)
+                        .foregroundStyle(primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 } else {
                     Text("\(entry.units.temperatureValue(weather.minTemp)) · \(entry.units.temperatureValue(weather.maxTemp))")
                         .font(.widgetDetail)
-                        .foregroundStyle(entry.theme.primaryText)
+                        .foregroundStyle(primary)
                         .lineLimit(1)
                 }
             }
         } else {
-            Text("No data yet")
+            Text("Open Climyte")
                 .font(.widgetCaption)
-                .foregroundStyle(entry.theme.secondaryText)
+                .foregroundStyle(secondary)
         }
     }
 
