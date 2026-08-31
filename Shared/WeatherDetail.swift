@@ -19,7 +19,25 @@ struct WeatherDetail: Identifiable, Equatable {
     let value: String
     var caption: String?
 
+    /// Spoken forms, where the visible text is an abbreviation.
+    ///
+    /// On screen "UV 4 Mod" and "11h 15m" are exactly right — terse, scannable,
+    /// and the section is built around that terseness. Read aloud they become
+    /// "UV four mod" and "eleven h fifteen m". These carry the long form for
+    /// VoiceOver without lengthening anything a sighted reader sees.
+    var spokenValue: String?
+    var spokenCaption: String?
+
     var id: String { kind.rawValue }
+
+    /// The whole row as one sentence.
+    var spokenLabel: String {
+        let spoken = spokenValue ?? value
+        guard let caption = spokenCaption ?? caption else {
+            return "\(String(localized: label)), \(spoken)"
+        }
+        return "\(String(localized: label)), \(spoken), \(caption)"
+    }
 
     static func == (lhs: WeatherDetail, rhs: WeatherDetail) -> Bool {
         lhs.kind == rhs.kind && lhs.value == rhs.value && lhs.caption == rhs.caption
@@ -74,7 +92,8 @@ enum WeatherDetails {
             details.append(WeatherDetail(
                 kind: .uv,
                 label: "UV",
-                value: WeatherDetails.uvIndex(weather.uvIndex)
+                value: WeatherDetails.uvIndex(weather.uvIndex),
+                spokenValue: WeatherDetails.uvIndexSpoken(weather.uvIndex)
             ))
         }
 
@@ -109,7 +128,9 @@ enum WeatherDetails {
                 kind: .daylight,
                 label: "Daylight",
                 value: duration(daylight),
-                caption: weather.daylightChangeSeconds.flatMap(daylightChange)
+                caption: weather.daylightChangeSeconds.flatMap(daylightChange),
+                spokenValue: durationSpoken(daylight),
+                spokenCaption: weather.daylightChangeSeconds.flatMap(daylightChangeSpoken)
             ))
         }
 
@@ -152,6 +173,40 @@ enum WeatherDetails {
         case 39..<50: return "Strong breeze"
         default: return "High wind"
         }
+    }
+
+    /// "4, Moderate" rather than "4 Mod", which VoiceOver reads as "mod".
+    nonisolated static func uvIndexSpoken(_ value: Double) -> String {
+        let category: String
+        switch value {
+        case ..<2.5: category = String(localized: "Low", comment: "UV index category")
+        case ..<5.5: category = String(localized: "Moderate", comment: "UV index category, spoken")
+        case ..<7.5: category = String(localized: "High", comment: "UV index category")
+        case ..<10.5: category = String(localized: "Very High", comment: "UV index category")
+        default: category = String(localized: "Extreme", comment: "UV index category")
+        }
+        return "\(value.toInt()), \(category)"
+    }
+
+    /// "11 hours 15 minutes" rather than "11h 15m".
+    nonisolated static func durationSpoken(_ seconds: Double) -> String {
+        let total = seconds.toInt()
+        let style = Duration.seconds(total).formatted(
+            .units(allowed: [.hours, .minutes], width: .wide)
+        )
+        return style
+    }
+
+    /// "2 minutes shorter" rather than "2m shorter".
+    nonisolated static func daylightChangeSpoken(_ seconds: Double) -> String? {
+        let minutes = (seconds / 60).toInt()
+        guard minutes != 0 else { return nil }
+
+        let magnitude = Duration.seconds(abs(minutes) * 60)
+            .formatted(.units(allowed: [.minutes], width: .wide))
+        return minutes > 0
+            ? String(localized: "\(magnitude) longer")
+            : String(localized: "\(magnitude) shorter")
     }
 
     nonisolated static func duration(_ seconds: Double) -> String {

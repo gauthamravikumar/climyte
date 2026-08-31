@@ -16,6 +16,12 @@ struct WeatherDetailsView: View {
 
     @Environment(\.unitSystem) private var units
 
+    /// At accessibility sizes a label, a value and a caption cannot share one
+    /// line. Squeezed onto one they lost the reading itself — "Humid" beside
+    /// "dew point…" says nothing at all — so past that threshold the row
+    /// becomes two lines and wraps rather than truncating.
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(spacing: 0) {
             ForEach(WeatherDetails.build(for: weather, units: units)) { detail in
@@ -25,7 +31,25 @@ struct WeatherDetailsView: View {
         }
     }
 
+    @ViewBuilder
     private func row(_ detail: WeatherDetail) -> some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                stackedRow(detail)
+            } else {
+                singleLineRow(detail)
+            }
+        }
+        .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        // Spoken, the visible shorthand turns into "UV four mod" and
+        // "eleven h fifteen m". The section headings already solved this by
+        // carrying a separate spoken form; the rows now do the same.
+        .accessibilityLabel(detail.spokenLabel)
+    }
+
+    private func singleLineRow(_ detail: WeatherDetail) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(detail.label)
                 .font(.detailRowLabel)
@@ -45,7 +69,24 @@ struct WeatherDetailsView: View {
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
-        .padding(.vertical, 13)
-        .accessibilityElement(children: .combine)
+    }
+
+    private func stackedRow(_ detail: WeatherDetail) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(detail.label)
+                .font(.detailRowLabel)
+                .foregroundColor(theme.secondaryText)
+
+            Text(detail.value)
+                .font(.detailRowValue)
+                .foregroundColor(theme.primaryText)
+
+            if let caption = detail.caption {
+                Text(caption)
+                    .font(.detailRowCaption)
+                    .foregroundColor(theme.secondaryText)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
     }
 }

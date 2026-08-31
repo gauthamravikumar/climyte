@@ -13,6 +13,14 @@ struct SavedCitiesView: View {
     let entries: [CityEntry]
     let selectedKey: String
     let theme: WeatherTheme
+
+    /// A cap that grows with the reader's type size.
+    ///
+    /// Pinned at 420pt it sliced a row horizontally through the middle of
+    /// its letters at accessibility sizes while half the screen sat empty —
+    /// which reads as a rendering fault rather than as a scroll edge. The
+    /// enclosing stack still bounds this to the space actually available.
+    @ScaledMetric(relativeTo: .body) private var maxListHeight: CGFloat = 420
     let canRemove: Bool
     let onSelect: (CityEntry) -> Void
     let onDelete: (IndexSet) -> Void
@@ -35,7 +43,7 @@ struct SavedCitiesView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
-        .frame(maxHeight: 420)
+        .frame(maxHeight: maxListHeight)
     }
 
     private func row(for entry: CityEntry) -> some View {
@@ -67,6 +75,12 @@ struct SavedCitiesView: View {
         // indented past it while the others start at the edge.
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         .accessibilityElement(children: .combine)
+        // The arrow is hidden from VoiceOver and the row combines its
+        // children, so without this the located entry and a saved city of the
+        // same name are indistinguishable when read aloud.
+        .accessibilityLabel(entry.isCurrentLocation
+                            ? Text("\(entry.city.name), current location")
+                            : Text(entry.city.name))
         .accessibilityAddTraits(entry.id == selectedKey ? [.isSelected, .isButton] : .isButton)
     }
 }

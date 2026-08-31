@@ -58,6 +58,58 @@ final class ThemeContrastTests: XCTestCase {
                           "Day and night hierarchies have drifted apart by \(rounded(difference))")
     }
 
+    // MARK: - Composited colours
+
+    /// The token is not what the reader sees.
+    ///
+    /// The city strip faded `secondaryText` to 0.55 to mark the unselected
+    /// entries, compositing it to 2.14:1 on white and 2.27:1 on black — the
+    /// worst contrast in the app, under even the 3:1 floor for non-text. The
+    /// tests above passed throughout, because they measure the colour the
+    /// palette defines rather than the colour that reaches the screen.
+    func testFadingSecondaryTextBelowFullOpacityBreaksIt() {
+        for isNight in [true, false] {
+            let theme = WeatherTheme.forIsNight(isNight)
+
+            let faded = contrast(composite(theme.secondaryText, over: theme.background, alpha: 0.55),
+                                 theme.background)
+            XCTAssertLessThan(faded, 3.0,
+                              "Kept as the record of why this fade cannot come back")
+
+            // Even a gentle fade does not clear the bar for normal text.
+            let gentle = contrast(composite(theme.secondaryText, over: theme.background, alpha: 0.9),
+                                  theme.background)
+            XCTAssertLessThan(gentle, minimumNormalText)
+        }
+    }
+
+    /// The strip's two real states, at full opacity, in both themes.
+    func testCityStripStatesMeetAA() {
+        for isNight in [true, false] {
+            let theme = WeatherTheme.forIsNight(isNight)
+
+            XCTAssertGreaterThanOrEqual(contrast(theme.primaryText, theme.background),
+                                        minimumNormalText, "Selected city")
+            XCTAssertGreaterThanOrEqual(contrast(theme.secondaryText, theme.background),
+                                        minimumNormalText, "Unselected city")
+        }
+    }
+
+    /// Alpha-composites `color` onto `background`, as the renderer does.
+    private func composite(_ color: Color, over background: Color, alpha: Double) -> Color {
+        let (r, g, b) = components(color)
+        let (br, bg, bb) = components(background)
+        return Color(red: r * alpha + br * (1 - alpha),
+                     green: g * alpha + bg * (1 - alpha),
+                     blue: b * alpha + bb * (1 - alpha))
+    }
+
+    private func components(_ color: Color) -> (Double, Double, Double) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Double(r), Double(g), Double(b))
+    }
+
     // MARK: - Helpers
 
     private func rounded(_ value: Double) -> String {

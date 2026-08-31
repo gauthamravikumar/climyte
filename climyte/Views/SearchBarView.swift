@@ -41,6 +41,11 @@ struct SearchBarView: View {
                             Text("Search city")
                                 .font(.searchField)
                                 .foregroundColor(theme.secondaryText)
+                                // At accessibility sizes this truncated to
+                                // "Searc…", leaving an unexplained empty field
+                                // for exactly the readers who need the hint.
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -73,6 +78,11 @@ struct SearchBarView: View {
                     }
                     .font(.searchCancel)
                     .foregroundColor(theme.primaryText)
+                    // A control label is not prose: broken across two lines it
+                    // rendered as "Canc" / "el", which reads as a fault rather
+                    // than as a button.
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.leading, 4)
                 }
             }

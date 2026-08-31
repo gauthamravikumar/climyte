@@ -8,6 +8,14 @@ import SwiftUI
 struct SearchResultsView: View {
     let state: SearchState
     let theme: WeatherTheme
+
+    /// A cap that grows with the reader's type size.
+    ///
+    /// Pinned at 400pt it sliced a row horizontally through the middle of
+    /// its letters at accessibility sizes while half the screen sat empty —
+    /// which reads as a rendering fault rather than as a scroll edge. The
+    /// enclosing stack still bounds this to the space actually available.
+    @ScaledMetric(relativeTo: .body) private var maxListHeight: CGFloat = 400
     let onSelect: (GeocodingResult) -> Void
     let onRetry: () -> Void
 
@@ -46,7 +54,7 @@ struct SearchResultsView: View {
                 }
             }
         }
-        .frame(maxHeight: 400)
+        .frame(maxHeight: maxListHeight)
     }
 
     private func row(for result: GeocodingResult) -> some View {

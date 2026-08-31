@@ -100,6 +100,23 @@ struct AccessoryInlineView: View {
             Text(medium)
             Text(short)
         }
+        // Without a label, VoiceOver reads whichever variant the layout
+        // happened to pick — so on a narrow lock screen a blind reader hears
+        // "6°" while the person beside them reads "Reykjavik 6° · Sunny".
+        // What is spoken should not depend on how much room the clock left.
+        .accessibilityLabel(spokenLabel)
+    }
+
+    private var spokenLabel: String {
+        let name = entry.city?.name ?? "Climyte"
+        guard let weather = entry.weather else {
+            return String(localized: "\(name), no reading yet")
+        }
+
+        let reading = entry.units.temperatureValue(weather.temperature)
+        let base = String(localized: "\(name), \(reading) degrees, \(weather.condition.description)")
+        guard let age = entry.shortAge else { return base }
+        return String(localized: "\(base), from \(age) ago")
     }
 
     private var full: String {
