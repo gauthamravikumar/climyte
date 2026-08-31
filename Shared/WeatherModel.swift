@@ -427,12 +427,20 @@ struct WeatherTheme {
     let secondaryText: Color
     let dividerColor: Color
     
+    /// Secondary text is a different grey in each theme, on purpose.
+    ///
+    /// One value cannot serve both: #727272 was picked against white, where it
+    /// measures 4.81:1, and reused unchanged when the palette inverted, where
+    /// it measures 3.98:1 — under the 4.5:1 that normal text needs, and 11 of
+    /// the 13 styles using it are normal-sized. #808080 restores the contrast
+    /// night should always have had, at 4.85:1, without lightening it so far
+    /// that the supporting text competes with the reading it supports.
     static func forIsNight(_ isNight: Bool) -> WeatherTheme {
         if isNight {
             return WeatherTheme(
                 background: Color(hex: "0E0F13"),
                 primaryText: Color(hex: "F2F2F0"),
-                secondaryText: Color(hex: "727272"),
+                secondaryText: Color(hex: "808080"),
                 dividerColor: Color(hex: "F2F2F0").opacity(0.12)
             )
         } else {
