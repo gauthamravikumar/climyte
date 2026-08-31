@@ -10,7 +10,26 @@ import os
 
 class WeatherService {
     static let shared = WeatherService()
-    private init() {}
+
+    /// The instance the widget extension fetches with.
+    ///
+    /// A shorter leash than the app's: an extension that sits waiting on a
+    /// slow network is killed rather than allowed to finish, and a widget with
+    /// no answer should fall back to the cache quickly instead. Ephemeral
+    /// because there is nothing worth persisting between two runs that may be
+    /// hours apart.
+    static let widget: WeatherService = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 10
+        config.timeoutIntervalForResource = 15
+        return WeatherService(session: URLSession(configuration: config))
+    }()
+
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
 
     enum WeatherError: LocalizedError {
         case invalidURL
@@ -89,7 +108,7 @@ class WeatherService {
     /// as a misleading "failed to parse" message.
     private func get(_ url: URL) async throws -> Data {
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            let (data, response) = try await session.data(from: url)
 
             if let http = response as? HTTPURLResponse,
                !(200..<300).contains(http.statusCode) {

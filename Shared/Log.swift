@@ -17,4 +17,5 @@ enum Log {
     static let weather = Logger(subsystem: subsystem, category: "weather")
     static let location = Logger(subsystem: subsystem, category: "location")
     static let cache = Logger(subsystem: subsystem, category: "cache")
+    static let widget = Logger(subsystem: subsystem, category: "widget")
 }

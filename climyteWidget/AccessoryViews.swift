@@ -42,10 +42,18 @@ struct AccessoryRectangularView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(entry.city?.name ?? "Climyte")
-                .font(.accessoryLabel)
-                .widgetAccentable()
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text(entry.city?.name ?? "Climyte")
+                    .font(.accessoryLabel)
+                    .widgetAccentable()
+                    .lineLimit(1)
+
+                if let age = entry.shortAge {
+                    Text(age)
+                        .font(.accessoryLabel)
+                        .lineLimit(1)
+                }
+            }
 
             if let weather = entry.weather {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
@@ -120,14 +128,20 @@ private extension View {
         }
 
         let reading = entry.units.temperatureValue(weather.temperature)
+
+        // The circular accessory has no room to show its age, which makes
+        // saying it here the only way a VoiceOver user learns the reading is
+        // not current.
+        let age = entry.shortAge.map { String(localized: ", from \($0) ago") } ?? ""
+
         guard detail else {
-            return self.accessibilityLabel(Text("\(name), \(reading) degrees"))
+            return self.accessibilityLabel(Text("\(name), \(reading) degrees\(age)"))
         }
 
         let low = entry.units.temperatureValue(weather.minTemp)
         let high = entry.units.temperatureValue(weather.maxTemp)
         return self.accessibilityLabel(
-            Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.condition.description)")
+            Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.condition.description)\(age)")
         )
     }
 }

@@ -427,14 +427,68 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloaded.entries[1].city.unitSystem, .imperial)
     }
 
+    // MARK: - Widget reloads
+
+    /// The widget renders from the shared cache and cannot fetch on the app's
+    /// behalf, so a reading the app has and the widget does not is a reading
+    /// nobody asked WidgetKit to come and collect.
+    func testASuccessfulFetchAsksTheWidgetToReload() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather())
+        let reloader = CountingReloader()
+        let viewModel = makeViewModel(service: service, reloader: reloader)
+        reloader.count = 0
+
+        await viewModel.refresh(cityKey: viewModel.entries[0].id)
+
+        XCTAssertEqual(reloader.count, 1)
+    }
+
+    func testAFailedFetchDoesNotAskTheWidgetToReload() async {
+        let service = StubWeatherService()
+        service.result = .failure(WeatherService.WeatherError.offline)
+        let reloader = CountingReloader()
+        let viewModel = makeViewModel(service: service, reloader: reloader)
+        reloader.count = 0
+
+        await viewModel.refresh(cityKey: viewModel.entries[0].id)
+
+        XCTAssertEqual(reloader.count, 0, "Nothing was written for the widget to pick up")
+    }
+
+    /// An unconfigured widget shows whichever city is first, so the list
+    /// changing can change what a widget displays with no reading involved.
+    func testAddingACityAsksTheWidgetToReload() {
+        let reloader = CountingReloader()
+        let viewModel = makeViewModel(reloader: reloader)
+        reloader.count = 0
+
+        viewModel.selectCity(makeTokyoResult())
+
+        XCTAssertGreaterThan(reloader.count, 0)
+    }
+
+    func testRemovingACityAsksTheWidgetToReload() {
+        let reloader = CountingReloader()
+        let viewModel = makeViewModel(reloader: reloader)
+        viewModel.selectCity(makeTokyoResult())
+        reloader.count = 0
+
+        viewModel.removeCity(viewModel.entries[1])
+
+        XCTAssertGreaterThan(reloader.count, 0)
+    }
+
     // MARK: - Helpers
 
     private let paris = City(id: UUID(), name: "Paris", country: "France", countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
     private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
 
-    private func makeViewModel(service: WeatherFetching? = nil) -> WeatherViewModel {
+    private func makeViewModel(service: WeatherFetching? = nil,
+                               reloader: WidgetReloading? = nil) -> WeatherViewModel {
         WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
-                         cache: cache, legacyDefaults: legacyDefaults)
+                         cache: cache, legacyDefaults: legacyDefaults,
+                         reloader: reloader ?? CountingReloader())
     }
 
     private func makeTokyoResult() -> GeocodingResult {
@@ -562,4 +616,11 @@ final class SavedCitiesTests: XCTestCase {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
         XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
     }
+}
+
+/// Records reload requests instead of talking to WidgetKit, which does
+/// nothing observable under test.
+private final class CountingReloader: WidgetReloading {
+    var count = 0
+    func reload() { count += 1 }
 }

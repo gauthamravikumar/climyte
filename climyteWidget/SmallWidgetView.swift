@@ -28,10 +28,24 @@ struct SmallWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(entry.city?.name ?? "Climyte")
-                .font(.widgetCity)
-                .foregroundStyle(primary)
-                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(entry.city?.name ?? "Climyte")
+                    .font(.widgetCity)
+                    .foregroundStyle(primary)
+                    .lineLimit(1)
+
+                // Only present when the reading is old, and then only as a
+                // duration: the tile has no room to explain itself, but
+                // showing a stale number with nothing to mark it as stale is
+                // worse than the small amount of clutter this costs.
+                if let age = entry.shortAge {
+                    Spacer(minLength: 2)
+                    Text(age)
+                        .font(.widgetCaption)
+                        .foregroundStyle(secondary)
+                        .lineLimit(1)
+                }
+            }
 
             Spacer(minLength: 2)
 
@@ -62,11 +76,16 @@ struct SmallWidgetView: View {
         guard let weather = entry.weather else {
             return String(localized: "\(name), no reading yet")
         }
-        return String(localized: """
+        let reading = String(localized: """
             \(name), \(entry.units.temperatureValue(weather.temperature)) degrees, \
             low \(entry.units.temperatureValue(weather.minTemp)), \
             high \(entry.units.temperatureValue(weather.maxTemp))
             """)
+
+        // The visible "4h" is a duration with no noun attached; spoken, it
+        // needs the noun or it is just a number in the middle of a sentence.
+        guard let age = entry.shortAge else { return reading }
+        return String(localized: "\(reading), from \(age) ago")
     }
 
     private var temperature: String {

@@ -67,6 +67,7 @@ class WeatherViewModel: ObservableObject {
     private let service: WeatherFetching
     private let defaults: UserDefaults
     private let cache: WeatherCache
+    private let reloader: WidgetReloading
     private var searchTask: Task<Void, Never>?
 
     /// Newest in-flight fetch per city. Results from superseded fetches are
@@ -90,7 +91,8 @@ class WeatherViewModel: ObservableObject {
     init(service: WeatherFetching? = nil,
          defaults: UserDefaults? = nil,
          cache: WeatherCache? = nil,
-         legacyDefaults: UserDefaults? = nil) {
+         legacyDefaults: UserDefaults? = nil,
+         reloader: WidgetReloading? = nil) {
         let defaults = defaults ?? AppGroup.defaults
         Self.migrateIfNeeded(from: legacyDefaults ?? .standard,
                              into: defaults,
@@ -99,6 +101,7 @@ class WeatherViewModel: ObservableObject {
         self.service = service ?? WeatherService.shared
         self.defaults = defaults
         self.cache = cache ?? WeatherCache()
+        self.reloader = reloader ?? WidgetReloader.shared
 
         let cities = Self.loadSavedCities(from: defaults, key: savedCitiesKey)
 
@@ -135,6 +138,10 @@ class WeatherViewModel: ObservableObject {
 
     private func saveCities() {
         SavedCities.save(entries.map(\.city), to: defaults)
+        // The widget picks its city from this list, and an unconfigured one
+        // falls back to whichever is first — so adding, removing or promoting
+        // a city can change what a widget shows without any reading changing.
+        reloader.reload()
     }
 
     /// Puts the last successful fetch for every saved city on screen
@@ -297,6 +304,8 @@ class WeatherViewModel: ObservableObject {
             entries[i].lastUpdated = Date()
             entries[i].isLoading = false
             cache.save(city: city, response: weather.response)
+            // The widget reads this cache and cannot fetch for itself.
+            reloader.reload()
         } catch {
             guard fetchTokens[cityKey] == token, let i = index(of: cityKey) else { return }
             Log.weather.error("Fetch failed for \(city.name, privacy: .public): \(error.localizedDescription)")

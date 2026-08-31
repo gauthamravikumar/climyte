@@ -111,6 +111,12 @@ nonisolated struct City: Identifiable, Codable, Equatable {
     }
 }
 
+/// Sunrise and sunset for one day, as instants rather than display strings.
+nonisolated struct SolarDay {
+    let sunrise: Date
+    let sunset: Date
+}
+
 struct CityWeather: Identifiable {
     let id: UUID
     let city: City
@@ -119,7 +125,13 @@ struct CityWeather: Identifiable {
     let condition: WeatherCondition
     let hourlyForecasts: [HourlyForecast]
     let utcOffsetSeconds: Int
-    let isNight: Bool
+
+    /// Sunrise and sunset for every day the response covers, in order.
+    ///
+    /// Kept as dates rather than the formatted strings alongside them, because
+    /// the widget renders entries scheduled hours after the fetch that
+    /// produced them and has to ask whether it is night *then*, not now.
+    let solarDays: [SolarDay]
     let dailyForecasts: [DailyForecast]
     let maxTemp: Double
     let minTemp: Double
@@ -149,6 +161,29 @@ struct CityWeather: Identifiable {
 
     var theme: WeatherTheme {
         WeatherTheme.forIsNight(isNight)
+    }
+
+    /// Whether it is night in this city right now.
+    var isNight: Bool { isNight(at: Date()) }
+
+    /// Whether it is night in this city at `date`.
+    ///
+    /// Locates the day `date` actually falls in rather than assuming today's
+    /// pair. Comparing a 5am entry against *today's* sunset would call every
+    /// hour after this evening night, straight through tomorrow's morning.
+    func isNight(at date: Date) -> Bool {
+        guard !solarDays.isEmpty else {
+            // No parseable sun times; the reading's own daylight flag is all
+            // that is left, and it can only speak for when it was fetched.
+            return response.current.is_day == 0
+        }
+
+        // The most recent sunrise on or before `date`. Nothing matching means
+        // `date` precedes every sunrise the response covers, which is night.
+        guard let day = solarDays.last(where: { $0.sunrise <= date }) else {
+            return true
+        }
+        return date > day.sunset
     }
     
     init(city: City, response: WeatherResponse) {
@@ -262,15 +297,15 @@ struct CityWeather: Identifiable {
             self.sunsetFormatted = "--"
         }
         
-        let now = Date()
-        if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
-           let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
-           let sunriseDate = isoFormatter.date(from: sunriseStr),
-           let sunsetDate = isoFormatter.date(from: sunsetStr) {
-            self.isNight = now < sunriseDate || now > sunsetDate
-        } else {
-            self.isNight = response.current.is_day == 0
-        }
+        // Every day the response covers, not just today: an entry rendered
+        // after midnight has to be judged against that day's own sunrise.
+        self.solarDays = zip(response.daily.sunrise, response.daily.sunset)
+            .compactMap { sunrise, sunset in
+                guard let sunrise, let sunset,
+                      let sunriseDate = isoFormatter.date(from: sunrise),
+                      let sunsetDate = isoFormatter.date(from: sunset) else { return nil }
+                return SolarDay(sunrise: sunriseDate, sunset: sunsetDate)
+            }
         
         let hourFormatter = DateFormatter()
         hourFormatter.dateFormat = "h a"

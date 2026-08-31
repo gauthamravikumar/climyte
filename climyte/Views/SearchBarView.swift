@@ -22,7 +22,12 @@ struct SearchBarView: View {
                     .font(.system(size: 16))
                     .accessibilityHidden(true)
 
-                TextField("", text: $query)
+                // No string title: an empty literal is still extracted as a
+                // localizable key, and an empty row in the catalog is a
+                // question for whoever translates it. The label is supplied
+                // by accessibilityLabel below, and the visible placeholder by
+                // the overlay.
+                TextField(text: $query) { EmptyView() }
                     .focused($isFocused)
                     .font(.searchField)
                     .foregroundColor(theme.primaryText)
