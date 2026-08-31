@@ -109,6 +109,36 @@ final class WidgetSupportTests: XCTestCase {
         XCTAssertEqual(ReadingAge.short(50 * 3600), "2d")
     }
 
+    // MARK: - Refetch policy
+
+    func testAReadingWithNoAgeAlwaysNeedsFetching() {
+        XCTAssertTrue(ReadingAge.needsRefetch(nil))
+    }
+
+    /// The case that matters: the app caches a reading and immediately asks
+    /// for a widget reload. Answering that with a fetch would have the app and
+    /// every placed widget request the same city seconds apart.
+    func testAReadingTheAppJustCachedIsNotRefetched() {
+        XCTAssertFalse(ReadingAge.needsRefetch(0))
+        XCTAssertFalse(ReadingAge.needsRefetch(60))
+        XCTAssertFalse(ReadingAge.needsRefetch(ReadingAge.refetchAfter - 1))
+    }
+
+    func testTheWidgetsOwnScheduleStillFetches() {
+        XCTAssertTrue(ReadingAge.needsRefetch(ReadingAge.refetchAfter))
+        XCTAssertTrue(ReadingAge.needsRefetch(WeatherTimelineProviderSpan.timelineSpan),
+                      "A reload at the end of a timeline run must fetch")
+        XCTAssertTrue(ReadingAge.needsRefetch(8 * 3600))
+    }
+
+    /// A reading can be worth refetching long before it is worth apologising
+    /// for; the two thresholds must not collapse into each other.
+    func testRefetchHappensWellBeforeAReadingLooksStale() {
+        XCTAssertLessThan(ReadingAge.refetchAfter, ReadingAge.staleAfter)
+        XCTAssertTrue(ReadingAge.needsRefetch(30 * 60))
+        XCTAssertNil(ReadingAge.short(30 * 60), "30 minutes old is worth refreshing, not flagging")
+    }
+
     // MARK: - Reload coalescing
 
     func testBurstOfChangesCostsASingleReload() async {
@@ -185,4 +215,11 @@ final class WidgetSupportTests: XCTestCase {
                         countryCode: "AU", latitude: 0, longitude: 0)
         return CityWeather(city: city, response: response)
     }
+}
+
+/// The widget extension is not part of this test bundle, so its timeline span
+/// is restated here. If the two ever disagree the refetch test above stops
+/// describing the real schedule — keep them equal.
+private enum WeatherTimelineProviderSpan {
+    static let timelineSpan: TimeInterval = 2 * 3600
 }

@@ -24,6 +24,26 @@ enum ReadingAge {
         (age ?? 0) >= staleAfter
     }
 
+    /// Below this, a cached reading is new enough that fetching again would
+    /// return the same numbers.
+    static let refetchAfter: TimeInterval = 15 * 60
+
+    /// Whether a reading of this age is worth going to the network for.
+    ///
+    /// The widget reloads for two quite different reasons and only one of them
+    /// wants a fetch. Its own schedule comes round every couple of hours, by
+    /// which point the reading genuinely is old. But the app also asks for a
+    /// reload the moment it caches a reading of its own — and answering that
+    /// with a fetch means the app and every placed widget each request the
+    /// same city seconds apart, which is the opposite of what asking for the
+    /// reload was for.
+    ///
+    /// No reading at all always needs one.
+    static func needsRefetch(_ age: TimeInterval?) -> Bool {
+        guard let age else { return true }
+        return age >= refetchAfter
+    }
+
     /// The age in the shortest form that still says it: "4h", "2d".
     ///
     /// Nil when the reading is current, so callers render nothing at all

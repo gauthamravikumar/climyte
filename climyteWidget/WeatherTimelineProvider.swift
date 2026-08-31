@@ -61,7 +61,8 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     /// the day/night treatment flips at the city's own sunrise and sunset
     /// without spending a reload to do it.
     func timeline(for configuration: SelectCityIntent, in context: Context) async -> Timeline<WeatherEntry> {
-        let base = await refreshed(entry(for: configuration))
+        let saved = SavedCityQuery.savedCities()
+        let base = await refreshed(entry(for: configuration, saved: saved), saved: saved)
         let now = Date()
         let horizon = now.addingTimeInterval(Self.timelineSpan)
 
@@ -88,12 +89,24 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     ///
     /// A success is written back to the shared cache, so opening the app finds
     /// the reading the widget already has instead of fetching it a second time.
-    private func refreshed(_ cached: WeatherEntry) async -> WeatherEntry {
+    private func refreshed(_ cached: WeatherEntry, saved: [City]) async -> WeatherEntry {
         guard let city = cached.city else { return cached }
+
+        // Most reloads arrive moments after the app cached this very reading.
+        guard ReadingAge.needsRefetch(cached.age) else { return cached }
 
         do {
             let weather = try await WeatherService.widget.fetchWeather(for: city)
-            WeatherCache().save(city: city, response: weather.response)
+
+            // Only cities the app still lists belong in its cache. A widget
+            // can outlive the city it was configured for — removing a city
+            // prunes its payload, and writing this one back unconditionally
+            // would restore it and then keep it refreshed forever, with
+            // nothing left to ever prune it again.
+            if saved.contains(where: { $0.key == city.key }) {
+                WeatherCache().save(city: city, response: weather.response)
+            }
+
             return WeatherEntry(date: .now, city: city, weather: weather, fetchedAt: .now)
         } catch {
             // Nothing to surface: the cached reading is already on screen and
@@ -103,8 +116,8 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
         }
     }
 
-    private func entry(for configuration: SelectCityIntent) -> WeatherEntry {
-        let saved = SavedCityQuery.savedCities()
+    private func entry(for configuration: SelectCityIntent,
+                       saved: [City] = SavedCityQuery.savedCities()) -> WeatherEntry {
         // Fall back to the first saved city so a freshly placed widget shows
         // something real before the user has configured it.
         let city = configuration.city?.city ?? saved.first
