@@ -66,3 +66,23 @@ final class SafeRoundingTests: XCTestCase {
         XCTAssertEqual(weather.humidity, .max)
     }
 }
+
+/// Values that reach an `Int` conversion from the on-disk cache rather than
+/// from the network, where a corrupted file can supply anything a `Double`
+/// can hold.
+@MainActor
+final class CachedTimestampRoundingTests: XCTestCase {
+
+    func testAnAbsurdCachedTimestampDoesNotCrashTheStaleNotice() {
+        let corrupt = Date(timeIntervalSinceReferenceDate: .greatestFiniteMagnitude)
+
+        XCTAssertFalse(StaleDataNotice.age(of: corrupt).isEmpty)
+        XCTAssertFalse(StaleDataNotice.age(of: Date(timeIntervalSinceReferenceDate: -.infinity)).isEmpty)
+    }
+
+    func testAnAbsurdAgeDoesNotCrashTheWidgetsMarker() {
+        XCTAssertNotNil(ReadingAge.short(.infinity))
+        XCTAssertNil(ReadingAge.short(.nan), "NaN is not a stale reading")
+        XCTAssertNotNil(ReadingAge.short(1e300))
+    }
+}

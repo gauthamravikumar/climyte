@@ -74,7 +74,9 @@ struct StaleDataNotice: View {
     /// How old the reading on screen is, so "no internet connection" doesn't
     /// leave the user guessing whether they're looking at today's weather.
     static func age(of date: Date, relativeTo now: Date = Date()) -> String {
-        let minutes = Int(now.timeIntervalSince(date) / 60)
+        // `date` comes off the cache file, where a Date decodes from any bare
+        // Double — so this arithmetic is only as sane as the bytes on disk.
+        let minutes = (now.timeIntervalSince(date) / 60).toInt(.towardZero)
 
         switch minutes {
         case ..<1:

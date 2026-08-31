@@ -53,7 +53,7 @@ enum ReadingAge {
     static func short(_ age: TimeInterval?) -> String? {
         guard let age, isStale(age) else { return nil }
 
-        let hours = Int(age / 3600)
+        let hours = (age / 3600).toInt(.towardZero)
         return hours < 24
             ? String(localized: "\(hours)h")
             : String(localized: "\(hours / 24)d")

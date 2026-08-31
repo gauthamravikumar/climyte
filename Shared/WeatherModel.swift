@@ -347,13 +347,16 @@ struct CityWeather: Identifiable {
                 // Keep only current and future hours (within a 24h window)
                 // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
-                    let formattedHour = date.formatted(hourStyle).lowercased()
+                    // A null hour is skipped, not fatal: the rest of the day
+                    // is still worth showing.
+                    guard let temperature: Double = response.hourly.temperature_2m.value(at: i),
+                          let code: Int = response.hourly.weather_code.value(at: i) else { continue }
 
                     let forecast = HourlyForecast(
                         id: timeString,
-                        time: formattedHour,
-                        condition: WeatherCondition.from(wmoCode: response.hourly.weather_code[i]),
-                        temperature: response.hourly.temperature_2m[i]
+                        time: date.formatted(hourStyle).lowercased(),
+                        condition: WeatherCondition.from(wmoCode: code),
+                        temperature: temperature
                     )
                     hourlyList.append(forecast)
                     parsedHours += 1
@@ -421,8 +424,14 @@ nonisolated struct CurrentWeatherResponse: Codable {
 
 nonisolated struct HourlyWeatherResponse: Codable {
     let time: [String]
-    let temperature_2m: [Double]
-    let weather_code: [Int]
+
+    /// Optional for the same reason the daily arrays are: Open-Meteo sends
+    /// null past the horizon of the model backing a field, and one null in a
+    /// non-optional array fails the whole decode. That asymmetry meant a
+    /// single missing hour cost the reader the entire city — temperature,
+    /// forecast and all — reported as "Couldn't read the weather data".
+    let temperature_2m: [Double?]
+    let weather_code: [Int?]
 }
 
 nonisolated struct DailyWeatherResponse: Codable {
