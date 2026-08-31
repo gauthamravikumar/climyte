@@ -80,11 +80,16 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertFalse(weather.hourlyForecasts.isEmpty)
         XCTAssertLessThanOrEqual(weather.hourlyForecasts.count, 24)
 
+        // The hour label follows the reader's 12/24-hour setting, so assert the
+        // shape rather than one convention: "2 pm" for a 12-hour reader, "14"
+        // for a 24-hour one. Pinning this to am/pm would have made the app
+        // wrong for most of the world in order to keep the test green.
         let first = try XCTUnwrap(weather.hourlyForecasts.first)
-        XCTAssertTrue(
-            first.time.hasSuffix("am") || first.time.hasSuffix("pm"),
-            "Formatted hour should end with am/pm, got \(first.time)"
-        )
+        let usesTwelveHourClock = first.time.hasSuffix("am") || first.time.hasSuffix("pm")
+        let usesTwentyFourHourClock = Int(first.time.trimmingCharacters(in: .whitespaces)) != nil
+
+        XCTAssertTrue(usesTwelveHourClock || usesTwentyFourHourClock,
+                      "Hour label should be '2 pm' or '14', got \(first.time)")
     }
 
     /// Open-Meteo can return parallel arrays of differing lengths; indexing past
@@ -159,6 +164,8 @@ final class WeatherModelTests: XCTestCase {
     /// looking and wrong. When today is absent, take the next day forward.
     func testMissingTodayPicksTheNextDayForwardNotYesterday() {
         let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
         day.dateFormat = "yyyy-MM-dd"
         day.timeZone = TimeZone(secondsFromGMT: 36000)
 
@@ -178,6 +185,8 @@ final class WeatherModelTests: XCTestCase {
     /// shortest array; the range must not be built reversed.
     func testTodayIndexBeyondTheShortestArrayDoesNotTrap() {
         let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
         day.dateFormat = "yyyy-MM-dd"
         day.timeZone = TimeZone(secondsFromGMT: 36000)
 
@@ -241,6 +250,8 @@ final class WeatherModelTests: XCTestCase {
     private func withDaily(_ base: WeatherResponse,
                            days: [(String, Double?, Double?)]) -> WeatherResponse {
         let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
         day.dateFormat = "yyyy-MM-dd"
         day.timeZone = TimeZone(secondsFromGMT: 36000)
         let times = days.indices.map { day.string(from: Date().addingTimeInterval(Double($0) * 86_400)) }
@@ -289,10 +300,14 @@ final class WeatherModelTests: XCTestCase {
         let timeZone = TimeZone(secondsFromGMT: utcOffsetSeconds)!
 
         let isoFormatter = DateFormatter()
+        isoFormatter.locale = Locale(identifier: "en_US_POSIX")
+        isoFormatter.calendar = Calendar(identifier: .gregorian)
         isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
         isoFormatter.timeZone = timeZone
 
         let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.calendar = Calendar(identifier: .gregorian)
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.timeZone = timeZone
 

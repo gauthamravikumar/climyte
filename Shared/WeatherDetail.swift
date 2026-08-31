@@ -121,7 +121,7 @@ enum WeatherDetails {
         guard let hours = weather.precipitationHours, hours >= 1 else {
             return units.precipitation(amount)
         }
-        return String(localized: "\(units.precipitation(amount)) over \(Int(hours))h")
+        return String(localized: "\(units.precipitation(amount)) over \(hours.toInt(.towardZero))h")
     }
 
     // MARK: - Formatting
@@ -138,7 +138,7 @@ enum WeatherDetails {
         case ..<10.5: category = String(localized: "Very High", comment: "UV index category")
         default: category = String(localized: "Extreme", comment: "UV index category")
         }
-        return "\(Int(value.rounded())) \(category)"
+        return "\(value.toInt()) \(category)"
     }
 
     /// Beaufort-style description of the wind speed, in km/h.
@@ -155,13 +155,13 @@ enum WeatherDetails {
     }
 
     nonisolated static func duration(_ seconds: Double) -> String {
-        let total = Int(seconds.rounded())
+        let total = seconds.toInt()
         return "\(total / 3600)h \((total % 3600) / 60)m"
     }
 
     /// Under a minute either way is not worth reporting as a change.
     nonisolated static func daylightChange(_ seconds: Double) -> String? {
-        let minutes = Int((seconds / 60).rounded())
+        let minutes = (seconds / 60).toInt()
         guard minutes != 0 else { return nil }
         return minutes > 0
             ? String(localized: "\(minutes)m longer")

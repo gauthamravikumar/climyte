@@ -52,7 +52,7 @@ nonisolated enum UnitSystem: String, Codable, CaseIterable {
 
     func temperatureValue(_ celsius: Double) -> Int {
         let converted = self == .metric ? celsius : celsius * 9 / 5 + 32
-        return Int(converted.rounded())
+        return converted.toInt()
     }
 
     func temperature(_ celsius: Double) -> String {
@@ -62,9 +62,9 @@ nonisolated enum UnitSystem: String, Codable, CaseIterable {
     func windSpeed(_ kilometresPerHour: Double) -> String {
         switch self {
         case .metric:
-            return "\(Int(kilometresPerHour.rounded())) km/h"
+            return "\(kilometresPerHour.toInt()) km/h"
         case .imperial:
-            return "\(Int((kilometresPerHour * 0.621371).rounded())) mph"
+            return "\((kilometresPerHour * 0.621371).toInt()) mph"
         }
     }
 
@@ -80,9 +80,9 @@ nonisolated enum UnitSystem: String, Codable, CaseIterable {
     func visibility(_ kilometres: Double) -> String {
         switch self {
         case .metric:
-            return "\(Int(kilometres.rounded())) km"
+            return "\(kilometres.toInt()) km"
         case .imperial:
-            return "\(Int((kilometres * 0.621371).rounded())) mi"
+            return "\((kilometres * 0.621371).toInt()) mi"
         }
     }
 }

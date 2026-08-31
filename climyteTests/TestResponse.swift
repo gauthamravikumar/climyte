@@ -36,10 +36,14 @@ enum TestResponse {
         let utc = TimeZone(secondsFromGMT: 0)!
 
         let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
         day.dateFormat = "yyyy-MM-dd"
         day.timeZone = utc
 
         let stamp = DateFormatter()
+        stamp.locale = Locale(identifier: "en_US_POSIX")
+        stamp.calendar = Calendar(identifier: .gregorian)
         stamp.dateFormat = "yyyy-MM-dd'T'HH:mm"
         stamp.timeZone = utc
 

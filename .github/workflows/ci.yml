@@ -43,10 +43,29 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO
 
+      # A second pass under a Buddhist-calendar region. Every fixed-format
+      # DateFormatter inherits Locale.current unless told otherwise, so on a
+      # device whose Region is Thailand the API's "2026-08-31" was read as a
+      # Buddhist year and parsed to 1483 — which emptied the hourly forecast
+      # and locked the app in its night theme. That shipped once and passed a
+      # full green suite, because the suite only ever ran in en_US.
+      - name: Test under a non-Gregorian region
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project climyte.xcodeproj \
+            -scheme climyte \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -testRegion TH \
+            -resultBundlePath TestResultsTH.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
       - name: Upload results on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: TestResults.xcresult
+          path: |
+            TestResults.xcresult
+            TestResultsTH.xcresult
           retention-days: 7

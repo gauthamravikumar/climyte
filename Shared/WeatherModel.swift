@@ -186,6 +186,24 @@ struct CityWeather: Identifiable {
         return date > day.sunset
     }
     
+    /// A formatter for the API's own date strings.
+    ///
+    /// `en_US_POSIX` is the point. A bare DateFormatter inherits
+    /// `Locale.current`, including its calendar — so on a device whose Region
+    /// is Thailand, `string(from: Date())` yields the Buddhist year 2569 and
+    /// `date(from: "2026-08-31T06:00")` reads 2026 as a Buddhist year and
+    /// returns 1483. Neither then matches anything the API sent. This is a
+    /// Region setting, not a language one: it fires for an English-speaking
+    /// reader who has simply chosen a different region.
+    private static func apiFormatter(_ format: String, in timeZone: TimeZone) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = format
+        formatter.timeZone = timeZone
+        return formatter
+    }
+
     init(city: City, response: WeatherResponse) {
         self.id = UUID()
         self.city = city
@@ -196,20 +214,23 @@ struct CityWeather: Identifiable {
         self.utcOffsetSeconds = response.utc_offset_seconds
         
         let cityTimeZone = TimeZone(secondsFromGMT: response.utc_offset_seconds) ?? TimeZone.current
-        var cityCalendar = Calendar.current
+
+        // Gregorian explicitly, not Calendar.current. A reader whose Region is
+        // Thailand or Saudi Arabia has a Buddhist or Hijri calendar, and every
+        // date here is a Gregorian one the API sent us.
+        var cityCalendar = Calendar(identifier: .gregorian)
         cityCalendar.timeZone = cityTimeZone
-        
-        let isoFormatter = DateFormatter()
-        isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
-        isoFormatter.timeZone = cityTimeZone
-        
+
+        let isoFormatter = Self.apiFormatter("yyyy-MM-dd'T'HH:mm", in: cityTimeZone)
+        let dateParser = Self.apiFormatter("yyyy-MM-dd", in: cityTimeZone)
+
+        // Day names are for reading, so this one follows the reader's locale.
+        // Its calendar is still pinned: weekday names are the same either way,
+        // but nothing here should depend on which calendar happens to be set.
         let dayFormatter = DateFormatter()
         dayFormatter.dateFormat = "EEE"
         dayFormatter.timeZone = cityTimeZone
-        
-        let dateParser = DateFormatter()
-        dateParser.dateFormat = "yyyy-MM-dd"
-        dateParser.timeZone = cityTimeZone
+        dayFormatter.calendar = cityCalendar
         
         // The request asks for one past day so day length can be compared with
         // yesterday, which means index 0 is *yesterday*, not today. Find today
@@ -258,7 +279,7 @@ struct CityWeather: Identifiable {
         self.maxTemp = response.daily.temperature_2m_max.value(at: todayIndex) ?? response.current.temperature_2m
         self.minTemp = response.daily.temperature_2m_min.value(at: todayIndex) ?? response.current.temperature_2m
         
-        self.humidity = Int(response.current.relative_humidity_2m)
+        self.humidity = response.current.relative_humidity_2m.toInt(.towardZero)
         self.dewPoint = response.current.dew_point_2m
         self.windGusts = response.current.wind_gusts_10m
 
@@ -279,20 +300,22 @@ struct CityWeather: Identifiable {
         self.uvIndex = response.daily.uv_index_max.value(at: todayIndex) ?? 0.0
         self.visibility = response.current.visibility / 1000.0
         
-        let sunTimeFormatter = DateFormatter()
-        sunTimeFormatter.dateFormat = "h:mm a"
-        sunTimeFormatter.timeZone = cityTimeZone
+        // `.shortened` rather than a hardcoded "h:mm a": the header clock in
+        // CurrentConditionsView already honours the reader's 12/24-hour
+        // setting, and a screen showing "4:13" beside "6:00 am" is showing two
+        // different clocks.
+        let sunTimeStyle = Date.FormatStyle(date: .omitted, time: .shortened, timeZone: cityTimeZone)
         
         if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
            let sunriseDate = isoFormatter.date(from: sunriseStr) {
-            self.sunriseFormatted = sunTimeFormatter.string(from: sunriseDate).lowercased()
+            self.sunriseFormatted = sunriseDate.formatted(sunTimeStyle).lowercased()
         } else {
             self.sunriseFormatted = "--"
         }
         
         if let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
-            self.sunsetFormatted = sunTimeFormatter.string(from: sunsetDate).lowercased()
+            self.sunsetFormatted = sunsetDate.formatted(sunTimeStyle).lowercased()
         } else {
             self.sunsetFormatted = "--"
         }
@@ -307,9 +330,9 @@ struct CityWeather: Identifiable {
                 return SolarDay(sunrise: sunriseDate, sunset: sunsetDate)
             }
         
-        let hourFormatter = DateFormatter()
-        hourFormatter.dateFormat = "h a"
-        hourFormatter.timeZone = cityTimeZone
+        // Same reasoning: "2 pm" for a 12-hour reader, "14" for a 24-hour one.
+        let hourStyle = Date.FormatStyle(timeZone: cityTimeZone)
+            .hour(.defaultDigits(amPM: .abbreviated))
         
         var hourlyList: [HourlyForecast] = []
         let currentEpoch = Date().timeIntervalSince1970
@@ -324,7 +347,7 @@ struct CityWeather: Identifiable {
                 // Keep only current and future hours (within a 24h window)
                 // Subtract 3600s (1h) so the user gets context of the current ongoing hour
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
-                    let formattedHour = hourFormatter.string(from: date).lowercased()
+                    let formattedHour = date.formatted(hourStyle).lowercased()
 
                     let forecast = HourlyForecast(
                         id: timeString,
