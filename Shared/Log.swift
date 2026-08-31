@@ -11,7 +11,7 @@ import os
 /// Unlike `print`, these survive into Console.app and the device log, carry a
 /// level, and are stripped of interpolated values in release builds unless
 /// explicitly marked public.
-enum Log {
+nonisolated enum Log {
     private static let subsystem = Bundle.main.bundleIdentifier ?? "climyte"
 
     static let weather = Logger(subsystem: subsystem, category: "weather")
