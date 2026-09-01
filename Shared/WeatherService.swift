@@ -79,6 +79,18 @@ class WeatherService {
     }
 
     func fetchWeather(for city: City) async throws -> CityWeather {
+        // A city decoded from a corrupted store can carry NaN, infinity, or
+        // coordinates off the globe. Interpolated into the URL those become a
+        // request the server answers with a 400, which reaches the reader as
+        // "the weather service is unavailable" — blaming Open-Meteo for a
+        // question we should never have asked.
+        guard city.latitude.isFinite, city.longitude.isFinite,
+              (-90...90).contains(city.latitude),
+              (-180...180).contains(city.longitude) else {
+            Log.weather.error("Refusing to fetch for out-of-range coordinates")
+            throw WeatherError.invalidURL
+        }
+
         let urlString = """
         https://api.open-meteo.com/v1/forecast?\
         latitude=\(city.latitude)&longitude=\(city.longitude)&\

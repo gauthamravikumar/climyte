@@ -50,6 +50,16 @@ class WeatherViewModel: ObservableObject {
         }
     }
 
+    /// Whether the field holds anything worth searching for.
+    ///
+    /// Whitespace is not. `performSearch` trims before deciding, so a view
+    /// testing `searchQuery.isEmpty` instead disagrees with it: typing a
+    /// single space left the search idle while the view had already switched
+    /// away from the saved-cities list, and the reader got a blank screen.
+    var hasSearchQuery: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// Convenience for callers that only care about the successful case.
     var searchResults: [GeocodingResult] {
         if case .results(let results) = searchState { return results }

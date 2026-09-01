@@ -78,7 +78,7 @@ struct ContentView: View {
     /// Focused with an empty field shows the saved cities; typing searches.
     @ViewBuilder
     private var searchOverlay: some View {
-        if viewModel.searchQuery.isEmpty {
+        if !viewModel.hasSearchQuery {
             SavedCitiesView(
                 entries: viewModel.entries,
                 selectedKey: viewModel.selectedCityKey,
