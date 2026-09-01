@@ -19,6 +19,9 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Scales with the type ramp, like every other icon in the app.
+    @ScaledMetric(relativeTo: .body) private var searchIcon: CGFloat = 17
+
     private var themeAnimation: Animation? {
         reduceMotion ? nil : .easeInOut(duration: 0.5)
     }
@@ -40,15 +43,19 @@ struct ContentView: View {
                 .animation(themeAnimation, value: theme.background)
 
             VStack(spacing: 16) {
-                SearchBarView(
-                    query: $viewModel.searchQuery,
-                    isSearching: $isSearching,
-                    theme: theme
-                )
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
-
+                // The field only exists while it is being used. Kept on screen
+                // permanently it cost about 63 points at the top — and, worse,
+                // pushed the city name a third of the way down the page, so the
+                // thing the screen is about was never the first thing on it.
                 if isSearching {
+                    SearchBarView(
+                        query: $viewModel.searchQuery,
+                        isSearching: $isSearching,
+                        theme: theme
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+
                     searchOverlay
                         .padding(.horizontal, 24)
                     Spacer(minLength: 0)
@@ -103,6 +110,23 @@ struct ContentView: View {
         }
     }
 
+    /// Opens search. Collapsed to an icon, in the bottom bar rather than the
+    /// top, because it is tapped occasionally and the bottom edge is where a
+    /// thumb already is.
+    private var searchButton: some View {
+        Button {
+            withAnimation(transitionAnimation) { isSearching = true }
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: searchIcon, weight: .medium))
+                .foregroundColor(theme.secondaryText)
+                // The 44pt target the glyph alone would not have.
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Search city")
+    }
+
     private var pager: some View {
         VStack(spacing: 0) {
             TabView(selection: $viewModel.selectedCityKey) {
@@ -117,15 +141,25 @@ struct ContentView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
-            if viewModel.entries.count > 1 {
-                CityNameStrip(
-                    entries: viewModel.entries,
-                    selectedKey: viewModel.selectedCityKey,
-                    theme: theme,
-                    onSelect: { entry in
-                        withAnimation(transitionAnimation) { viewModel.selectEntry(entry) }
-                    }
-                )
+            // Always present, unlike the strip beside it: with one saved city
+            // there are no names to show, but search still has to be reachable.
+            HStack(spacing: 0) {
+                searchButton
+                    .padding(.leading, 12)
+
+                if viewModel.entries.count > 1 {
+                    CityNameStrip(
+                        entries: viewModel.entries,
+                        selectedKey: viewModel.selectedCityKey,
+                        theme: theme,
+                        onSelect: { entry in
+                            withAnimation(transitionAnimation) { viewModel.selectEntry(entry) }
+                        },
+                        leadingInset: 0
+                    )
+                } else {
+                    Spacer()
+                }
             }
         }
     }

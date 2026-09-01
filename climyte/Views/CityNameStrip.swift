@@ -22,6 +22,11 @@ struct CityNameStrip: View {
     let theme: WeatherTheme
     let onSelect: (CityEntry) -> Void
 
+    /// Room at the leading edge. Defaults to the screen margin; the search
+    /// button sits in that margin, so when it is present this drops to zero
+    /// rather than indenting the first city name twice over.
+    var leadingInset: CGFloat = 24
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -39,7 +44,8 @@ struct CityNameStrip: View {
                         .id(entry.id)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.leading, leadingInset)
+                .padding(.trailing, 24)
                 .padding(.vertical, 12)
             }
             // Keep the current city in view when it changes by swipe as well

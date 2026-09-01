@@ -102,6 +102,11 @@ struct SearchBarView: View {
             ThemeDivider(theme: theme)
         }
         .padding(.horizontal, 4)
+        // The bar is only built once search is open, and it is opened by a
+        // button elsewhere on screen — so it has to take focus itself. Without
+        // this, tapping the magnifier gave you a field you then had to tap
+        // again before you could type into it.
+        .onAppear { isFocused = true }
         .onChange(of: isFocused) { _, focused in
             withAnimation(reduceMotion ? nil : .default) { isSearching = focused }
         }
