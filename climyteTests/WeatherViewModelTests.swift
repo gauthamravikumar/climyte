@@ -427,6 +427,60 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloaded.entries[1].city.unitSystem, .imperial)
     }
 
+    // MARK: - Returning to the foreground
+
+    /// The date-rollover defect. `CityWeather` resolves which day is "today"
+    /// when it is built, so an app left open overnight keeps labelling
+    /// yesterday "Today". Rebuilding from the same cached response fixes it
+    /// without a request.
+    func testReturningToTheForegroundRebuildsFromTheCache() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather())
+        cache.save(city: WeatherViewModel.defaultCity,
+                   response: makeResponse(temperature: 17),
+                   at: Date())
+
+        let viewModel = makeViewModel(service: service)
+        XCTAssertNotNil(viewModel.entries.first?.weather, "Restored at init")
+
+        await viewModel.refreshOnForeground()
+
+        XCTAssertEqual(viewModel.entries.first?.weather?.temperature, 17,
+                       "Rebuilt from the cached response, not invented")
+    }
+
+    func testAFreshReadingIsNotRefetchedOnReturningToTheForeground() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather())
+        cache.save(city: WeatherViewModel.defaultCity,
+                   response: makeResponse(temperature: 17),
+                   at: Date())
+
+        let viewModel = makeViewModel(service: service)
+        let before = service.fetchCount
+
+        await viewModel.refreshOnForeground()
+
+        XCTAssertEqual(service.fetchCount, before,
+                       "Switching back to the app should not cost a request every time")
+    }
+
+    func testAnOldReadingIsRefetchedOnReturningToTheForeground() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather(temperature: 25))
+        cache.save(city: WeatherViewModel.defaultCity,
+                   response: makeResponse(temperature: 17),
+                   at: Date().addingTimeInterval(-WeatherViewModel.foregroundRefreshAfter - 60))
+
+        let viewModel = makeViewModel(service: service)
+        let before = service.fetchCount
+
+        await viewModel.refreshOnForeground()
+
+        XCTAssertGreaterThan(service.fetchCount, before)
+        XCTAssertEqual(viewModel.entries.first?.weather?.temperature, 25)
+    }
+
     // MARK: - Widget reloads
 
     /// The widget renders from the shared cache and cannot fetch on the app's

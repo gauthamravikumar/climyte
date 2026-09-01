@@ -10,6 +10,12 @@ import SwiftUI
 /// Reuses the search surface rather than adding a management screen: this is
 /// where someone already is when they want to switch or remove a city.
 struct SavedCitiesView: View {
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .headline) private var locationIcon: CGFloat = 11
+
     let entries: [CityEntry]
     let selectedKey: String
     let theme: WeatherTheme
@@ -50,7 +56,7 @@ struct SavedCitiesView: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             if entry.isCurrentLocation {
                 Image(systemName: "location.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: locationIcon))
                     .foregroundColor(theme.secondaryText)
                     .accessibilityHidden(true)
             }
@@ -82,5 +88,12 @@ struct SavedCitiesView: View {
                             ? Text("\(entry.city.name), current location")
                             : Text(entry.city.name))
         .accessibilityAddTraits(entry.id == selectedKey ? [.isSelected, .isButton] : .isButton)
+        // Swipe-to-delete is the only way to remove a city, and combining the
+        // row's children can swallow the action the list would otherwise
+        // expose. Stated explicitly, it also stops being a hidden gesture.
+        .accessibilityAction(named: Text("Delete \(entry.city.name)")) {
+            guard canRemove, let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+            onDelete(IndexSet(integer: index))
+        }
     }
 }

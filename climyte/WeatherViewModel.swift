@@ -254,6 +254,43 @@ class WeatherViewModel: ObservableObject {
         saveCities()
     }
 
+    /// Brings the app back up to date when it returns to the foreground.
+    ///
+    /// Two separate problems. `CityWeather` resolves which day is "today" when
+    /// it is built, so an app left open overnight keeps labelling yesterday
+    /// "Today" and showing yesterday's high, low and UV — rebuilding from the
+    /// same cached response fixes that without a single request. And the
+    /// reading itself may simply be old, which needs the network.
+    func refreshOnForeground() async {
+        rebuildFromCache()
+
+        let stale = entries.filter {
+            guard let updated = $0.lastUpdated else { return true }
+            return Date().timeIntervalSince(updated) >= Self.foregroundRefreshAfter
+        }
+        guard !stale.isEmpty else { return }
+
+        await withTaskGroup(of: Void.self) { group in
+            for entry in stale {
+                group.addTask { await self.refresh(cityKey: entry.id) }
+            }
+        }
+    }
+
+    /// Rebuilds every entry's weather from the response already cached, which
+    /// re-resolves "today" against the current date. Costs no network.
+    private func rebuildFromCache() {
+        for index in entries.indices {
+            guard let cached = cache.load(for: entries[index].city) else { continue }
+            entries[index].weather = CityWeather(city: cached.city, response: cached.response)
+            entries[index].lastUpdated = cached.fetchedAt
+        }
+    }
+
+    /// Below this, returning to the app does not re-fetch. Weather does not
+    /// move fast enough to justify a request every time someone switches back.
+    static let foregroundRefreshAfter: TimeInterval = 15 * 60
+
     func refreshSelected() async {
         guard let selected = selectedEntry else { return }
         await refresh(cityKey: selected.id)
@@ -421,7 +458,15 @@ class WeatherViewModel: ObservableObject {
                 return String(localized: "Couldn't reach the weather service.")
             case .insecureConnection:
                 return String(localized: "Secure connection failed — check the date and time on your device.")
-            case .decodingError, .invalidURL, .networkError:
+            case .networkError(let underlying):
+                // The weather path names the code; a search that fails for the
+                // same reason should not be more mysterious than the fetch
+                // beside it.
+                if let urlError = underlying as? URLError {
+                    let code = String(urlError.code.rawValue)
+                    return String(localized: "Couldn't search for cities (error \(code)).")
+                }
+            case .decodingError, .invalidURL:
                 break
             }
         }

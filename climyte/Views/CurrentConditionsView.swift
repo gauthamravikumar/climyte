@@ -6,6 +6,12 @@
 import SwiftUI
 
 struct CurrentConditionsView: View {
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .title) private var locationIcon: CGFloat = 14
+
     let weather: CityWeather
     let theme: WeatherTheme
     let isUsingCurrentLocation: Bool
@@ -28,7 +34,7 @@ struct CurrentConditionsView: View {
             HStack(spacing: 8) {
                 if isUsingCurrentLocation {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: locationIcon))
                         .foregroundColor(theme.primaryText.opacity(0.8))
                         .accessibilityLabel("Current location")
                 }

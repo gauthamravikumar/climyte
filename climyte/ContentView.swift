@@ -17,6 +17,8 @@ struct ContentView: View {
     /// fires on every swipe between a daytime and a night-time city.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @Environment(\.scenePhase) private var scenePhase
+
     private var themeAnimation: Animation? {
         reduceMotion ? nil : .easeInOut(duration: 0.5)
     }
@@ -57,6 +59,12 @@ struct ContentView: View {
         }
         .task {
             await viewModel.loadWeatherOnLaunch()
+        }
+        // Returning to the app after the city's date has rolled over would
+        // otherwise leave yesterday labelled "Today" until a manual refresh.
+        .onChange(of: scenePhase) { previous, phase in
+            guard phase == .active, previous != .active else { return }
+            Task { await viewModel.refreshOnForeground() }
         }
     }
 

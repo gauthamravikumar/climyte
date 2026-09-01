@@ -125,8 +125,8 @@ struct SmallWidgetView: View {
 
     private func rainLine(chance: Int, weather: CityWeather) -> String {
         guard let amount = weather.precipitationAmount, amount > 0 else {
-            return String(localized: "Rain \(chance)%")
+            return String(localized: "Rain \(WeatherDetails.percentage(chance))")
         }
-        return "\(String(localized: "Rain \(chance)%")) · \(entry.units.precipitation(amount))"
+        return "\(String(localized: "Rain \(WeatherDetails.percentage(chance))")) · \(entry.units.precipitation(amount))"
     }
 }

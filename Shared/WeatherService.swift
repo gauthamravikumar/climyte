@@ -44,21 +44,21 @@ class WeatherService {
         var errorDescription: String? {
             switch self {
             case .invalidURL:
-                return "The API URL was invalid."
+                return String(localized: "The API URL was invalid.")
             case .serverError(let statusCode):
-                return "The weather service returned an error (HTTP \(statusCode))."
+                return String(localized: "The weather service returned an error (HTTP \(String(statusCode))).")
             case .decodingError:
-                return "Failed to parse the weather data response."
+                return String(localized: "Failed to parse the weather data response.")
             case .offline:
-                return "No internet connection."
+                return String(localized: "No internet connection.")
             case .timedOut:
-                return "The request timed out."
+                return String(localized: "The request timed out.")
             case .unreachable:
-                return "Could not reach the weather service."
+                return String(localized: "Could not reach the weather service.")
             case .insecureConnection:
-                return "The secure connection failed."
+                return String(localized: "The secure connection failed.")
             case .networkError(let error):
-                return "Network error: \(error.localizedDescription)"
+                return String(localized: "Network error: \(error.localizedDescription)")
             }
         }
     }

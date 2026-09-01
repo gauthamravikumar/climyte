@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ longer" : {
+
+    },
     "%@ over %lldh" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11,6 +14,9 @@
           }
         }
       }
+    },
+    "%@ shorter" : {
+
     },
     "%@ · feels %lld° cooler" : {
       "extractionState" : "manual",
@@ -45,6 +51,9 @@
         }
       }
     },
+    "%@, current location" : {
+
+    },
     "%@, low %lld, high %lld degrees" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -74,6 +83,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld degrees, low %lld, high %lld"
+          }
+        }
+      }
+    },
+    "%lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of %2$lld"
           }
         }
       }
@@ -173,6 +192,9 @@
         }
       }
     },
+    "Could not reach the weather service." : {
+
+    },
     "Couldn't load weather" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -228,6 +250,9 @@
         }
       }
     },
+    "Couldn't search for cities (error %@)." : {
+
+    },
     "Couldn't search for cities." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -261,6 +286,9 @@
         }
       }
     },
+    "Delete %@" : {
+
+    },
     "Dry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -283,6 +311,9 @@
           }
         }
       }
+    },
+    "Failed to parse the weather data response." : {
+
     },
     "Foggy" : {
       "comment" : "Weather condition",
@@ -409,6 +440,9 @@
         }
       }
     },
+    "Moderate" : {
+      "comment" : "UV index category, spoken"
+    },
     "Moderate breeze" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -419,6 +453,9 @@
           }
         }
       }
+    },
+    "Network error: %@" : {
+
     },
     "Next 24 hours" : {
       "extractionState" : "manual",
@@ -452,6 +489,9 @@
           }
         }
       }
+    },
+    "No matches" : {
+
     },
     "No weather data available" : {
       "extractionState" : "manual",
@@ -622,6 +662,9 @@
         }
       }
     },
+    "The API URL was invalid." : {
+
+    },
     "The request timed out." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -633,6 +676,9 @@
         }
       }
     },
+    "The secure connection failed." : {
+
+    },
     "The weather service is unavailable right now." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -643,6 +689,9 @@
           }
         }
       }
+    },
+    "The weather service returned an error (HTTP %@)." : {
+
     },
     "Today" : {
       "comment" : "Row label for today in the weekly forecast",

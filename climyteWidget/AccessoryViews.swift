@@ -79,7 +79,7 @@ struct AccessoryRectangularView: View {
     private func secondLine(_ weather: CityWeather) -> String {
         if let chance = weather.precipitationChance,
            chance >= WeatherDetails.Threshold.rainChance {
-            return String(localized: "Rain \(chance)%")
+            return String(localized: "Rain \(WeatherDetails.percentage(chance))")
         }
         return weather.condition.description
     }

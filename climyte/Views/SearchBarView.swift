@@ -6,6 +6,18 @@
 import SwiftUI
 
 struct SearchBarView: View {
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .body) private var clearIcon: CGFloat = 16
+
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .body) private var searchIcon: CGFloat = 16
+
     @Binding var query: String
     @Binding var isSearching: Bool
     let theme: WeatherTheme
@@ -19,7 +31,7 @@ struct SearchBarView: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(theme.secondaryText)
-                    .font(.system(size: 16))
+                    .font(.system(size: searchIcon))
                     .accessibilityHidden(true)
 
                 // No string title: an empty literal is still extracted as a
@@ -61,7 +73,7 @@ struct SearchBarView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundColor(theme.secondaryText)
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: clearIcon, weight: .medium))
                             // A 16pt glyph is roughly 13pt of actual ink. The
                             // frame and hit shape give it the 44pt target the
                             // glyph alone never had.

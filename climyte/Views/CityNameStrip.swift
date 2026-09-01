@@ -11,12 +11,19 @@ import SwiftUI
 /// what is either side of you, and can be tapped to jump — so the indicator
 /// earns its space instead of just marking position.
 struct CityNameStrip: View {
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .caption) private var locationIcon: CGFloat = 8
+
     let entries: [CityEntry]
     let selectedKey: String
     let theme: WeatherTheme
     let onSelect: (CityEntry) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -47,6 +54,12 @@ struct CityNameStrip: View {
             .onAppear {
                 proxy.scrollTo(selectedKey, anchor: .center)
             }
+            // A type-size change re-lays out every entry, which leaves the
+            // strip scrolled to wherever the old widths happened to put it —
+            // showing names either side of a city that is not the live page.
+            .onChange(of: typeSize) { _, _ in
+                proxy.scrollTo(selectedKey, anchor: .center)
+            }
         }
     }
 
@@ -63,7 +76,7 @@ struct CityNameStrip: View {
                 Image(systemName: "location.fill")
                     // Scales with the label beside it; at 8pt fixed it stayed
                     // a speck next to text three times its size.
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: locationIcon, weight: .semibold))
                     .imageScale(.small)
                     .accessibilityHidden(true)
             }

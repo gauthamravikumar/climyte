@@ -75,7 +75,7 @@ enum WeatherDetails {
             details.append(WeatherDetail(
                 kind: .rain,
                 label: "Rain",
-                value: "\(chance)%",
+                value: percentage(chance),
                 caption: rainCaption(for: weather, units: units)
             ))
         }
@@ -149,6 +149,14 @@ enum WeatherDetails {
     //
     // These live with the logic rather than on the view that shows them, so
     // the widget can use them without importing the app's view layer.
+
+    /// A percentage in the reader's own convention.
+    ///
+    /// French and German put a space before the sign, and some locales place
+    /// it differently again; "\(chance)%" only ever produced the English form.
+    nonisolated static func percentage(_ value: Int) -> String {
+        (Double(value) / 100).formatted(.percent.precision(.fractionLength(0)))
+    }
 
     nonisolated static func uvIndex(_ value: Double) -> String {
         let category: String

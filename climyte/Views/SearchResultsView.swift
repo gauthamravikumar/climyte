@@ -6,6 +6,12 @@
 import SwiftUI
 
 struct SearchResultsView: View {
+    /// SF Symbols sized in points ignore Dynamic Type entirely: at
+    /// accessibility sizes this was a speck beside text three times its
+    /// height. @ScaledMetric keeps the drawn size at the default setting
+    /// and grows it with everything else.
+    @ScaledMetric(relativeTo: .title2) private var stateIcon: CGFloat = 24
+
     let state: SearchState
     let theme: WeatherTheme
 
@@ -83,7 +89,7 @@ struct SearchResultsView: View {
     private func failure(_ reason: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 24))
+                .font(.system(size: stateIcon))
                 .foregroundColor(theme.secondaryText)
                 .accessibilityHidden(true)
 
@@ -105,10 +111,13 @@ struct SearchResultsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func message(icon: String, title: String) -> some View {
+    /// `title` is a LocalizedStringResource, not a String. Passed as a String
+    /// it bound to Text's non-localizing overload, so "No matches" never
+    /// reached the catalog — Xcode's extractor could not see it either.
+    private func message(icon: String, title: LocalizedStringResource) -> some View {
         VStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 24))
+                .font(.system(size: stateIcon))
                 .foregroundColor(theme.secondaryText)
                 .accessibilityHidden(true)
 
