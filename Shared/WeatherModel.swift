@@ -126,6 +126,16 @@ struct CityWeather: Identifiable {
     let hourlyForecasts: [HourlyForecast]
     let utcOffsetSeconds: Int
 
+    /// The city's actual time zone.
+    ///
+    /// Built from the IANA identifier where the response carries one, not from
+    /// `utc_offset_seconds`. An offset is a single instant's answer: rebuild a
+    /// zone from Paris's +2 in August and every date after the October
+    /// transition is an hour out — which is invisible in the displayed string,
+    /// because it round-trips through the same wrong offset, but wrong in the
+    /// sunrise and sunset *instants* the widget flips its palette on.
+    let timeZone: TimeZone
+
     /// Sunrise and sunset for every day the response covers, in order.
     ///
     /// Kept as dates rather than the formatted strings alongside them, because
@@ -213,7 +223,10 @@ struct CityWeather: Identifiable {
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
         self.utcOffsetSeconds = response.utc_offset_seconds
         
-        let cityTimeZone = TimeZone(secondsFromGMT: response.utc_offset_seconds) ?? TimeZone.current
+        let cityTimeZone = response.timezone.flatMap(TimeZone.init(identifier:))
+            ?? TimeZone(secondsFromGMT: response.utc_offset_seconds)
+            ?? TimeZone.current
+        self.timeZone = cityTimeZone
 
         // Gregorian explicitly, not Calendar.current. A reader whose Region is
         // Thailand or Saudi Arabia has a Buddhist or Hijri calendar, and every
@@ -405,6 +418,13 @@ nonisolated struct WeatherResponse: Codable {
     let latitude: Double
     let longitude: Double
     let utc_offset_seconds: Int
+
+    /// The city's IANA zone, e.g. "Europe/Paris", from `timezone=auto`.
+    ///
+    /// Optional so that responses cached before this was requested still
+    /// decode — a non-optional field here would have invalidated every
+    /// reader's cache on upgrade.
+    var timezone: String?
     let current: CurrentWeatherResponse
     let hourly: HourlyWeatherResponse
     let daily: DailyWeatherResponse

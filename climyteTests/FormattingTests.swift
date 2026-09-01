@@ -47,8 +47,15 @@ final class FormattingTests: XCTestCase {
     func testEverywhereElseUsesMetric() {
         XCTAssertEqual(UnitSystem.forCountry(code: "AU", name: "Australia"), .metric)
         XCTAssertEqual(UnitSystem.forCountry(code: "FR", name: "France"), .metric)
-        XCTAssertEqual(UnitSystem.forCountry(code: "GB", name: "United Kingdom"), .metric)
         XCTAssertEqual(UnitSystem.forCountry(code: "JP", name: "Japan"), .metric)
+    }
+
+    /// Britain was filed under metric because a two-value enum had nowhere
+    /// else to put it, which meant showing wind in km/h to a country whose
+    /// forecasts are in mph. Celsius was the half that model got right.
+    func testBritainIsItsOwnMixture() {
+        XCTAssertEqual(UnitSystem.forCountry(code: "GB", name: "United Kingdom"), .british)
+        XCTAssertNotEqual(UnitSystem.forCountry(code: "GB", name: nil), .metric)
     }
 
     /// Cities saved before the ISO code was stored decode without one; the

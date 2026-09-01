@@ -30,7 +30,11 @@ final class WeatherDetailsTests: XCTestCase {
     func testRainCaptionDescribesAmountAndDuration() {
         let detail = details(rainChance: 80, rainAmount: 9.5, rainHours: 7)
             .first { $0.kind == .rain }
-        XCTAssertEqual(detail?.caption, "9.5 mm over 7h")
+
+        // The separator follows the reader's locale — "9,5 mm" in German —
+        // so assert the parts rather than one region's punctuation.
+        let separator = Locale.current.decimalSeparator ?? "."
+        XCTAssertEqual(detail?.caption, "9\(separator)5 mm over 7h")
     }
 
     /// A forecast can carry a chance without a measurable amount.

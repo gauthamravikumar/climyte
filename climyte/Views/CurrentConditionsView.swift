@@ -51,7 +51,7 @@ struct CurrentConditionsView: View {
 
             // Re-renders every minute so the city's local time stays honest.
             TimelineView(.everyMinute) { context in
-                Text(Self.localTime(at: context.date, utcOffsetSeconds: weather.utcOffsetSeconds))
+                Text(Self.localTime(at: context.date, in: weather.timeZone))
                     .font(.localTime)
                     .foregroundColor(theme.secondaryText)
                     .lineLimit(1)
@@ -60,8 +60,7 @@ struct CurrentConditionsView: View {
                     // the element here without a value would leave the time
                     // itself unspoken — the one thing this element exists for.
                     .accessibilityLabel("Local time in \(weather.city.name)")
-                    .accessibilityValue(Self.localTime(at: context.date,
-                                                       utcOffsetSeconds: weather.utcOffsetSeconds))
+                    .accessibilityValue(Self.localTime(at: context.date, in: weather.timeZone))
             }
         }
     }
@@ -128,10 +127,15 @@ struct CurrentConditionsView: View {
     /// Renders `date` in the city's timezone. `.shortened` picks up the
     /// reader's locale, so 12h/24h follows their device rather than a
     /// hardcoded format that dropped am/pm entirely.
-    static func localTime(at date: Date, utcOffsetSeconds: Int) -> String {
-        let timeZone = TimeZone(secondsFromGMT: utcOffsetSeconds) ?? .current
-        return date.formatted(
+    static func localTime(at date: Date, in timeZone: TimeZone) -> String {
+        date.formatted(
             Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone)
         )
+    }
+
+    /// Kept for callers that only have an offset, such as tests covering the
+    /// fallback used when a response carries no zone name.
+    static func localTime(at date: Date, utcOffsetSeconds: Int) -> String {
+        localTime(at: date, in: TimeZone(secondsFromGMT: utcOffsetSeconds) ?? .current)
     }
 }
