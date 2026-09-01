@@ -20,13 +20,6 @@ struct SavedCitiesView: View {
     let selectedKey: String
     let theme: WeatherTheme
 
-    /// A cap that grows with the reader's type size.
-    ///
-    /// Pinned at 420pt it sliced a row horizontally through the middle of
-    /// its letters at accessibility sizes while half the screen sat empty —
-    /// which reads as a rendering fault rather than as a scroll edge. The
-    /// enclosing stack still bounds this to the space actually available.
-    @ScaledMetric(relativeTo: .body) private var maxListHeight: CGFloat = 420
     let canRemove: Bool
     let onSelect: (CityEntry) -> Void
     let onDelete: (IndexSet) -> Void
@@ -49,7 +42,6 @@ struct SavedCitiesView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
-        .frame(maxHeight: maxListHeight)
     }
 
     private func row(for entry: CityEntry) -> some View {
