@@ -42,3 +42,7 @@ derivedData/
 .superpowers/
 module-cache/
 test_runner
+
+## Personal working notes
+# Deferred-feature list; a working document rather than a commitment.
+LATER.md
