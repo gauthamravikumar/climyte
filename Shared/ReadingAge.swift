@@ -11,7 +11,7 @@ import Foundation
 /// have to decide when a temperature has stopped describing the weather
 /// outside. Keeping the threshold in one place stops the two from disagreeing
 /// about it.
-enum ReadingAge {
+nonisolated enum ReadingAge {
 
     /// Past this, a reading is presented as old rather than as current.
     ///

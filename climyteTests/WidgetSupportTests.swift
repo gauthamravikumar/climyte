@@ -225,3 +225,53 @@ final class WidgetSupportTests: XCTestCase {
 private enum WeatherTimelineProviderSpan {
     static let timelineSpan: TimeInterval = 2 * 3600
 }
+
+/// The rule that keeps a reconfigured widget from going blank without also
+/// stopping it refreshing. Both failure modes are silent, which is why this
+/// is tested rather than left inline in the provider.
+@MainActor
+final class FetchDecisionTests: XCTestCase {
+
+    private let now = Date()
+
+    func testAFreshReadingNeedsNoFetch() {
+        XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 60,
+                                            lastDeferral: nil, now: now), .useCache)
+    }
+
+    func testNoReadingFetchesImmediately() {
+        // Nothing to draw either way, so waiting costs nothing.
+        XCTAssertEqual(FetchDecision.decide(hasReading: false, age: nil,
+                                            lastDeferral: nil, now: now), .fetchNow)
+    }
+
+    /// The reconfiguration case: a fetch is due, but blocking would leave the
+    /// slot empty for as long as the network takes.
+    func testAStaleReadingIsShownFirstAndTheFetchDeferred() {
+        XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
+                                            lastDeferral: nil, now: now), .deferFetch)
+    }
+
+    /// The follow-up pass must actually fetch. If it deferred again the widget
+    /// would show the same stale reading forever and never refresh — which is
+    /// exactly what a first attempt at this did.
+    func testTheFollowUpPassFetchesRatherThanDeferringAgain() {
+        XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
+                                            lastDeferral: now.addingTimeInterval(-10),
+                                            now: now), .fetchNow)
+    }
+
+    /// A deferral that never got its follow-up must not suppress fetching for
+    /// good; past the window the widget falls back to fetching inline.
+    func testAnExpiredDeferralDoesNotSuppressFetchingForever() {
+        XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
+                                            lastDeferral: now.addingTimeInterval(-600),
+                                            now: now, window: 120), .deferFetch)
+    }
+
+    /// Deferring only matters when there is something to show meanwhile.
+    func testNoReadingFetchesEvenWithADeferralRecorded() {
+        XCTAssertEqual(FetchDecision.decide(hasReading: false, age: nil,
+                                            lastDeferral: now, now: now), .fetchNow)
+    }
+}

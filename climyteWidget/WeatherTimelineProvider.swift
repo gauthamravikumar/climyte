@@ -62,18 +62,71 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     /// without spending a reload to do it.
     func timeline(for configuration: SelectCityIntent, in context: Context) async -> Timeline<WeatherEntry> {
         let saved = SavedCityQuery.savedCities()
-        let base = await refreshed(entry(for: configuration, saved: saved), saved: saved)
-        let now = Date()
-        let horizon = now.addingTimeInterval(Self.timelineSpan)
+        let cached = entry(for: configuration, saved: saved)
 
-        let dates = TimelinePlan.renderDates(from: now, to: horizon,
+        // Anything we can already draw goes back immediately, and the fetch
+        // happens afterwards.
+        //
+        // Changing the widget's city throws away the timeline built for the
+        // old one, and WidgetKit has nothing to put on screen until this
+        // function returns — so awaiting a request here is a blank widget for
+        // exactly as long as the network takes, about a second and a half.
+        // During an ordinary scheduled reload that wait is invisible, because
+        // the previous timeline stays on screen while this runs; a
+        // reconfiguration is the one case with nothing behind it. That is why
+        // it took a real device and someone changing a city to notice.
+        switch FetchDecision.decide(hasReading: cached.weather != nil,
+                                    age: cached.age,
+                                    lastDeferral: lastDeferral) {
+        case .useCache:
+            clearDeferredFetch()
+            return plan(from: cached)
+
+        case .deferFetch:
+            // Show the cached reading now and come straight back for the
+            // fetch — by then there is something on screen to keep showing
+            // while we wait.
+            recordDeferredFetch()
+            return plan(from: cached, reloadAfter: Self.deferredFetchDelay)
+
+        case .fetchNow:
+            clearDeferredFetch()
+            return plan(from: await refreshed(cached, saved: saved))
+        }
+    }
+
+    /// How long to wait before coming back for the fetch that was deferred.
+    private static let deferredFetchDelay: TimeInterval = 10
+
+    private static let deferredFetchKey = "widget_deferred_fetch_at"
+
+    private var lastDeferral: Date? {
+        let stamp = AppGroup.defaults.double(forKey: Self.deferredFetchKey)
+        guard stamp > 0 else { return nil }
+        return Date(timeIntervalSinceReferenceDate: stamp)
+    }
+
+    private func recordDeferredFetch() {
+        AppGroup.defaults.set(Date().timeIntervalSinceReferenceDate, forKey: Self.deferredFetchKey)
+    }
+
+    private func clearDeferredFetch() {
+        AppGroup.defaults.removeObject(forKey: Self.deferredFetchKey)
+    }
+
+    private func plan(from base: WeatherEntry,
+                     reloadAfter delay: TimeInterval? = nil) -> Timeline<WeatherEntry> {
+        let now = Date()
+        let dates = TimelinePlan.renderDates(from: now,
+                                             to: now.addingTimeInterval(Self.timelineSpan),
                                              solarDays: base.weather?.solarDays ?? [])
         let entries = dates.map {
             WeatherEntry(date: $0, city: base.city,
                          weather: base.weather, fetchedAt: base.fetchedAt)
         }
 
-        return Timeline(entries: entries, policy: .atEnd)
+        guard let delay else { return Timeline(entries: entries, policy: .atEnd) }
+        return Timeline(entries: entries, policy: .after(now.addingTimeInterval(delay)))
     }
 
     /// How far ahead one reload plans, and so how often a fetch is attempted.

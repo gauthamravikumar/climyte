@@ -11,13 +11,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		C11A000000000000000000CB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7277A85B301252FD0053E3ED /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = C11A000000000000000000C3;
-			remoteInfo = climyteWidgetExtension;
-		};
 		C11A000000000000000000AB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 7277A85B301252FD0053E3ED /* Project object */;
@@ -25,7 +18,28 @@
 			remoteGlobalIDString = 7277A862301252FD0053E3ED;
 			remoteInfo = climyte;
 		};
+		C11A000000000000000000CB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7277A85B301252FD0053E3ED /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C11A000000000000000000C3;
+			remoteInfo = climyteWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C11A000000000000000000C9 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C11A000000000000000000C8 /* climyteWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7277A863301252FD0053E3ED /* climyte.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = climyte.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -34,29 +48,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		C11A000000000000000000CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+		C11A000000000000000000CF /* Exceptions for "climyteWidget" folder in "climyteWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-				climyteWidget.entitlements,
 			);
 			target = C11A000000000000000000C3 /* climyteWidgetExtension */;
-		};
-		C11A000000000000000000CG /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				climyte.entitlements,
-			);
-			target = 7277A862301252FD0053E3ED /* climyte */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7277A865301252FD0053E3ED /* climyte */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				C11A000000000000000000CG /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
-			);
 			path = climyte;
 			sourceTree = "<group>";
 		};
@@ -73,7 +76,7 @@
 		C11A000000000000000000C2 /* climyteWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				C11A000000000000000000CF /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				C11A000000000000000000CF /* Exceptions for "climyteWidget" folder in "climyteWidgetExtension" target */,
 			);
 			path = climyteWidget;
 			sourceTree = "<group>";
@@ -190,8 +193,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				C11A000000000000000000C2 /* climyteWidget */,
 				C11A000000000000000000B1 /* Shared */,
+				C11A000000000000000000C2 /* climyteWidget */,
 			);
 			name = climyteWidgetExtension;
 			packageProductDependencies = (
@@ -265,20 +268,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		C11A000000000000000000C9 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				C11A000000000000000000C8 /* climyteWidgetExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7277A85F301252FD0053E3ED /* Sources */ = {
@@ -442,8 +431,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PQZ53PA2FD;
 				ENABLE_PREVIEWS = YES;
@@ -477,8 +466,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
 				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PQZ53PA2FD;
 				ENABLE_PREVIEWS = YES;
@@ -511,9 +500,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PQZ53PA2FD;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -533,9 +522,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CODE_SIGN_ENTITLEMENTS = climyte/climyte.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = PQZ53PA2FD;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -575,10 +564,10 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
 			name = Debug;
 		};
