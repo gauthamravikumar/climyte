@@ -427,6 +427,38 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloaded.entries[1].city.unitSystem, .imperial)
     }
 
+    /// The saved list is the authority on what the cache may hold, and every
+    /// path that changes it goes through saveCities.
+    func testAddingACityPrunesCitiesThatAreNoLongerSaved() {
+        // A cache left over from an earlier run, holding a city nobody saved.
+        let ghost = City(id: UUID(), name: "Ghost", country: "Nowhere",
+                         countryCode: "AU", latitude: 10, longitude: 10)
+        cache.save(city: ghost, response: makeResponse(temperature: 5))
+
+        let viewModel = makeViewModel()
+        viewModel.selectCity(makeTokyoResult())
+
+        XCTAssertFalse(cache.loadAll().contains { $0.city.key == ghost.key },
+                       "A city that is not saved has no business in the cache")
+    }
+
+    /// And an app upgrading from a build that only pruned on delete gets its
+    /// accumulated cache cleaned up on the next launch.
+    func testLaunchingPrunesACacheLeftOversizedByAnEarlierBuild() {
+        for i in 0..<5 {
+            let stale = City(id: UUID(), name: "Stale \(i)", country: "Nowhere",
+                             countryCode: "AU", latitude: Double(i) + 20, longitude: 5)
+            cache.save(city: stale, response: makeResponse(temperature: 5))
+        }
+        XCTAssertEqual(cache.loadAll().count, 5)
+
+        let viewModel = makeViewModel()
+
+        XCTAssertEqual(cache.loadAll().count, 0,
+                       "Only the default city is saved, and it has no cached reading")
+        XCTAssertEqual(viewModel.entries.count, 1)
+    }
+
     // MARK: - Returning to the foreground
 
     /// The date-rollover defect. `CityWeather` resolves which day is "today"

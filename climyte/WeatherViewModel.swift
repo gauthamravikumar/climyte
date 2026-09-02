@@ -119,6 +119,10 @@ class WeatherViewModel: ObservableObject {
         self.selectedCityKey = entries.first?.id ?? ""
 
         restoreCachedWeather()
+
+        // Repairs a cache that grew under an earlier build, where pruning only
+        // happened on an explicit delete.
+        self.cache.prune(keeping: entries.map(\.city))
     }
 
     // MARK: - Persistence
@@ -148,6 +152,9 @@ class WeatherViewModel: ObservableObject {
 
     private func saveCities() {
         SavedCities.save(entries.map(\.city), to: defaults)
+        // Every path that changes the saved list comes through here, which
+        // makes it the one place pruning cannot be forgotten.
+        cache.prune(keeping: entries.map(\.city))
         // The widget picks its city from this list, and an unconfigured one
         // falls back to whichever is first — so adding, removing or promoting
         // a city can change what a widget shows without any reading changing.
@@ -206,7 +213,6 @@ class WeatherViewModel: ObservableObject {
         }
 
         saveCities()
-        cache.prune(keeping: entries.map(\.city))
     }
 
     func removeCities(at offsets: IndexSet) {

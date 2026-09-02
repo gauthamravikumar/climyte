@@ -101,6 +101,32 @@ final class WeatherCacheTests: XCTestCase {
         XCTAssertFalse(all.isEmpty, "Everything was lost")
     }
 
+    /// Pruning used to run only on an explicit delete, so a city that left the
+    /// saved list any other way kept its payload on disk forever. A real
+    /// device was found holding ten cached cities for three saved ones.
+    func testPruningIsDrivenByTheSavedListNotByDeletion() {
+        for i in 0..<6 { cache.save(city: city(i), response: TestResponse.make()) }
+        XCTAssertEqual(cache.loadAll().count, 6)
+
+        // The saved list changes without any city being "removed".
+        cache.prune(keeping: [city(1), city(4)])
+
+        XCTAssertEqual(Set(cache.loadAll().map(\.city.key)),
+                       Set([city(1).key, city(4).key]))
+    }
+
+    func testPruningWithNothingToDropLeavesTheFileAlone() throws {
+        for i in 0..<3 { cache.save(city: city(i), response: TestResponse.make()) }
+        let file = directory.appendingPathComponent("cached-weather.json")
+        let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
+
+        cache.prune(keeping: (0..<3).map { city($0) })
+
+        let after = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
+        XCTAssertEqual(before, after, "A prune that drops nothing should not rewrite the file")
+        XCTAssertEqual(cache.loadAll().count, 3)
+    }
+
     // MARK: - Helpers
 
     /// Distinct coordinates, because `City.key` is built from them.

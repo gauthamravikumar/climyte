@@ -66,6 +66,13 @@ nonisolated struct WeatherCache {
 
     /// Drops any cached city not in `cities`, so removing a city doesn't leave
     /// its payload on disk forever.
+    /// Drops any cached city not in `cities`.
+    ///
+    /// Called on every change to the saved list, not only on deletion: a city
+    /// can leave that list without going through `removeCity` — a migration, a
+    /// located city being replaced, or the list simply being written by an
+    /// older build. Anything that fell out that way used to sit on disk
+    /// forever, and the cache grew without limit.
     func prune(keeping cities: [City]) {
         let keys = Set(cities.map(\.key))
         mutate { all in
@@ -80,10 +87,19 @@ nonisolated struct WeatherCache {
     }
 
     /// Reads, transforms and writes the whole file as one coordinated unit.
+    /// Reads, transforms and writes back — but only writes when the transform
+    /// actually changed something.
+    ///
+    /// Pruning runs on every save now, and most saves have nothing to drop.
+    /// Rewriting tens of kilobytes to say "no change" is worth avoiding.
     private func mutate(_ transform: (inout [CachedWeather]) -> Void) {
         coordinate(writing: true) { url in
-            var all = decode(at: url)
+            let before = decode(at: url)
+            var all = before
             transform(&all)
+
+            guard all.map(\.city.key) != before.map(\.city.key)
+                    || all.map(\.fetchedAt) != before.map(\.fetchedAt) else { return }
             encode(all, to: url)
         }
     }
