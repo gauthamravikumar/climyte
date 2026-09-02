@@ -120,8 +120,12 @@ struct ContentView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: searchIcon, weight: .medium))
                 .foregroundColor(theme.secondaryText)
-                // The 44pt target the glyph alone would not have.
-                .frame(width: 44, height: 44)
+                // minWidth, not a fixed width: the glyph scales with the type
+                // ramp and at the largest accessibility size it is bigger than
+                // 44pt, so a fixed frame does not contain it — it overflows and
+                // draws over whatever sits alongside. 44 is the floor for the
+                // tap target, not a ceiling on the icon.
+                .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
         }
         .accessibilityLabel("Search city")

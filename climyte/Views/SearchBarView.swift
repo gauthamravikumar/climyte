@@ -76,8 +76,10 @@ struct SearchBarView: View {
                             .font(.system(size: clearIcon, weight: .medium))
                             // A 16pt glyph is roughly 13pt of actual ink. The
                             // frame and hit shape give it the 44pt target the
-                            // glyph alone never had.
-                            .frame(width: 44, height: 44)
+                            // glyph alone never had — as a floor, not a fixed
+                            // size, since past AX-L the glyph outgrows 44pt and
+                            // a fixed frame would let it draw over Cancel.
+                            .frame(minWidth: 44, minHeight: 44)
                             .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Clear search")

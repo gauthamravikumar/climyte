@@ -30,6 +30,15 @@ struct CityNameStrip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// Centring shows the names either side of you, which is the whole reason
+    /// this strip is set in type rather than dots. But once a single name is
+    /// wider than the screen — a long one at an accessibility size — centring
+    /// it scrolls past its own beginning, so the reader sees the middle of a
+    /// word. Past that threshold, start of the name wins.
+    private var scrollAnchor: UnitPoint {
+        typeSize.isAccessibilitySize ? .leading : .center
+    }
+
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -54,17 +63,17 @@ struct CityNameStrip: View {
                 // Unrequested auto-scroll: jump rather than glide when the
                 // reader has asked for less motion.
                 withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                    proxy.scrollTo(key, anchor: .center)
+                    proxy.scrollTo(key, anchor: scrollAnchor)
                 }
             }
             .onAppear {
-                proxy.scrollTo(selectedKey, anchor: .center)
+                proxy.scrollTo(selectedKey, anchor: scrollAnchor)
             }
             // A type-size change re-lays out every entry, which leaves the
             // strip scrolled to wherever the old widths happened to put it —
             // showing names either side of a city that is not the live page.
             .onChange(of: typeSize) { _, _ in
-                proxy.scrollTo(selectedKey, anchor: .center)
+                proxy.scrollTo(selectedKey, anchor: scrollAnchor)
             }
         }
     }
