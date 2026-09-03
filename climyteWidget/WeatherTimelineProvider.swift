@@ -75,22 +75,27 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
         // the previous timeline stays on screen while this runs; a
         // reconfiguration is the one case with nothing behind it. That is why
         // it took a real device and someone changing a city to notice.
+        // Keyed by city: what one widget deferred says nothing about what
+        // another, showing somewhere else, should do next.
+        let cityKey = cached.city?.key
+        let deferrals = DeferralStore()
+
         switch FetchDecision.decide(hasReading: cached.weather != nil,
                                     age: cached.age,
-                                    lastDeferral: lastDeferral) {
+                                    lastDeferral: cityKey.flatMap { deferrals.lastDeferral(forCity: $0) }) {
         case .useCache:
-            clearDeferredFetch()
+            if let cityKey { deferrals.clear(forCity: cityKey) }
             return plan(from: cached)
 
         case .deferFetch:
             // Show the cached reading now and come straight back for the
             // fetch — by then there is something on screen to keep showing
             // while we wait.
-            recordDeferredFetch()
+            if let cityKey { deferrals.record(forCity: cityKey) }
             return plan(from: cached, reloadAfter: Self.deferredFetchDelay)
 
         case .fetchNow:
-            clearDeferredFetch()
+            if let cityKey { deferrals.clear(forCity: cityKey) }
             return plan(from: await refreshed(cached, saved: saved))
         }
     }
@@ -98,21 +103,6 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     /// How long to wait before coming back for the fetch that was deferred.
     private static let deferredFetchDelay: TimeInterval = 10
 
-    private static let deferredFetchKey = "widget_deferred_fetch_at"
-
-    private var lastDeferral: Date? {
-        let stamp = AppGroup.defaults.double(forKey: Self.deferredFetchKey)
-        guard stamp > 0 else { return nil }
-        return Date(timeIntervalSinceReferenceDate: stamp)
-    }
-
-    private func recordDeferredFetch() {
-        AppGroup.defaults.set(Date().timeIntervalSinceReferenceDate, forKey: Self.deferredFetchKey)
-    }
-
-    private func clearDeferredFetch() {
-        AppGroup.defaults.removeObject(forKey: Self.deferredFetchKey)
-    }
 
     private func plan(from base: WeatherEntry,
                      reloadAfter delay: TimeInterval? = nil) -> Timeline<WeatherEntry> {
