@@ -22,7 +22,12 @@ struct SunArcView: View {
             let days = weather.solarDays
             let progress = SolarPosition.daylightProgress(at: context.date, in: days)
 
-            VStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
+                SectionRule(label: "Sun",
+                            accessibilityLabel: "Today's daylight",
+                            theme: theme)
+                    .padding(.bottom, 10)
+
                 arc(progress: progress)
                     .frame(height: arcHeight)
 

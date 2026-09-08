@@ -66,9 +66,9 @@ struct CityPageView: View {
                 isUsingCurrentLocation: entry.isCurrentLocation
             )
 
-            SunArcView(weather: weather, theme: theme)
-
             HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
+
+            SunArcView(weather: weather, theme: theme)
 
             DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
 
