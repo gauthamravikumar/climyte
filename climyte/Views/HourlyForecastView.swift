@@ -12,10 +12,11 @@ struct HourlyForecastView: View {
     @Environment(\.unitSystem) private var units
 
     /// Scales with Dynamic Type so larger labels don't collide with each other.
-    @ScaledMetric(relativeTo: .caption) private var columnWidth: CGFloat = 65
-
-    private let chartHeight: CGFloat = 45
-    private let chartPadding: CGFloat = 8
+    ///
+    /// Narrower than it was: the column used to be wide enough to hold a
+    /// sparkline vertex at its centre, and once the chart went the extra width
+    /// was just a gap between the hours.
+    @ScaledMetric(relativeTo: .caption) private var columnWidth: CGFloat = 56
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -29,36 +30,10 @@ struct HourlyForecastView: View {
         }
     }
 
-    private var chart: some View {
-        ZStack(alignment: .topLeading) {
-            Path { path in
-                for (index, hour) in hours.enumerated() {
-                    let point = CGPoint(x: x(at: index), y: y(for: hour.temperature))
-                    if index == 0 {
-                        path.move(to: point)
-                    } else {
-                        path.addLine(to: point)
-                    }
-                }
-            }
-            .stroke(theme.secondaryText.opacity(0.3), lineWidth: 1.5)
-
-            ForEach(Array(hours.enumerated()), id: \.element.id) { index, hour in
-                Circle()
-                    .fill(theme.primaryText)
-                    .frame(width: 5, height: 5)
-                    .position(x: x(at: index), y: y(for: hour.temperature))
-            }
-        }
-        .frame(width: CGFloat(hours.count) * columnWidth, height: chartHeight)
-        // The line and dots restate the numbers below them.
-        .accessibilityHidden(true)
-    }
-
     private var labels: some View {
         HStack(spacing: 0) {
             ForEach(hours) { hour in
-                VStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(units.temperature(hour.temperature))
                         .font(.hourTemperature)
                         .foregroundColor(theme.primaryText)
@@ -67,25 +42,14 @@ struct HourlyForecastView: View {
                         .font(.hourLabel)
                         .foregroundColor(theme.secondaryText)
                 }
-                .frame(width: columnWidth)
+                // Leading, not centre: centred text sets each column's left
+                // edge from how wide the text happens to be, so the hour and
+                // its temperature didn't line up with each other and the
+                // whole strip shifted when a reading gained a digit.
+                .frame(width: columnWidth, alignment: .leading)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("\(hour.time), \(units.temperatureValue(hour.temperature)) degrees")
             }
         }
-    }
-
-    // MARK: - Geometry
-
-    private var minTemp: Double { hours.map(\.temperature).min() ?? 0 }
-
-    private var tempRange: Double { max((hours.map(\.temperature).max() ?? 1) - minTemp, 1) }
-
-    private func x(at index: Int) -> CGFloat {
-        CGFloat(index) * columnWidth + (columnWidth / 2)
-    }
-
-    private func y(for temperature: Double) -> CGFloat {
-        let relative = (temperature - minTemp) / tempRange
-        return chartHeight - chartPadding - CGFloat(relative) * (chartHeight - 2 * chartPadding)
     }
 }

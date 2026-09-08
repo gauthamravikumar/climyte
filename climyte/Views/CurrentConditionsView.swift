@@ -90,7 +90,6 @@ struct CurrentConditionsView: View {
             Text("\(units.temperatureValue(weather.minTemp))  ·  \(units.temperatureValue(weather.maxTemp))")
                 .font(.temperatureRange)
                 .foregroundColor(theme.secondaryText)
-                .padding(.leading, 4)
         }
         .accessibilityElement(children: .combine)
         // Terse on screen, explicit to VoiceOver — the visual shorthand

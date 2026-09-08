@@ -24,7 +24,7 @@ struct DailyForecastView: View {
     private let minimumBandThickness: CGFloat = 7
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 16) {
             SectionRule(label: "7d",
                         accessibilityLabel: "Next 7 days",
                         theme: theme)
