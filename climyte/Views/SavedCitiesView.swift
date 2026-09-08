@@ -23,6 +23,7 @@ struct SavedCitiesView: View {
     let canRemove: Bool
     let onSelect: (CityEntry) -> Void
     let onDelete: (IndexSet) -> Void
+    let onMove: (IndexSet, Int) -> Void
 
     var body: some View {
         List {
@@ -38,6 +39,7 @@ struct SavedCitiesView: View {
                 .deleteDisabled(!canRemove)
             }
             .onDelete(perform: onDelete)
+            .onMove(perform: onMove)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -87,5 +89,19 @@ struct SavedCitiesView: View {
             guard canRemove, let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
             onDelete(IndexSet(integer: index))
         }
+        // A drag is invisible to VoiceOver and unreachable by switch control,
+        // so the same reordering is offered as two named actions.
+        .accessibilityAction(named: Text("Move up")) { move(entry, by: -1) }
+        .accessibilityAction(named: Text("Move down")) { move(entry, by: 1) }
+    }
+
+    /// `onMove`'s destination is an insertion point, not an index: moving down
+    /// has to clear the row being vacated, which is why the two directions
+    /// aren't symmetrical.
+    private func move(_ entry: CityEntry, by offset: Int) {
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        let target = index + offset
+        guard entries.indices.contains(target) else { return }
+        onMove(IndexSet(integer: index), offset < 0 ? target : target + 1)
     }
 }

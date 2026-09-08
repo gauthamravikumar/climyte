@@ -89,7 +89,8 @@ struct ContentView: View {
                         isSearching = false
                     }
                 },
-                onDelete: viewModel.removeCities
+                onDelete: viewModel.removeCities,
+                onMove: viewModel.moveCities
             )
             .transition(.opacity)
         } else {

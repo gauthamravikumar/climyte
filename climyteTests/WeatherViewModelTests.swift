@@ -75,6 +75,77 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris"])
     }
 
+    // MARK: - Reordering
+
+    /// `destination` is an insertion point in the pre-move list, so moving a
+    /// row down by one means a destination two past its own index. Getting
+    /// this wrong is a no-op rather than a crash, which is why it is pinned.
+    func testMovingACityDownReordersAndPersists() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+
+        viewModel.moveCities(from: IndexSet(integer: 0), to: 2)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Tokyo", "Paris", "Berlin"])
+        XCTAssertEqual(try savedNames(), ["Tokyo", "Paris", "Berlin"])
+    }
+
+    func testMovingACityUpReordersAndPersists() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+
+        viewModel.moveCities(from: IndexSet(integer: 2), to: 0)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Berlin", "Paris", "Tokyo"])
+        XCTAssertEqual(try savedNames(), ["Berlin", "Paris", "Tokyo"])
+    }
+
+    /// The order is the pager's order, but which city is on screen shouldn't
+    /// change underneath someone who only dragged a row.
+    func testMovingDoesNotChangeTheSelectedCity() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+        viewModel.selectEntry(viewModel.entries[1])
+
+        viewModel.moveCities(from: IndexSet(integer: 0), to: 3)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Tokyo", "Berlin", "Paris"])
+        XCTAssertEqual(viewModel.selectedCityKey, tokyo.key)
+    }
+
+    func testMovingSeveralCitiesKeepsThemTogetherAndInOrder() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+
+        viewModel.moveCities(from: IndexSet([0, 1]), to: 3)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Berlin", "Paris", "Tokyo"])
+    }
+
+    /// A drag that ends where it started shouldn't write to disk or reload the
+    /// widget for nothing.
+    func testMovingACityOntoItselfChangesNothing() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let reloader = CountingReloader()
+        let viewModel = makeViewModel(reloader: reloader)
+        let before = reloader.count
+
+        viewModel.moveCities(from: IndexSet(integer: 0), to: 0)
+        viewModel.moveCities(from: IndexSet(integer: 0), to: 1)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"])
+        XCTAssertEqual(reloader.count, before)
+    }
+
+    func testMovingAnOutOfRangeIndexIsIgnored() throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+
+        viewModel.moveCities(from: IndexSet(integer: 7), to: 0)
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"])
+    }
+
     func testSelectingASearchResultAppendsAndSelectsIt() {
         let viewModel = makeViewModel()
 
@@ -569,6 +640,12 @@ final class WeatherViewModelTests: XCTestCase {
 
     private let paris = City(id: UUID(), name: "Paris", country: "France", countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
     private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
+    private let berlin = City(id: UUID(), name: "Berlin", country: "Germany", countryCode: "DE", latitude: 52.52, longitude: 13.405)
+
+    private func savedNames() throws -> [String] {
+        let data = try XCTUnwrap(defaults.data(forKey: "saved_cities"))
+        return try JSONDecoder().decode([City].self, from: data).map(\.name)
+    }
 
     private func makeViewModel(service: WeatherFetching? = nil,
                                reloader: WidgetReloading? = nil) -> WeatherViewModel {

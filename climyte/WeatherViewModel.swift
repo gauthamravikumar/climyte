@@ -221,6 +221,30 @@ class WeatherViewModel: ObservableObject {
         }
     }
 
+    /// Reorders the saved cities. The order is the pager's order and the name
+    /// strip's, so this is the one place someone can decide which city they
+    /// land on and what sits beside it.
+    /// `destination` is an insertion point in the list *before* the move, which
+    /// is SwiftUI's convention — spelled out here rather than reached for via
+    /// `move(fromOffsets:toOffset:)` so the view model stays free of SwiftUI.
+    func moveCities(from offsets: IndexSet, to destination: Int) {
+        let indices = offsets.sorted().filter { entries.indices.contains($0) }
+        guard !indices.isEmpty else { return }
+
+        let moving = indices.map { entries[$0] }
+        var remaining = entries
+        for index in indices.reversed() {
+            remaining.remove(at: index)
+        }
+
+        let insertAt = destination - indices.filter { $0 < destination }.count
+        remaining.insert(contentsOf: moving, at: min(max(insertAt, 0), remaining.count))
+
+        guard remaining.map(\.id) != entries.map(\.id) else { return }
+        entries = remaining
+        saveCities()
+    }
+
     // MARK: - Launch
 
     /// Paints saved cities immediately, then upgrades to the device's current
@@ -254,14 +278,16 @@ class WeatherViewModel: ObservableObject {
     }
 
     /// Replaces the previous located entry rather than accumulating one per
-    /// trip, and keeps it pinned to the front.
+    /// trip, and puts a newly discovered one at the front.
+    ///
+    /// A city already in the list keeps its place. It used to be dragged back
+    /// to the front on every launch, which would now silently undo a
+    /// reordering the moment the location resolved.
     private func upsertCurrentLocation(_ city: City) {
         entries.removeAll { $0.isCurrentLocation && $0.city.key != city.key }
 
         if let index = entries.firstIndex(where: { $0.city.key == city.key }) {
             entries[index].isCurrentLocation = true
-            let entry = entries.remove(at: index)
-            entries.insert(entry, at: 0)
         } else {
             entries.insert(CityEntry(city: city, isCurrentLocation: true), at: 0)
         }

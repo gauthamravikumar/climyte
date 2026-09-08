@@ -30,8 +30,9 @@ nonisolated extension City {
 struct CityEntry: Identifiable, Equatable {
     let city: City
 
-    /// True for the entry derived from CoreLocation. Pinned first and replaced
-    /// rather than duplicated when the device moves.
+    /// True for the entry derived from CoreLocation. Replaced rather than
+    /// duplicated when the device moves, and placed first only when it is new
+    /// to the list — once it is there, its position is the reader's to set.
     var isCurrentLocation: Bool = false
 
     var weather: CityWeather?
