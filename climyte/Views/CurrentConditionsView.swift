@@ -79,6 +79,11 @@ struct CurrentConditionsView: View {
                 .foregroundColor(theme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                // A numeral this large carries a lot of empty line box above
+                // and below it. Trimmed on the glyph itself rather than on the
+                // block, so it stops at the range line instead of reaching
+                // through to the condition underneath.
+                .padding(.vertical, -10)
 
             // The day's range, set as a span rather than two labelled values.
             // Only the reading itself carries a degree sign; these inherit it.
@@ -87,7 +92,6 @@ struct CurrentConditionsView: View {
                 .foregroundColor(theme.secondaryText)
                 .padding(.leading, 4)
         }
-        .padding(.vertical, -10)
         .accessibilityElement(children: .combine)
         // Terse on screen, explicit to VoiceOver — the visual shorthand
         // shouldn't cost a screen-reader user the meaning.
