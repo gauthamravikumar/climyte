@@ -24,10 +24,7 @@ struct HourlyForecastView: View {
                         theme: theme)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                VStack(spacing: 12) {
-                    chart
-                    labels
-                }
+                labels
             }
         }
     }

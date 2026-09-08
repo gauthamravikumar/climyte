@@ -22,8 +22,9 @@ struct CurrentConditionsView: View {
     @ScaledMetric(relativeTo: .title) private var headerGap: CGFloat = 12
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 6) {
             header
+                .padding(.bottom, 14)
             temperature
             summary
         }

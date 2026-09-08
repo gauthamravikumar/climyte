@@ -38,8 +38,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            theme.background
-                .ignoresSafeArea()
+            HorizonGlow(weather: viewModel.selectedEntry?.weather, theme: theme)
                 .animation(themeAnimation, value: theme.background)
 
             VStack(spacing: 16) {

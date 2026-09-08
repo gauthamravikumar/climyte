@@ -120,8 +120,6 @@ enum WeatherDetails {
                 : nil
         ))
 
-        details.append(WeatherDetail(kind: .sunrise, label: "Sunrise", value: weather.sunriseFormatted))
-        details.append(WeatherDetail(kind: .sunset, label: "Sunset", value: weather.sunsetFormatted))
 
         if let daylight = weather.daylightSeconds {
             details.append(WeatherDetail(
