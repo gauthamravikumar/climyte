@@ -62,20 +62,17 @@ struct CityPageView: View {
     /// the data is shown. At the foot of the page: you meet it if you read to
     /// the end, which is where a credit belongs, and it costs the forecast
     /// above it nothing.
-    @ViewBuilder
     private var attribution: some View {
-        if let url = URL(string: "https://open-meteo.com") {
-            Link(destination: url) {
-                Text("Weather from Open-Meteo")
-                    .font(.credit)
-                    .foregroundColor(theme.secondaryText)
-                    // The same 44pt floor every other control carries. The
-                    // extra height falls into the padding at the page's foot.
-                    .frame(minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityHint("Opens open-meteo.com")
-        }
+        // Two links rather than one: CC BY asks for the source to be named
+        // and the licence indicated by hyperlink, and a licence you cannot
+        // read is a poor indication of it. `tint` because a link left to
+        // itself renders in the system accent, which is the only colour the
+        // app does not have.
+        Text("[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)")
+            .font(.credit)
+            .foregroundColor(theme.secondaryText)
+            .tint(theme.secondaryText)
+            .frame(minHeight: 44, alignment: .leading)
     }
 
     private func weatherLayout(_ weather: CityWeather) -> some View {
