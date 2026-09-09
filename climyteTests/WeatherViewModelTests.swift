@@ -918,6 +918,10 @@ final class SavedCitiesTests: XCTestCase {
 
     private let paris = City(id: UUID(), name: "Paris", country: "France",
                              countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
+    private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan",
+                             countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
+    private let berlin = City(id: UUID(), name: "Berlin", country: "Germany",
+                              countryCode: "DE", latitude: 52.52, longitude: 13.405)
 
     func testEmptyStorageReturnsNoCitiesRatherThanADefault() {
         XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty,
@@ -987,6 +991,67 @@ final class SavedCitiesTests: XCTestCase {
         XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), original)
     }
 
+    // MARK: - Two copies that disagree
+
+    /// The bug, exactly as it happened: UserDefaults comes back empty, the
+    /// mirror is OLDER than the preference domain's own backing file, and
+    /// recovery took the mirror because it looked there first. The reader got
+    /// back a city they had deleted, and a save then wrote it over the good
+    /// copy.
+    func testTheNewestCopyWinsWhenTheStoresDisagree() throws {
+        let mirror = temporaryMirror()
+        let backing = temporaryBackingFile()
+
+        // Older: still has Tokyo. Written only to the mirror.
+        SavedCities.save([paris, tokyo], to: defaults,
+                         sources: .init(mirror: mirror, backingFile: nil))
+
+        // Newer: Tokyo deleted. Ends up only in the backing file.
+        SavedCities.save([paris], to: defaults, sources: .init(mirror: nil, backingFile: nil))
+        let newer = try XCTUnwrap(defaults.data(forKey: SavedCities.key))
+        try NSDictionary(dictionary: [SavedCities.key: newer]).write(to: backing)
+
+        // cfprefsd loses the key. Both files remain, disagreeing.
+        defaults.removeObject(forKey: SavedCities.key)
+
+        let loaded = SavedCities.loadIfReadable(from: defaults,
+                                                sources: .init(mirror: mirror, backingFile: backing))
+
+        XCTAssertEqual(loaded?.map(\.name), ["Paris"],
+                       "The deleted city must not come back from the older copy")
+    }
+
+    /// And the other way round: a stale mirror must not overwrite a newer
+    /// UserDefaults.
+    func testAStaleMirrorDoesNotOverrideTheNewerStore() throws {
+        let mirror = temporaryMirror()
+        let isolated = SavedCities.Sources(mirror: mirror, backingFile: nil)
+
+        SavedCities.save([paris, tokyo], to: defaults, sources: isolated)
+        // A stale copy of the mirror, from before Tokyo was added.
+        SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
+        let stale = try Data(contentsOf: mirror)
+        SavedCities.save([paris, tokyo, berlin], to: defaults, sources: .init(mirror: nil, backingFile: nil))
+        try stale.write(to: mirror)
+
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: isolated)?.map(\.name),
+                       ["Paris", "Tokyo", "Berlin"])
+    }
+
+    /// The unversioned shape that shipped first carries no revision, so it
+    /// must lose to any copy that does.
+    func testTheUnversionedShapeLosesToAStampedOne() throws {
+        let mirror = temporaryMirror()
+        let isolated = SavedCities.Sources(mirror: mirror, backingFile: nil)
+
+        SavedCities.save([paris, berlin], to: defaults, sources: isolated)
+        // An old bare array left in UserDefaults by a build that predates this.
+        defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: SavedCities.key)
+
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: isolated)?.map(\.name),
+                       ["Paris", "Berlin"])
+    }
+
     // MARK: - The mirror
 
     /// UserDefaults is served by cfprefsd, whose view of the App Group domain
@@ -1033,6 +1098,13 @@ final class SavedCitiesTests: XCTestCase {
 
     func testNothingAnywhereIsAnEmptyListNotAFailure() {
         XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: temporaryMirror(), backingFile: nil)), [])
+    }
+
+    private func temporaryBackingFile() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("prefs-\(UUID().uuidString).plist")
+        mirrors.append(url)
+        return url
     }
 
     private func temporaryMirror() -> URL {

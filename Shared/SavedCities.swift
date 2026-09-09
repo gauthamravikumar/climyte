@@ -28,6 +28,21 @@ nonisolated enum SavedCities {
     private struct Store: Codable {
         let version: Int
         let cities: [City]
+
+        /// Increments on every save. Two copies of the list can disagree —
+        /// one is served by cfprefsd and the other is a file — and without a
+        /// revision there is no way to tell which is the newer, so recovery
+        /// picked whichever it looked at first. That resurrected cities the
+        /// reader had deleted.
+        var revision: Int?
+    }
+
+    /// A copy of the list and how new it is. `revision` is nil for the
+    /// unversioned shape that shipped first, which is therefore the oldest
+    /// anything can be.
+    private struct Copy {
+        let cities: [City]
+        let revision: Int
     }
 
     /// A plain file beside the weather cache holding the same list.
@@ -70,25 +85,40 @@ nonisolated enum SavedCities {
     /// real app's store before this comment existed.
     nonisolated static func loadIfReadable(from defaults: UserDefaults,
                                            sources: Sources) -> [City]? {
-        if let data = defaults.data(forKey: key) {
-            if let cities = decodeCities(data), !cities.isEmpty {
-                return deduplicated(cities)
-            }
-            if decodeCities(data) == nil {
-                quarantine(data, in: defaults)
-                return nil
-            }
+        let stored = defaults.data(forKey: key)
+
+        if let stored, decode(stored) == nil {
+            // Bytes are there and match no shape we know. Keep them: the
+            // caller falls back to a default city and saves it.
+            quarantine(stored, in: defaults)
+            return nil
         }
 
-        // cfprefsd had nothing. Ask the copies it cannot lose.
-        if let recovered = cities(at: sources.mirror) ?? citiesInBackingFile(sources.backingFile),
-           !recovered.isEmpty {
-            Log.cache.error("Saved cities recovered from disk after UserDefaults returned nothing")
-            save(recovered, to: defaults, sources: sources)
-            return deduplicated(recovered)
+        // Every copy, newest first. The stores can disagree — cfprefsd loses a
+        // key, or a write reaches one and not the other — and taking whichever
+        // answered first is how a deleted city came back.
+        let copies = [stored, data(at: sources.mirror), backingFileData(sources.backingFile)]
+            .compactMap { $0.flatMap(decode) }
+
+        // Strictly greater, so a tie keeps the earlier source. Copies written
+        // before revisions existed are all revision 0, and there the order
+        // above is the answer: what cfprefsd holds, then the mirror, then the
+        // backing file, which is the stalest of the three by nature.
+        var newest: Copy?
+        for copy in copies where newest == nil || copy.revision > newest!.revision {
+            newest = copy
         }
 
-        // The key that predates the list.
+        if let newest, !newest.cities.isEmpty {
+            if copies.count > 1 || stored == nil {
+                Log.cache.error("Saved cities taken from the newest of \(copies.count, privacy: .public) copies")
+                save(newest.cities, to: defaults, sources: sources, revision: newest.revision)
+            }
+            return deduplicated(newest.cities)
+        }
+
+        // Readable everywhere and empty, or nothing anywhere. Try the key that
+        // predates the list before concluding there is nothing.
         if let data = defaults.data(forKey: legacySingleCityKey),
            let single = try? JSONDecoder().decode(City.self, from: data) {
             return [single]
@@ -102,26 +132,10 @@ nonisolated enum SavedCities {
         loadIfReadable(from: defaults, sources: sources) ?? []
     }
 
-    private nonisolated static func cities(at url: URL?) -> [City]? {
-        guard let url, let data = try? Data(contentsOf: url) else { return nil }
-        return decodeCities(data)
-    }
-
-    /// The preference domain's own backing store, read as a file rather than
-    /// through UserDefaults. Only reached when UserDefaults has already said
-    /// there is nothing — at which point this is the difference between
-    /// recovering the reader's cities and losing them.
-    private nonisolated static func citiesInBackingFile(_ url: URL?) -> [City]? {
-        guard let url,
-              let contents = NSDictionary(contentsOf: url) as? [String: Any],
-              let data = contents[key] as? Data else { return nil }
-
-        return decodeCities(data)
-    }
-
     nonisolated static func save(_ cities: [City], to defaults: UserDefaults,
-                                 sources: Sources) {
-        let store = Store(version: version, cities: deduplicated(cities))
+                                 sources: Sources, revision: Int? = nil) {
+        let next = revision ?? (highestRevision(defaults: defaults, sources: sources) + 1)
+        let store = Store(version: version, cities: deduplicated(cities), revision: next)
         guard let encoded = try? JSONEncoder().encode(store) else { return }
 
         defaults.set(encoded, forKey: key)
@@ -130,21 +144,34 @@ nonisolated enum SavedCities {
         }
     }
 
-    /// `nil` means the bytes matched no shape this build knows. An empty array
-    /// means the store was read and holds nothing — a different thing, and the
-    /// distinction the bare-array format could not express.
-    private nonisolated static func decodeCities(_ data: Data) -> [City]? {
+    private nonisolated static func highestRevision(defaults: UserDefaults, sources: Sources) -> Int {
+        [defaults.data(forKey: key), data(at: sources.mirror), backingFileData(sources.backingFile)]
+            .compactMap { $0.flatMap(decode)?.revision }
+            .max() ?? 0
+    }
+
+    private nonisolated static func data(at url: URL?) -> Data? {
+        guard let url else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    private nonisolated static func backingFileData(_ url: URL?) -> Data? {
+        guard let url,
+              let contents = NSDictionary(contentsOf: url) as? [String: Any] else { return nil }
+        return contents[key] as? Data
+    }
+
+    /// A copy, with how new it is. The unversioned shape that shipped first
+    /// has no revision, so it loses to anything that does.
+    private nonisolated static func decode(_ data: Data) -> Copy? {
         let decoder = JSONDecoder()
 
         if let store = try? decoder.decode(Store.self, from: data) {
-            return store.cities
+            return Copy(cities: store.cities, revision: store.revision ?? 0)
         }
-
-        // Version 1: a bare array, no envelope.
         if let bare = try? decoder.decode([City].self, from: data) {
-            return bare
+            return Copy(cities: bare, revision: 0)
         }
-
         return nil
     }
 
