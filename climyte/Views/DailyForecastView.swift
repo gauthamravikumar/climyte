@@ -32,46 +32,68 @@ struct DailyForecastView: View {
             if isCompactLayout {
                 compactList
             } else {
-                ribbon
-                columns
+                chart
             }
         }
     }
 
     // MARK: - Ribbon
 
+    /// The shape is drawn over the section rather than stacked above the row,
+    /// so it can take its vertices from where the highs actually landed. The
+    /// layout decides the spacing; the shape follows, at any type size and
+    /// whatever the numbers happen to be.
+    private var chart: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Color.clear
+                .frame(height: chartHeight)
+                .accessibilityHidden(true)
+
+            columns
+        }
+        .overlayPreferenceValue(HighLabelCentres.self) { anchors in
+            GeometryReader { geo in
+                ribbon(vertices: anchors.map { geo[$0].x }, width: geo.size.width)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+
     /// The week as one shape: a band between the high and low lines. The
     /// numbers live below rather than on the curve, so they can't collide
     /// with it where the band narrows.
-    private var ribbon: some View {
-        GeometryReader { geo in
-            let vertices = xPositions(width: geo.size.width)
-            let rawHighs = forecasts.map { y(for: $0.maxTemp) }
-            let rawLows = zip(rawHighs, forecasts.map { y(for: $0.minTemp) })
-                .map { high, low in max(low, high + minimumBandThickness) }
+    ///
+    /// `measured` is empty on the first pass, before the row has been laid
+    /// out; an even grid stands in until the real positions arrive.
+    @ViewBuilder
+    private func ribbon(vertices measured: [CGFloat], width: CGFloat) -> some View {
+        let vertices = measured.count == forecasts.count
+            ? measured
+            : xPositions(width: width)
+        let rawHighs = forecasts.map { y(for: $0.maxTemp) }
+        let rawLows = zip(rawHighs, forecasts.map { y(for: $0.minTemp) })
+            .map { high, low in max(low, high + minimumBandThickness) }
 
-            // The band reaches both margins like every other full-width
-            // element on the page, while its vertices stay above the days they
-            // belong to. The half-column at each end continues the slope of
-            // the segment beside it — the week does not stop at Monday, and a
-            // flat shoulder would say it did.
-            let xs = [0] + vertices + [geo.size.width]
-            let highs = extendedToEdges(rawHighs, at: vertices, width: geo.size.width)
-            let lows = extendedToEdges(rawLows, at: vertices, width: geo.size.width)
+        // The band reaches both margins like every other full-width element on
+        // the page, while its vertices stay above the days they belong to. The
+        // half-column at each end continues the slope of the segment beside it
+        // — the week does not stop at Monday, and a flat shoulder would say it
+        // did.
+        let xs = [0] + vertices + [width]
+        let highs = extendedToEdges(rawHighs, at: vertices, width: width)
+        let lows = extendedToEdges(rawLows, at: vertices, width: width)
 
-            ZStack {
-                band(xs: xs, highs: highs, lows: lows)
-                    .fill(theme.dividerColor)
+        ZStack {
+            band(xs: xs, highs: highs, lows: lows)
+                .fill(theme.dividerColor)
 
-                line(xs: xs, ys: highs)
-                    .stroke(theme.primaryText, style: .init(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            line(xs: xs, ys: highs)
+                .stroke(theme.primaryText, style: .init(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
-                line(xs: xs, ys: lows)
-                    .stroke(theme.secondaryText, style: .init(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            }
+            line(xs: xs, ys: lows)
+                .stroke(theme.secondaryText, style: .init(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
         }
-        .frame(height: chartHeight)
-        .accessibilityHidden(true)
     }
 
     private func band(xs: [CGFloat], highs: [CGFloat], lows: [CGFloat]) -> Path {
@@ -143,12 +165,13 @@ struct DailyForecastView: View {
     /// the last day sitting at the start of its own column, which put ~31pt of
     /// dead space on the right against 22pt on the left.
     private var columns: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(forecasts.enumerated()), id: \.element.id) { index, forecast in
+        WeekColumnsLayout {
+            ForEach(forecasts) { forecast in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(units.temperature(forecast.maxTemp))
                         .font(.weekColumnHigh)
                         .foregroundColor(theme.primaryText)
+                        .anchorPreference(key: HighLabelCentres.self, value: .center) { [$0] }
 
                     Text(units.temperature(forecast.minTemp))
                         .font(.weekColumnLow)
@@ -161,7 +184,7 @@ struct DailyForecastView: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity, alignment: alignment(at: index))
+                .fixedSize()
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
@@ -169,15 +192,6 @@ struct DailyForecastView: View {
                 )
             }
         }
-    }
-
-    /// Leading for the first day and trailing for the last, so the row begins
-    /// and ends on the page's margins rather than wherever an equal seventh of
-    /// the width happens to fall. The days between stay on their own centres.
-    private func alignment(at index: Int) -> Alignment {
-        if index == 0 { return .leading }
-        if index == forecasts.count - 1 { return .trailing }
-        return .center
     }
 
     // MARK: - Accessibility-size fallback
@@ -214,4 +228,14 @@ struct DailyForecastView: View {
     private var weekMin: Double { forecasts.map(\.minTemp).min() ?? 0 }
 
     private var weekMax: Double { forecasts.map(\.maxTemp).max() ?? 100 }
+}
+
+/// Where each day's high sits on screen, so the ribbon can put its vertices
+/// over the numbers they belong to instead of over an assumed grid.
+private struct HighLabelCentres: PreferenceKey {
+    static let defaultValue: [Anchor<CGPoint>] = []
+
+    static func reduce(value: inout [Anchor<CGPoint>], nextValue: () -> [Anchor<CGPoint>]) {
+        value.append(contentsOf: nextValue())
+    }
 }
