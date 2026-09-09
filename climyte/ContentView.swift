@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var viewModel = WeatherViewModel()
+    @State private var viewModel = WeatherViewModel(citiesSources: .appGroup)
     @State private var isSearching = false
 
     /// The theme change is a half-second crossfade of the entire screen

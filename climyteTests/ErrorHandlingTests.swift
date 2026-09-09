@@ -246,7 +246,9 @@ final class ErrorHandlingTests: XCTestCase {
     private func makeViewModel(service: WeatherFetching) -> WeatherViewModel {
         WeatherViewModel(service: service, defaults: defaults, cache: cache,
                          legacyDefaults: UserDefaults(suiteName: suiteName + ".legacy"),
-                         reloader: SilentReloader())
+                         reloader: SilentReloader(),
+                         citiesSources: .init(mirror: cacheDirectory.appendingPathComponent("saved-cities.json"),
+                                              backingFile: nil))
     }
 
     /// Longer than the 300ms debounce, so the search task has run.

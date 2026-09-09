@@ -124,7 +124,7 @@ class WeatherViewModel {
          legacyDefaults: UserDefaults? = nil,
          reloader: WidgetReloading? = nil,
          locationManager: LocationManager? = nil,
-         citiesSources: SavedCities.Sources = .appGroup) {
+         citiesSources: SavedCities.Sources) {
         let defaults = defaults ?? AppGroup.defaults
         Self.migrateIfNeeded(from: legacyDefaults ?? .standard,
                              into: defaults,
