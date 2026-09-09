@@ -76,3 +76,29 @@ extension Font {
     static let accessoryValue = manrope(.semiBold, 16, relativeTo: .body)
     static let accessoryLabel = manrope(.medium, 11, relativeTo: .caption2)
 }
+
+#if canImport(UIKit)
+import UIKit
+import CoreText
+
+extension Font.Manrope {
+    /// How far the first glyph's ink sits inside the text's layout box.
+    ///
+    /// Display type has to be aligned by its ink, not its box. Manrope's
+    /// digits carry between 4 and 7pt of left side bearing at 100pt depending
+    /// on which one leads, so the reading sat visibly inside the margin every
+    /// other element hangs off — and stepped sideways as the temperature
+    /// changed and the leading digit with it.
+    ///
+    /// Small text is left alone: at 16pt the same bearing is under a point,
+    /// and text that size is conventionally aligned by its box.
+    func leftSideBearing(of string: String, size: CGFloat) -> CGFloat {
+        guard !string.isEmpty, let font = UIFont(name: rawValue, size: size) else { return 0 }
+
+        let line = CTLineCreateWithAttributedString(
+            NSAttributedString(string: string, attributes: [.font: font])
+        )
+        return CTLineGetBoundsWithOptions(line, .useGlyphPathBounds).origin.x
+    }
+}
+#endif

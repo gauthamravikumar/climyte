@@ -21,10 +21,18 @@ struct CurrentConditionsView: View {
     /// Separates the city from the clock, and grows with the type ramp.
     @ScaledMetric(relativeTo: .title) private var headerGap: CGFloat = 12
 
-    /// Width of the reading's digits alone, measured as drawn — so the range
-    /// stays centred on them even when the hero scales down at large type
-    /// sizes.
-    @State private var digitsWidth: CGFloat = 0
+    /// The hero's point size, tracking Dynamic Type the same way the font
+    /// does, so the optical correction below scales with the glyphs it is
+    /// correcting.
+    @ScaledMetric(relativeTo: .largeTitle) private var heroSize: CGFloat = 100
+
+    /// The reading's own left side bearing, measured for the digits actually
+    /// on screen rather than assumed — Manrope's vary by 3pt across the ten.
+    private var heroBearing: CGFloat {
+        Font.Manrope.regular.leftSideBearing(
+            of: units.temperature(weather.temperature), size: heroSize
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -78,44 +86,27 @@ struct CurrentConditionsView: View {
     }
 
     private var temperature: some View {
-        // Centred on the digits, not on the whole reading. The degree sign
-        // adds width to the right of the number without being part of it, so
-        // centring on "18°" left the range visibly right of the 18.
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                Text(verbatim: "\(units.temperatureValue(weather.temperature))")
-                    .background(
-                        GeometryReader { proxy in
-                            Color.clear.preference(key: DigitsWidth.self,
-                                                   value: proxy.size.width)
-                        }
-                    )
-
-                Text(verbatim: "°")
-            }
-            .font(.temperatureHero)
-            .foregroundColor(theme.primaryText)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            // A numeral this large carries a lot of empty line box above
-            // and below it. Trimmed on the glyph itself rather than on the
-            // block, so it stops at the range line instead of reaching
-            // through to the condition underneath.
-            .padding(.vertical, -10)
+            Text(units.temperature(weather.temperature))
+                .font(.temperatureHero)
+                .foregroundColor(theme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                // A numeral this large carries a lot of empty line box above
+                // and below it. Trimmed on the glyph itself rather than on the
+                // block, so it stops at the range line instead of reaching
+                // through to the condition underneath.
+                .padding(.vertical, -10)
+                // And a lot of empty box to its left. Pulled off so the ink
+                // starts on the same edge as everything else on the page,
+                // whichever digit happens to lead.
+                .padding(.leading, -heroBearing)
 
             // The day's range, set as a span rather than two labelled values.
             // Only the reading itself carries a degree sign; these inherit it.
             Text("\(units.temperatureValue(weather.minTemp))  ·  \(units.temperatureValue(weather.maxTemp))")
                 .font(.temperatureRange)
                 .foregroundColor(theme.secondaryText)
-                // minWidth rather than width: centred under the digits while
-                // it fits inside them, and flush left the moment it does not.
-                // A single-digit reading beside a wide range would otherwise
-                // hang off the page's left edge.
-                .frame(minWidth: digitsWidth, alignment: .center)
-        }
-        .onPreferenceChange(DigitsWidth.self) { width in
-            MainActor.assumeIsolated { digitsWidth = width }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -174,15 +165,5 @@ struct CurrentConditionsView: View {
     /// fallback used when a response carries no zone name.
     static func localTime(at date: Date, utcOffsetSeconds: Int) -> String {
         localTime(at: date, in: TimeZone(secondsFromGMT: utcOffsetSeconds) ?? .current)
-    }
-}
-
-/// Carries the measured width of the reading's digits up to the block that
-/// centres the range under them.
-private struct DigitsWidth: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
     }
 }

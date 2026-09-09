@@ -45,10 +45,19 @@ struct DailyForecastView: View {
     /// with it where the band narrows.
     private var ribbon: some View {
         GeometryReader { geo in
-            let xs = xPositions(width: geo.size.width)
-            let highs = forecasts.map { y(for: $0.maxTemp) }
-            let lows = zip(highs, forecasts.map { y(for: $0.minTemp) })
+            let vertices = xPositions(width: geo.size.width)
+            let rawHighs = forecasts.map { y(for: $0.maxTemp) }
+            let rawLows = zip(rawHighs, forecasts.map { y(for: $0.minTemp) })
                 .map { high, low in max(low, high + minimumBandThickness) }
+
+            // The band reaches both margins like every other full-width
+            // element on the page, while its vertices stay above the days they
+            // belong to. The half-column at each end continues the slope of
+            // the segment beside it — the week does not stop at Monday, and a
+            // flat shoulder would say it did.
+            let xs = [0] + vertices + [geo.size.width]
+            let highs = extendedToEdges(rawHighs, at: vertices, width: geo.size.width)
+            let lows = extendedToEdges(rawLows, at: vertices, width: geo.size.width)
 
             ZStack {
                 band(xs: xs, highs: highs, lows: lows)
@@ -89,6 +98,25 @@ struct DailyForecastView: View {
         }
     }
 
+    /// Continues the first and last segments out to the frame's edges.
+    /// Clamped to the drawable band, so a steep end cannot push the shape out
+    /// of its own frame and into the rule above it.
+    private func extendedToEdges(_ ys: [CGFloat], at xs: [CGFloat], width: CGFloat) -> [CGFloat] {
+        guard ys.count >= 2, xs.count == ys.count else { return ys }
+
+        let inset: CGFloat = 3
+        func clamped(_ y: CGFloat) -> CGFloat {
+            min(max(y, inset), chartHeight - inset)
+        }
+
+        let leadSlope = (ys[1] - ys[0]) / max(xs[1] - xs[0], 1)
+        let tailSlope = (ys[ys.count - 1] - ys[ys.count - 2]) / max(xs[xs.count - 1] - xs[xs.count - 2], 1)
+
+        return [clamped(ys[0] - leadSlope * xs[0])]
+            + ys
+            + [clamped(ys[ys.count - 1] + tailSlope * (width - xs[xs.count - 1]))]
+    }
+
     /// Vertices sit at the centre of each column below, so the shape and the
     /// numbers line up.
     private func xPositions(width: CGFloat) -> [CGFloat] {
@@ -109,7 +137,7 @@ struct DailyForecastView: View {
     private var columns: some View {
         HStack(spacing: 0) {
             ForEach(forecasts) { forecast in
-                VStack(spacing: 3) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(units.temperature(forecast.maxTemp))
                         .font(.weekColumnHigh)
                         .foregroundColor(theme.primaryText)
@@ -125,7 +153,7 @@ struct DailyForecastView: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
