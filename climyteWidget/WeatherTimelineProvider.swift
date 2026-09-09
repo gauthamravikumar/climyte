@@ -61,7 +61,7 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     /// the day/night treatment flips at the city's own sunrise and sunset
     /// without spending a reload to do it.
     func timeline(for configuration: SelectCityIntent, in context: Context) async -> Timeline<WeatherEntry> {
-        let saved = SavedCityQuery.savedCities()
+        let saved = SavedCityOptions.savedCities()
         let cached = entry(for: configuration, saved: saved)
 
         // Anything we can already draw goes back immediately, and the fetch
@@ -160,10 +160,10 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
     }
 
     private func entry(for configuration: SelectCityIntent,
-                       saved: [City] = SavedCityQuery.savedCities()) -> WeatherEntry {
+                       saved: [City] = SavedCityOptions.savedCities()) -> WeatherEntry {
         // Fall back to the first saved city so a freshly placed widget shows
         // something real before the user has configured it.
-        let city = configuration.city?.city ?? saved.first
+        let city = configuration.city ?? saved.first
 
         guard let city, let cached = WeatherCache().load(for: city) else {
             return WeatherEntry(date: .now, city: city, weather: nil, fetchedAt: nil)
