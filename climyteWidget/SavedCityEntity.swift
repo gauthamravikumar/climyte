@@ -49,7 +49,7 @@ nonisolated struct SavedCityQuery: EntityQuery {
     /// Reads through the same type the app writes with, so the two cannot
     /// disagree about what is saved.
     static func savedCities() -> [City] {
-        SavedCities.load(from: AppGroup.defaults)
+        SavedCities.load(from: AppGroup.defaults, sources: .appGroup)
     }
 
     func entities(for identifiers: [String]) async throws -> [SavedCityEntity] {

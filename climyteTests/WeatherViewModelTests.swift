@@ -16,6 +16,7 @@ final class WeatherViewModelTests: XCTestCase {
     private var cache: WeatherCache!
     private var legacyDefaults: UserDefaults!
     private var legacySuiteName: String!
+    private var citiesMirror: URL!
 
     override func setUp() {
         super.setUp()
@@ -31,6 +32,10 @@ final class WeatherViewModelTests: XCTestCase {
             .appendingPathComponent("climyteTests-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
         cache = WeatherCache(directory: cacheDirectory)
+
+        // The mirror belongs to this suite. Left at its default it is the real
+        // app's, and every test would answer for every other.
+        citiesMirror = cacheDirectory.appendingPathComponent("saved-cities.json")
     }
 
     override func tearDown() {
@@ -41,6 +46,7 @@ final class WeatherViewModelTests: XCTestCase {
         suiteName = nil
         cacheDirectory = nil
         cache = nil
+        citiesMirror = nil
         legacyDefaults = nil
         legacySuiteName = nil
         super.tearDown()
@@ -74,6 +80,43 @@ final class WeatherViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
 
         XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris"])
+    }
+
+    // MARK: - A read that fails is not an empty list
+
+    /// The bug this pins destroyed data on launch with no user action. The
+    /// saved list read as absent, the fallback city stood in for it, and the
+    /// cache was pruned against that fallback — deleting every other city's
+    /// reading. The read failing is not evidence that a city was removed.
+    func testAFailedReadDoesNotPruneTheWeatherCache() throws {
+        cache.save(city: paris, response: makeResponse(temperature: 12))
+        cache.save(city: tokyo, response: makeResponse(temperature: 20))
+        defaults.set(Data("not a list this build can read".utf8), forKey: "saved_cities")
+
+        _ = makeViewModel()
+
+        XCTAssertEqual(Set(cache.loadAll().map(\.city.name)), ["Paris", "Tokyo"],
+                       "A cache may only be pruned against a list we actually read")
+    }
+
+    /// The same launch must still leave the reader with a usable app.
+    func testAFailedReadStillShowsSomething() throws {
+        defaults.set(Data("not a list this build can read".utf8), forKey: "saved_cities")
+
+        let viewModel = makeViewModel()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Sydney"])
+    }
+
+    /// A reader who genuinely has no cities is a different case, and pruning
+    /// is correct there.
+    func testAnEmptyStoreStillPrunes() throws {
+        cache.save(city: paris, response: makeResponse(temperature: 12))
+
+        _ = makeViewModel()
+
+        XCTAssertTrue(cache.loadAll().isEmpty,
+                      "Nothing saved means nothing in the cache belongs to a saved city")
     }
 
     // MARK: - Current location
@@ -716,14 +759,15 @@ final class WeatherViewModelTests: XCTestCase {
     /// only pins the format, not the behaviour.
     private func savedNames() throws -> [String] {
         XCTAssertNotNil(defaults.data(forKey: "saved_cities"), "Nothing was saved")
-        return SavedCities.load(from: defaults).map(\.name)
+        return SavedCities.load(from: defaults, sources: .init(mirror: citiesMirror, backingFile: nil)).map(\.name)
     }
 
     private func makeViewModel(service: WeatherFetching? = nil,
                                reloader: WidgetReloading? = nil) -> WeatherViewModel {
         WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
                          cache: cache, legacyDefaults: legacyDefaults,
-                         reloader: reloader ?? CountingReloader())
+                         reloader: reloader ?? CountingReloader(),
+                         citiesSources: .init(mirror: citiesMirror, backingFile: nil))
     }
 
     // MARK: - Location helpers
@@ -762,7 +806,8 @@ final class WeatherViewModelTests: XCTestCase {
                                 cache: cache, legacyDefaults: legacyDefaults,
                                 reloader: CountingReloader(),
                                 locationManager: LocationManager(manager: provider,
-                                                                 geocoder: stubGeocoder))
+                                                                 geocoder: stubGeocoder),
+                                citiesSources: .init(mirror: citiesMirror, backingFile: nil))
     }
 
     private func makeTokyoResult() -> GeocodingResult {
@@ -854,6 +899,7 @@ final class SavedCitiesTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
+    private var mirrors: [URL] = []
 
     override func setUp() {
         super.setUp()
@@ -862,6 +908,8 @@ final class SavedCitiesTests: XCTestCase {
     }
 
     override func tearDown() {
+        mirrors.forEach { try? FileManager.default.removeItem(at: $0) }
+        mirrors = []
         defaults.removePersistentDomain(forName: suiteName)
         defaults = nil
         suiteName = nil
@@ -872,23 +920,23 @@ final class SavedCitiesTests: XCTestCase {
                              countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
 
     func testEmptyStorageReturnsNoCitiesRatherThanADefault() {
-        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty,
+        XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty,
                       "Substituting a default here would make an unconfigured widget lie")
     }
 
     func testRoundTrip() {
-        SavedCities.save([paris], to: defaults)
-        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+        SavedCities.save([paris], to: defaults, sources: .none)
+        XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
     func testReadsTheLegacySingleCityKey() throws {
         defaults.set(try JSONEncoder().encode(paris), forKey: SavedCities.legacySingleCityKey)
-        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+        XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
     func testCorruptDataDoesNotCrash() {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
-        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+        XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty)
     }
 
     // MARK: - Versioned store
@@ -898,18 +946,18 @@ final class SavedCitiesTests: XCTestCase {
     /// default city.
     func testReadsTheUnversionedArrayThatShippedFirst() throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
-        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+        XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
     func testSavingUpgradesTheStoreToTheCurrentVersion() throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
 
-        SavedCities.save(SavedCities.load(from: defaults), to: defaults)
+        SavedCities.save(SavedCities.load(from: defaults, sources: .none), to: defaults, sources: .none)
 
         let data = try XCTUnwrap(defaults.data(forKey: SavedCities.key))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         XCTAssertEqual(json["version"] as? Int, SavedCities.version)
-        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+        XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
     /// The failure this guards is silent and total: the reader is dropped back
@@ -919,11 +967,11 @@ final class SavedCitiesTests: XCTestCase {
         let unreadable = Data(#"{"version":99,"shape":"from a later build"}"#.utf8)
         defaults.set(unreadable, forKey: SavedCities.key)
 
-        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+        XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty)
         XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), unreadable)
 
         // What the app does next: falls back to a default and saves it.
-        SavedCities.save([paris], to: defaults)
+        SavedCities.save([paris], to: defaults, sources: .none)
         XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), unreadable,
                        "The overwrite must not reach the quarantined copy")
     }
@@ -931,12 +979,67 @@ final class SavedCitiesTests: XCTestCase {
     func testTheFirstUnreadableStoreIsTheOneKept() {
         let original = Data("the reader's actual list".utf8)
         defaults.set(original, forKey: SavedCities.key)
-        _ = SavedCities.load(from: defaults)
+        _ = SavedCities.load(from: defaults, sources: .none)
 
         defaults.set(Data("a later, worse attempt".utf8), forKey: SavedCities.key)
-        _ = SavedCities.load(from: defaults)
+        _ = SavedCities.load(from: defaults, sources: .none)
 
         XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), original)
+    }
+
+    // MARK: - The mirror
+
+    /// UserDefaults is served by cfprefsd, whose view of the App Group domain
+    /// was observed to lose this key while the domain's own backing file
+    /// still held it — in the app and the widget at once. The mirror is the
+    /// copy nothing serves.
+    func testSavingWritesTheMirrorBesideTheDefaults() throws {
+        let mirror = temporaryMirror()
+
+        SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: mirror.path))
+    }
+
+    func testTheListIsRecoveredFromTheMirrorWhenDefaultsComeBackEmpty() throws {
+        let mirror = temporaryMirror()
+        SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
+
+        // What cfprefsd did: the key is simply gone.
+        defaults.removeObject(forKey: SavedCities.key)
+
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: mirror, backingFile: nil))?.map(\.name),
+                       ["Paris"])
+    }
+
+    /// Recovering also puts the list back where it belongs, so the next read
+    /// does not have to go to disk again.
+    func testRecoveryHealsTheDefaults() throws {
+        let mirror = temporaryMirror()
+        SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
+        defaults.removeObject(forKey: SavedCities.key)
+
+        _ = SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: mirror, backingFile: nil))
+
+        XCTAssertNotNil(defaults.data(forKey: SavedCities.key))
+    }
+
+    func testAnUnreadableStoreReportsUnreadableRatherThanEmpty() {
+        defaults.set(Data("not json".utf8), forKey: SavedCities.key)
+
+        XCTAssertNil(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: temporaryMirror(), backingFile: nil)),
+                     "Unreadable and empty are different answers")
+    }
+
+    func testNothingAnywhereIsAnEmptyListNotAFailure() {
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: temporaryMirror(), backingFile: nil)), [])
+    }
+
+    private func temporaryMirror() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("saved-cities-\(UUID().uuidString).json")
+        mirrors.append(url)
+        return url
     }
 
     /// A store that reads cleanly and holds nothing is not a fault, and must
@@ -944,7 +1047,7 @@ final class SavedCitiesTests: XCTestCase {
     func testAnEmptyStoreIsNotTreatedAsUnreadable() throws {
         defaults.set(try JSONEncoder().encode([City]()), forKey: SavedCities.key)
 
-        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+        XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty)
         XCTAssertNil(defaults.data(forKey: SavedCities.unreadableKey))
     }
 }

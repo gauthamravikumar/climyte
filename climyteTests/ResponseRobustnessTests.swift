@@ -71,7 +71,7 @@ final class ResponseRobustnessTests: XCTestCase {
         // hand-edited store would be.
         defaults.set(try JSONEncoder().encode([paris, alias]), forKey: SavedCities.key)
 
-        let loaded = SavedCities.load(from: defaults)
+        let loaded = SavedCities.load(from: defaults, sources: .none)
         XCTAssertEqual(loaded.count, 1)
         XCTAssertEqual(loaded.first?.name, "Paris", "The first occurrence wins")
     }
@@ -84,8 +84,8 @@ final class ResponseRobustnessTests: XCTestCase {
         let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan",
                          countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
 
-        SavedCities.save([tokyo, tokyo, tokyo], to: defaults)
+        SavedCities.save([tokyo, tokyo, tokyo], to: defaults, sources: .none)
 
-        XCTAssertEqual(SavedCities.load(from: defaults).count, 1)
+        XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).count, 1)
     }
 }

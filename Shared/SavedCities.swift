@@ -30,21 +30,62 @@ nonisolated enum SavedCities {
         let cities: [City]
     }
 
-    nonisolated static func load(from defaults: UserDefaults) -> [City] {
+    /// A plain file beside the weather cache holding the same list.
+    ///
+    /// UserDefaults is served by cfprefsd, and its view of this App Group
+    /// domain has been seen to diverge from the domain's own backing file:
+    /// `saved_cities` read as absent in both the app and the widget while
+    /// that file still held it, and a key written moments earlier round
+    /// tripped fine. A list this important should not be reachable only
+    /// through something that can do that. Nothing serves this file.
+    nonisolated static var mirrorURL: URL? {
+        AppGroup.containerURL?.appendingPathComponent("saved-cities.json")
+    }
+
+    /// Where a store keeps its copies. Explicit rather than global: a
+    /// recovery source that does not belong to the store being read will
+    /// happily answer for it, which under test meant the real app's cities
+    /// turning up inside isolated suites.
+    nonisolated struct Sources {
+        var mirror: URL?
+        var backingFile: URL?
+
+        /// The App Group's own two copies.
+        static var appGroup: Sources {
+            Sources(mirror: mirrorURL,
+                    backingFile: AppGroup.containerURL?
+                        .appendingPathComponent("Library/Preferences/\(AppGroup.identifier).plist"))
+        }
+
+        /// For a store that has none — an isolated suite under test.
+        static let none = Sources(mirror: nil, backingFile: nil)
+    }
+
+    /// `nil` means no source could be read, which is not the same as a reader
+    /// who has no cities and must never be treated as one — pruning the
+    /// weather cache on the strength of a failed read is how three cities'
+    /// readings were destroyed at launch.
+    /// `sources` has no default on purpose. It reaches shared, on-disk state,
+    /// and a default sent two separate test suites reading and writing the
+    /// real app's store before this comment existed.
+    nonisolated static func loadIfReadable(from defaults: UserDefaults,
+                                           sources: Sources) -> [City]? {
         if let data = defaults.data(forKey: key) {
-            switch decodeCities(data) {
-            case .some(let cities) where !cities.isEmpty:
+            if let cities = decodeCities(data), !cities.isEmpty {
                 return deduplicated(cities)
-            case .some:
-                // Readable and empty. Fall through to the legacy key rather
-                // than treating it as a fault.
-                break
-            case .none:
-                // Neither shape read. The caller will fall back to a default
-                // city and save it, which would overwrite the only copy of a
-                // list we merely failed to parse.
-                quarantine(data, in: defaults)
             }
+            if decodeCities(data) == nil {
+                quarantine(data, in: defaults)
+                return nil
+            }
+        }
+
+        // cfprefsd had nothing. Ask the copies it cannot lose.
+        if let recovered = cities(at: sources.mirror) ?? citiesInBackingFile(sources.backingFile),
+           !recovered.isEmpty {
+            Log.cache.error("Saved cities recovered from disk after UserDefaults returned nothing")
+            save(recovered, to: defaults, sources: sources)
+            return deduplicated(recovered)
         }
 
         // The key that predates the list.
@@ -56,10 +97,37 @@ nonisolated enum SavedCities {
         return []
     }
 
-    nonisolated static func save(_ cities: [City], to defaults: UserDefaults) {
+    nonisolated static func load(from defaults: UserDefaults,
+                                 sources: Sources) -> [City] {
+        loadIfReadable(from: defaults, sources: sources) ?? []
+    }
+
+    private nonisolated static func cities(at url: URL?) -> [City]? {
+        guard let url, let data = try? Data(contentsOf: url) else { return nil }
+        return decodeCities(data)
+    }
+
+    /// The preference domain's own backing store, read as a file rather than
+    /// through UserDefaults. Only reached when UserDefaults has already said
+    /// there is nothing — at which point this is the difference between
+    /// recovering the reader's cities and losing them.
+    private nonisolated static func citiesInBackingFile(_ url: URL?) -> [City]? {
+        guard let url,
+              let contents = NSDictionary(contentsOf: url) as? [String: Any],
+              let data = contents[key] as? Data else { return nil }
+
+        return decodeCities(data)
+    }
+
+    nonisolated static func save(_ cities: [City], to defaults: UserDefaults,
+                                 sources: Sources) {
         let store = Store(version: version, cities: deduplicated(cities))
         guard let encoded = try? JSONEncoder().encode(store) else { return }
+
         defaults.set(encoded, forKey: key)
+        if let mirror = sources.mirror {
+            try? encoded.write(to: mirror, options: .atomic)
+        }
     }
 
     /// `nil` means the bytes matched no shape this build knows. An empty array

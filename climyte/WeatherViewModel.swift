@@ -88,6 +88,16 @@ class WeatherViewModel {
     private let defaults: UserDefaults
     private let cache: WeatherCache
     private let reloader: WidgetReloading
+
+    /// Where the list's other copies live. Injected alongside `defaults`
+    /// because they are part of the same store: a copy belonging to a
+    /// different store would answer for one it knows nothing about.
+    private let citiesSources: SavedCities.Sources
+
+    /// False when the saved list could not be read from any source. While it
+    /// is false the app still works, but it must not act as though the list
+    /// it is showing is the reader's real one.
+    private let listWasReadable: Bool
     private var searchTask: Task<Void, Never>?
 
     /// Newest in-flight fetch per city. Results from superseded fetches are
@@ -113,7 +123,8 @@ class WeatherViewModel {
          cache: WeatherCache? = nil,
          legacyDefaults: UserDefaults? = nil,
          reloader: WidgetReloading? = nil,
-         locationManager: LocationManager? = nil) {
+         locationManager: LocationManager? = nil,
+         citiesSources: SavedCities.Sources = .appGroup) {
         let defaults = defaults ?? AppGroup.defaults
         Self.migrateIfNeeded(from: legacyDefaults ?? .standard,
                              into: defaults,
@@ -124,8 +135,14 @@ class WeatherViewModel {
         self.cache = cache ?? WeatherCache()
         self.reloader = reloader ?? WidgetReloader.shared
         self.locationManager = locationManager ?? LocationManager()
+        self.citiesSources = citiesSources
 
-        let cities = Self.loadSavedCities(from: defaults, key: savedCitiesKey)
+        // nil means no source could be read. That is not a reader with no
+        // cities, and must not be mistaken for one.
+        let loaded = SavedCities.loadIfReadable(from: defaults, sources: citiesSources)
+        self.listWasReadable = loaded != nil
+
+        let cities = (loaded ?? []).isEmpty ? [Self.defaultCity] : (loaded ?? [])
 
         self.entries = cities.map { CityEntry(city: $0) }
         self.selectedCityKey = entries.first?.id ?? ""
@@ -133,8 +150,12 @@ class WeatherViewModel {
         restoreCachedWeather()
 
         // Repairs a cache that grew under an earlier build, where pruning only
-        // happened on an explicit delete.
-        self.cache.prune(keeping: entries.map(\.city))
+        // happened on an explicit delete. Skipped when the saved list could
+        // not be read: pruning against the fallback city is how a failed read
+        // turned into three cities' readings being deleted at launch.
+        if listWasReadable {
+            self.cache.prune(keeping: entries.map(\.city))
+        }
     }
 
     // MARK: - Persistence
@@ -157,16 +178,16 @@ class WeatherViewModel {
         }
     }
 
-    private static func loadSavedCities(from defaults: UserDefaults, key: String) -> [City] {
-        let saved = SavedCities.load(from: defaults)
-        return saved.isEmpty ? [defaultCity] : saved
-    }
 
     private func saveCities() {
-        SavedCities.save(entries.map(\.city), to: defaults)
+        SavedCities.save(entries.map(\.city), to: defaults, sources: citiesSources)
         // Every path that changes the saved list comes through here, which
-        // makes it the one place pruning cannot be forgotten.
-        cache.prune(keeping: entries.map(\.city))
+        // makes it the one place pruning cannot be forgotten — unless we
+        // never knew the list, in which case there is nothing to prune
+        // against.
+        if listWasReadable {
+            cache.prune(keeping: entries.map(\.city))
+        }
         // The widget picks its city from this list, and an unconfigured one
         // falls back to whichever is first — so adding, removing or promoting
         // a city can change what a widget shows without any reading changing.
