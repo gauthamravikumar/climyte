@@ -58,6 +58,26 @@ struct CityPageView: View {
         }
     }
 
+    /// Open-Meteo's data is CC-BY, which asks for the source to be named where
+    /// the data is shown. At the foot of the page: you meet it if you read to
+    /// the end, which is where a credit belongs, and it costs the forecast
+    /// above it nothing.
+    @ViewBuilder
+    private var attribution: some View {
+        if let url = URL(string: "https://open-meteo.com") {
+            Link(destination: url) {
+                Text("Weather from Open-Meteo")
+                    .font(.credit)
+                    .foregroundColor(theme.secondaryText)
+                    // The same 44pt floor every other control carries. The
+                    // extra height falls into the padding at the page's foot.
+                    .frame(minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityHint("Opens open-meteo.com")
+        }
+    }
+
     private func weatherLayout(_ weather: CityWeather) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             CurrentConditionsView(
@@ -73,6 +93,8 @@ struct CityPageView: View {
             DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
 
             WeatherDetailsView(weather: weather, theme: theme)
+
+            attribution
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)

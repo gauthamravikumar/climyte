@@ -40,6 +40,10 @@ extension Font {
 
     static let sectionHeading = manrope(.bold, 12, relativeTo: .caption2)
 
+    /// Smaller and lighter than anything the forecast uses, because the credit
+    /// is the one thing on the page that is not weather.
+    static let credit = manrope(.medium, 11, relativeTo: .caption2)
+
     static let hourTemperature = manrope(.bold, 14, relativeTo: .caption)
     static let hourLabel = manrope(.medium, 12, relativeTo: .caption2)
 

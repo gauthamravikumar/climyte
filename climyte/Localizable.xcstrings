@@ -537,6 +537,17 @@
         }
       }
     },
+    "Opens open-meteo.com" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens open-meteo.com"
+          }
+        }
+      }
+    },
     "Opens Settings" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -823,6 +834,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Visibility"
+          }
+        }
+      }
+    },
+    "Weather from Open-Meteo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weather from Open-Meteo"
           }
         }
       }
