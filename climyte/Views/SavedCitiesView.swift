@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 /// The saved cities, shown when the search field is focused but empty.
 ///
@@ -21,12 +22,21 @@ struct SavedCitiesView: View {
     let theme: WeatherTheme
 
     let canRemove: Bool
+    /// Shown as a row rather than an alert: this is where someone looks when
+    /// their own city is missing from the list.
+    let locationAccessRefused: Bool
     let onSelect: (CityEntry) -> Void
     let onDelete: (IndexSet) -> Void
     let onMove: (IndexSet, Int) -> Void
 
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         List {
+            if locationAccessRefused {
+                locationNotice
+            }
+
             ForEach(entries) { entry in
                 Button {
                     onSelect(entry)
@@ -44,6 +54,36 @@ struct SavedCitiesView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
+    }
+
+    private var locationNotice: some View {
+        Button {
+            guard let settings = URL(string: UIApplication.openSettingsURLString) else { return }
+            openURL(settings)
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: "location.slash")
+                    .font(.system(size: locationIcon))
+                    .foregroundColor(theme.secondaryText)
+                    .accessibilityHidden(true)
+
+                Text("Location is off for Climyte")
+                    .font(.searchResultCity)
+                    .foregroundColor(theme.secondaryText)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+        .listRowSeparatorTint(theme.dividerColor)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .deleteDisabled(true)
+        .moveDisabled(true)
+        .accessibilityHint("Opens Settings")
     }
 
     private func row(for entry: CityEntry) -> some View {

@@ -28,23 +28,28 @@ enum SearchState: Equatable {
     case failed(String)
 }
 
+/// `@Observable`, not `ObservableObject`: with `@Published` every change
+/// republished the whole object, so one city's fetch finishing re-rendered the
+/// pager and the name strip for all of them. Observation tracks reads per
+/// property, so a view only rebuilds for the value it actually uses.
 @MainActor
-class WeatherViewModel: ObservableObject {
+@Observable
+class WeatherViewModel {
 
     /// One entry per saved city, in page order. The located city, when there
     /// is one, is always first.
-    @Published private(set) var entries: [CityEntry] = []
+    private(set) var entries: [CityEntry] = []
 
     /// Which page is showing. Keyed rather than indexed so a reorder or
     /// deletion can't silently select a different city.
-    @Published var selectedCityKey: String = ""
+    var selectedCityKey: String = ""
 
     /// What the search field should be showing. A single state replaces the
     /// old results array, which couldn't distinguish "no matches" from
     /// "the request failed" from "still typing".
-    @Published private(set) var searchState: SearchState = .idle
+    private(set) var searchState: SearchState = .idle
 
-    @Published var searchQuery: String = "" {
+    var searchQuery: String = "" {
         didSet {
             performSearch()
         }
@@ -59,6 +64,11 @@ class WeatherViewModel: ObservableObject {
     var hasSearchQuery: Bool {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
+
+    /// True once the app has asked for location and been refused. The saved
+    /// list says so rather than simply not showing a city for where they are,
+    /// which is indistinguishable from the feature not existing.
+    private(set) var locationAccessRefused = false
 
     /// Convenience for callers that only care about the successful case.
     var searchResults: [GeocodingResult] {
@@ -84,7 +94,7 @@ class WeatherViewModel: ObservableObject {
     /// discarded so a slow one can't overwrite a newer one.
     private var fetchTokens: [String: Int] = [:]
 
-    let locationManager = LocationManager()
+    private let locationManager: LocationManager
 
     static let defaultCity = City(
         id: UUID(), name: "Sydney", country: "Australia", countryCode: "AU",
@@ -102,7 +112,8 @@ class WeatherViewModel: ObservableObject {
          defaults: UserDefaults? = nil,
          cache: WeatherCache? = nil,
          legacyDefaults: UserDefaults? = nil,
-         reloader: WidgetReloading? = nil) {
+         reloader: WidgetReloading? = nil,
+         locationManager: LocationManager? = nil) {
         let defaults = defaults ?? AppGroup.defaults
         Self.migrateIfNeeded(from: legacyDefaults ?? .standard,
                              into: defaults,
@@ -112,6 +123,7 @@ class WeatherViewModel: ObservableObject {
         self.defaults = defaults
         self.cache = cache ?? WeatherCache()
         self.reloader = reloader ?? WidgetReloader.shared
+        self.locationManager = locationManager ?? LocationManager()
 
         let cities = Self.loadSavedCities(from: defaults, key: savedCitiesKey)
 
@@ -254,8 +266,11 @@ class WeatherViewModel: ObservableObject {
         let selectedFirst = refreshSelectedThenRest()
 
         if let located = await currentLocationCity() {
+            locationAccessRefused = false
             upsertCurrentLocation(located)
             await refresh(cityKey: located.key)
+        } else {
+            locationAccessRefused = locationManager.accessIsRefused
         }
 
         await selectedFirst.value

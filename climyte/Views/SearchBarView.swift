@@ -97,6 +97,12 @@ struct SearchBarView: View {
                     // than as a button.
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
+                    // The label alone is a 15pt-tall target. Every other
+                    // control in the app carries this floor; this one was
+                    // missed. minHeight, not a fixed frame, so the label can
+                    // still grow past 44pt with the type ramp.
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                     .padding(.leading, 4)
                 }
             }

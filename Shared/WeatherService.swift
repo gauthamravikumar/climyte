@@ -64,8 +64,18 @@ class WeatherService {
     }
 
     func searchCities(query: String) async throws -> [GeocodingResult] {
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://geocoding-api.open-meteo.com/v1/search?name=\(encodedQuery)&count=10&language=en&format=json") else {
+        // URLComponents rather than interpolation: `.urlQueryAllowed` leaves
+        // `&` and `=` unescaped, so a city name containing either used to add
+        // parameters of its own to the request.
+        var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")
+        components?.queryItems = [
+            URLQueryItem(name: "name", value: query),
+            URLQueryItem(name: "count", value: "10"),
+            URLQueryItem(name: "language", value: "en"),
+            URLQueryItem(name: "format", value: "json")
+        ]
+
+        guard let url = components?.url else {
             throw WeatherError.invalidURL
         }
 

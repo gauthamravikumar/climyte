@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import CoreLocation
 @testable import climyte
 
 @MainActor
@@ -73,6 +74,74 @@ final class WeatherViewModelTests: XCTestCase {
         let viewModel = makeViewModel()
 
         XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris"])
+    }
+
+    // MARK: - Current location
+
+    /// The located city is put in front when it is new to the list — that is
+    /// the whole reason to surface it.
+    func testANewlyLocatedCityIsPlacedFirstAndSelected() async throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Berlin", "Paris", "Tokyo"])
+        XCTAssertTrue(viewModel.entries[0].isCurrentLocation)
+        XCTAssertEqual(viewModel.selectedCityKey, viewModel.entries[0].id)
+    }
+
+    /// A city already in the list keeps the place the reader gave it. It used
+    /// to be dragged to the front on every launch, which would silently undo a
+    /// reordering the moment CoreLocation answered.
+    func testALocatedCityAlreadySavedKeepsItsPosition() async throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let viewModel = makeViewModel(locatedAt: tokyoPlace, coordinate: tokyoCoordinate)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"],
+                       "Being where you are is not a reason to reorder the list")
+        XCTAssertTrue(viewModel.entries[1].isCurrentLocation)
+        XCTAssertEqual(viewModel.selectedCityKey, viewModel.entries[1].id)
+    }
+
+    /// Travelling replaces the located entry rather than collecting one per
+    /// trip.
+    func testMovingReplacesThePreviousLocatedCity() async throws {
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+        await viewModel.loadWeatherOnLaunch()
+        XCTAssertEqual(viewModel.entries.filter(\.isCurrentLocation).count, 1)
+
+        locationProvider.location = tokyoCoordinate
+        geocoder.result = .success(tokyoPlace)
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.filter(\.isCurrentLocation).map(\.city.name), ["Tokyo"])
+        XCTAssertFalse(viewModel.entries.contains { $0.city.name == "Berlin" },
+                       "The old located city should not linger once it is not where you are")
+    }
+
+    func testARefusedLocationIsRecordedSoTheListCanSaySo() async throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
+        let viewModel = makeViewModel(authorization: .denied)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertTrue(viewModel.locationAccessRefused)
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris"])
+    }
+
+    /// A failed fix is not a refusal, and must not be reported as one — the
+    /// reader would be sent to Settings to change something already correct.
+    func testAFailedFixIsNotReportedAsARefusal() async throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
+        let viewModel = makeViewModel(authorization: .authorizedWhenInUse)
+        geocoder.result = .success(nil)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertFalse(viewModel.locationAccessRefused)
     }
 
     // MARK: - Reordering
@@ -642,9 +711,12 @@ final class WeatherViewModelTests: XCTestCase {
     private let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan", countryCode: "JP", latitude: 35.6762, longitude: 139.6503)
     private let berlin = City(id: UUID(), name: "Berlin", country: "Germany", countryCode: "DE", latitude: 52.52, longitude: 13.405)
 
+    /// Read back through `SavedCities` rather than decoding the bytes: the
+    /// stored shape is versioned now, and a test that hardcodes one version
+    /// only pins the format, not the behaviour.
     private func savedNames() throws -> [String] {
-        let data = try XCTUnwrap(defaults.data(forKey: "saved_cities"))
-        return try JSONDecoder().decode([City].self, from: data).map(\.name)
+        XCTAssertNotNil(defaults.data(forKey: "saved_cities"), "Nothing was saved")
+        return SavedCities.load(from: defaults).map(\.name)
     }
 
     private func makeViewModel(service: WeatherFetching? = nil,
@@ -652,6 +724,45 @@ final class WeatherViewModelTests: XCTestCase {
         WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
                          cache: cache, legacyDefaults: legacyDefaults,
                          reloader: reloader ?? CountingReloader())
+    }
+
+    // MARK: - Location helpers
+
+    private var locationProvider: StubLocationProvider!
+    private var geocoder: StubGeocoder!
+
+    private let tokyoCoordinate = CLLocation(latitude: 35.6762, longitude: 139.6503)
+
+    private var berlinPlace: GeocodedPlace {
+        GeocodedPlace(locality: "Berlin", name: "Berlin",
+                      country: "Germany", isoCountryCode: "DE")
+    }
+
+    private var tokyoPlace: GeocodedPlace {
+        GeocodedPlace(locality: "Tokyo", name: "Tokyo",
+                      country: "Japan", isoCountryCode: "JP")
+    }
+
+    /// Builds a view model whose CoreLocation is a stub. Without this the
+    /// located-city paths cannot be reached at all under test — which is how
+    /// `upsertCurrentLocation` changed behaviour once with nothing to catch it.
+    private func makeViewModel(authorization: CLAuthorizationStatus = .authorizedWhenInUse,
+                               locatedAt place: GeocodedPlace? = nil,
+                               coordinate: CLLocation? = nil) -> WeatherViewModel {
+        let provider = StubLocationProvider()
+        provider.authorizationStatus = authorization
+        provider.location = coordinate ?? CLLocation(latitude: 52.52, longitude: 13.405)
+        locationProvider = provider
+
+        let stubGeocoder = StubGeocoder()
+        stubGeocoder.result = .success(place)
+        geocoder = stubGeocoder
+
+        return WeatherViewModel(service: StubWeatherService(), defaults: defaults,
+                                cache: cache, legacyDefaults: legacyDefaults,
+                                reloader: CountingReloader(),
+                                locationManager: LocationManager(manager: provider,
+                                                                 geocoder: stubGeocoder))
     }
 
     private func makeTokyoResult() -> GeocodingResult {
@@ -779,6 +890,63 @@ final class SavedCitiesTests: XCTestCase {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
         XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
     }
+
+    // MARK: - Versioned store
+
+    /// The shape that shipped first. Anyone upgrading has this on disk, and
+    /// reading it is the only thing standing between them and a reset to a
+    /// default city.
+    func testReadsTheUnversionedArrayThatShippedFirst() throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
+        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+    }
+
+    func testSavingUpgradesTheStoreToTheCurrentVersion() throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
+
+        SavedCities.save(SavedCities.load(from: defaults), to: defaults)
+
+        let data = try XCTUnwrap(defaults.data(forKey: SavedCities.key))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["version"] as? Int, SavedCities.version)
+        XCTAssertEqual(SavedCities.load(from: defaults).map(\.name), ["Paris"])
+    }
+
+    /// The failure this guards is silent and total: the reader is dropped back
+    /// to a default city, that default is saved, and their list is gone. The
+    /// bytes are kept so the loss is recoverable.
+    func testAStoreThisBuildCannotReadIsKeptRatherThanLost() {
+        let unreadable = Data(#"{"version":99,"shape":"from a later build"}"#.utf8)
+        defaults.set(unreadable, forKey: SavedCities.key)
+
+        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+        XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), unreadable)
+
+        // What the app does next: falls back to a default and saves it.
+        SavedCities.save([paris], to: defaults)
+        XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), unreadable,
+                       "The overwrite must not reach the quarantined copy")
+    }
+
+    func testTheFirstUnreadableStoreIsTheOneKept() {
+        let original = Data("the reader's actual list".utf8)
+        defaults.set(original, forKey: SavedCities.key)
+        _ = SavedCities.load(from: defaults)
+
+        defaults.set(Data("a later, worse attempt".utf8), forKey: SavedCities.key)
+        _ = SavedCities.load(from: defaults)
+
+        XCTAssertEqual(defaults.data(forKey: SavedCities.unreadableKey), original)
+    }
+
+    /// A store that reads cleanly and holds nothing is not a fault, and must
+    /// not be quarantined — the bare-array format could not tell the two apart.
+    func testAnEmptyStoreIsNotTreatedAsUnreadable() throws {
+        defaults.set(try JSONEncoder().encode([City]()), forKey: SavedCities.key)
+
+        XCTAssertTrue(SavedCities.load(from: defaults).isEmpty)
+        XCTAssertNil(defaults.data(forKey: SavedCities.unreadableKey))
+    }
 }
 
 /// Records reload requests instead of talking to WidgetKit, which does
@@ -786,4 +954,33 @@ final class SavedCitiesTests: XCTestCase {
 private final class CountingReloader: WidgetReloading {
     var count = 0
     func reload() { count += 1 }
+}
+
+
+/// CoreLocation stand-in. Resumes the manager's continuation the way the real
+/// delegate would, so the async call actually returns.
+@MainActor
+private final class StubLocationProvider: LocationProviding {
+    var authorizationStatus: CLAuthorizationStatus = .authorizedWhenInUse
+    var desiredAccuracy: CLLocationAccuracy = 0
+    weak var locationDelegate: CLLocationManagerDelegate?
+
+    var location = CLLocation(latitude: 0, longitude: 0)
+
+    func requestWhenInUseAuthorization() {
+        (locationDelegate as? LocationManager)?.handleAuthorizationChange()
+    }
+
+    func requestLocation() {
+        guard let delegate = locationDelegate as? LocationManager else { return }
+        delegate.locationManager(CLLocationManager(), didUpdateLocations: [location])
+    }
+}
+
+private final class StubGeocoder: Geocoding, @unchecked Sendable {
+    var result: Result<GeocodedPlace?, Error> = .success(nil)
+
+    func firstPlacemark(for location: CLLocation) async throws -> GeocodedPlace? {
+        try result.get()
+    }
 }

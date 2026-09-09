@@ -416,6 +416,17 @@
         }
       }
     },
+    "Location is off for Climyte" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location is off for Climyte"
+          }
+        }
+      }
+    },
     "Low" : {
       "comment" : "UV index category",
       "extractionState" : "manual",
@@ -522,6 +533,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No weather data available"
+          }
+        }
+      }
+    },
+    "Opens Settings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens Settings"
           }
         }
       }

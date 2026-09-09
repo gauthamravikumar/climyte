@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = WeatherViewModel()
+    @State private var viewModel = WeatherViewModel()
     @State private var isSearching = false
 
     /// The theme change is a half-second crossfade of the entire screen
@@ -83,6 +83,7 @@ struct ContentView: View {
                 selectedKey: viewModel.selectedCityKey,
                 theme: theme,
                 canRemove: viewModel.canRemoveCities,
+                locationAccessRefused: viewModel.locationAccessRefused,
                 onSelect: { entry in
                     withAnimation(transitionAnimation) {
                         viewModel.selectEntry(entry)

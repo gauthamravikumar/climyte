@@ -75,6 +75,14 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         self.manager.desiredAccuracy = kCLLocationAccuracyKilometer
     }
 
+    /// Whether the reader has actually refused, as opposed to not being asked
+    /// yet or having said yes. `requestCurrentLocation` returning nil cannot
+    /// answer this on its own — a failed fix looks the same from outside.
+    var accessIsRefused: Bool {
+        let status = manager.authorizationStatus
+        return status == .denied || status == .restricted
+    }
+
     /// Requests permission if needed, then fetches the current location.
     /// Returns nil when permission is refused or the fix fails.
     func requestCurrentLocation() async -> CLLocation? {

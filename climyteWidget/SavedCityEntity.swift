@@ -25,7 +25,10 @@ nonisolated struct SavedCityEntity: AppEntity {
         DisplayRepresentation(title: "\(name)", subtitle: "\(country)")
     }
 
-    static var defaultQuery = SavedCityQuery()
+    /// `let`, not `var`: a mutable static is nonisolated global shared state,
+    /// which is an error in the Swift 6 language mode. The query holds nothing,
+    /// so there is nothing to mutate.
+    static let defaultQuery = SavedCityQuery()
 
     var city: City {
         City(id: UUID(), name: name, country: country,
