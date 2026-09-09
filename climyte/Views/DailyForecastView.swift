@@ -117,8 +117,11 @@ struct DailyForecastView: View {
             + [clamped(ys[ys.count - 1] + tailSlope * (width - xs[xs.count - 1]))]
     }
 
-    /// Vertices sit at the centre of each column below, so the shape and the
-    /// numbers line up.
+    /// Vertices sit at the centre of each column below. The five middle days
+    /// are centred in their columns, so those sit under their own numbers;
+    /// the two end days are pulled out to the margins and read half a column
+    /// wide of theirs, which is the price of the row starting and ending on
+    /// the page's edges.
     private func xPositions(width: CGFloat) -> [CGFloat] {
         let step = width / CGFloat(max(forecasts.count, 1))
         return forecasts.indices.map { step * (CGFloat($0) + 0.5) }
@@ -134,9 +137,14 @@ struct DailyForecastView: View {
 
     // MARK: - Numbers
 
+    /// The week spans margin to margin, like the ribbon above it and every
+    /// other full-width element on the page: the first day hangs off the left
+    /// edge, the last ends on the right one. Leading-aligning all seven left
+    /// the last day sitting at the start of its own column, which put ~31pt of
+    /// dead space on the right against 22pt on the left.
     private var columns: some View {
         HStack(spacing: 0) {
-            ForEach(forecasts) { forecast in
+            ForEach(Array(forecasts.enumerated()), id: \.element.id) { index, forecast in
                 VStack(alignment: .leading, spacing: 3) {
                     Text(units.temperature(forecast.maxTemp))
                         .font(.weekColumnHigh)
@@ -153,7 +161,7 @@ struct DailyForecastView: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: alignment(at: index))
                 .contentShape(Rectangle())
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
@@ -161,6 +169,15 @@ struct DailyForecastView: View {
                 )
             }
         }
+    }
+
+    /// Leading for the first day and trailing for the last, so the row begins
+    /// and ends on the page's margins rather than wherever an equal seventh of
+    /// the width happens to fall. The days between stay on their own centres.
+    private func alignment(at index: Int) -> Alignment {
+        if index == 0 { return .leading }
+        if index == forecasts.count - 1 { return .trailing }
+        return .center
     }
 
     // MARK: - Accessibility-size fallback
