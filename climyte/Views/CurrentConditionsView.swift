@@ -73,7 +73,13 @@ struct CurrentConditionsView: View {
     }
 
     private var temperature: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Centred on the hero, not on the page: the range belongs to the
+        // reading above it. Page-centring floated it away from the numeral and
+        // read as a misalignment, since nothing else on the page is centred.
+        //
+        // The block still hugs the left edge, because the hero is an order of
+        // magnitude wider than the range at every temperature either can hold.
+        VStack(alignment: .center, spacing: 0) {
             Text(units.temperature(weather.temperature))
                 .font(.temperatureHero)
                 .foregroundColor(theme.primaryText)
@@ -91,6 +97,7 @@ struct CurrentConditionsView: View {
                 .font(.temperatureRange)
                 .foregroundColor(theme.secondaryText)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         // Terse on screen, explicit to VoiceOver — the visual shorthand
         // shouldn't cost a screen-reader user the meaning.
