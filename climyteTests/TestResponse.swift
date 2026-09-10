@@ -31,7 +31,11 @@ enum TestResponse {
         daylightYesterday: Double? = 50_233,
         maxTemp: Double = 26,
         minTemp: Double = 15,
-        hourly: HourlyWeatherResponse? = nil
+        hourly: HourlyWeatherResponse? = nil,
+
+        /// Quarter-hour rain from now, for the cases that turn on the next two
+        /// hours rather than on the day.
+        minutelyPrecipitation: [Double?]? = nil
     ) -> WeatherResponse {
         let utc = TimeZone(secondsFromGMT: 0)!
 
@@ -49,6 +53,15 @@ enum TestResponse {
 
         let now = Date()
         let yesterday = now.addingTimeInterval(-86_400)
+
+        let minutely = minutelyPrecipitation.map { values in
+            MinutelyWeatherResponse(
+                time: values.indices.map {
+                    stamp.string(from: now.addingTimeInterval(TimeInterval($0 * 900)))
+                },
+                precipitation: values
+            )
+        }
 
         // Put the sun either side of now, or both behind it, so the derived
         // isNight matches what the caller asked for.
@@ -83,7 +96,8 @@ enum TestResponse {
                 precipitation_sum: [rainAmount, rainAmount],
                 precipitation_hours: [rainHours, rainHours],
                 daylight_duration: [daylightYesterday, daylightToday]
-            )
+            ),
+            minutely_15: minutely
         )
     }
 }

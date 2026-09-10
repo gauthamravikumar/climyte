@@ -25,7 +25,32 @@ struct WeatherDetailsView: View {
     var body: some View {
         VStack(spacing: 0) {
             ForEach(WeatherDetails.build(for: weather, units: units)) { detail in
-                row(detail)
+                // No spacing of its own: the row already carries 13 below it,
+                // and adding to that pushed the strip away from the row it
+                // belongs to.
+                VStack(alignment: .leading, spacing: 0) {
+                    row(detail)
+
+                    // The next two hours belong to the Rain row rather than to
+                    // a section of their own: the row already says "Rain", and
+                    // two headings for one subject read as two subjects.
+                    // Skipped entirely when the row above has already said
+                    // it all — a dry outlook on a day that was never likely to
+                    // rain. An empty strip still claims its padding, which left
+                    // the Rain row sitting further from its divider than every
+                    // other row in the block.
+                    if detail.kind == .rain, let outlook = weather.rainOutlook,
+                       !outlook.isDry || WeatherDetails.rainRowLeadsWithToday(weather) {
+                        RainOutlookView(
+                            outlook: outlook,
+                            timeZone: weather.timeZone,
+                            theme: theme,
+                            amountIsAlreadyShown: !WeatherDetails.rainRowLeadsWithToday(weather)
+                        )
+                        .padding(.bottom, 13)
+                    }
+                }
+
                 ThemeDivider(theme: theme)
             }
         }

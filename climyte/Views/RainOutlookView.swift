@@ -5,92 +5,93 @@
 
 import SwiftUI
 
-/// Rain over the next two hours, as one bar per quarter hour.
+/// The next two hours of rain, as one bar per quarter hour.
 ///
-/// Bars rather than a curve because a bar *is* a quarter hour: the model gives
+/// Sits under the Rain row in the details block rather than standing as its own
+/// section: the row already says "Rain", and two headings for one subject read
+/// as two subjects.
+///
+/// Bars rather than a curve because a bar *is* a quarter hour. The model gives
 /// eight buckets, and a line drawn through them would imply a continuity it
 /// does not claim.
 struct RainOutlookView: View {
-    let cityName: String
     let outlook: RainOutlook
     let timeZone: TimeZone
     let theme: WeatherTheme
 
+    /// True when the row above already carries the two-hour amount, so the line
+    /// here need only say when — and, on a dry outlook, need not appear at all.
+    let amountIsAlreadyShown: Bool
+
     @Environment(\.unitSystem) private var units
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Tall enough that a bar reads as a bar. At 46 the eight of them were
     /// wider than they were high and read as blocks.
     @ScaledMetric(relativeTo: .caption) private var chartHeight: CGFloat = 68
 
-    /// At accessibility sizes eight bars stop being readable and the sentences
-    /// carry it alone — the same trade `DailyForecastView` makes with its
+    /// At accessibility sizes eight bars stop being readable and the sentence
+    /// carries it alone — the same trade `DailyForecastView` makes with its
     /// columns.
-    private var isCompactLayout: Bool { dynamicTypeSize.isAccessibilitySize }
+    private var isCompactLayout: Bool { typeSize.isAccessibilitySize }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            SectionRule(label: "Rain",
-                        accessibilityLabel: "Rain in the next 2 hours",
-                        theme: theme)
-
-            if outlook.isDry {
-                Text("None in the next 2 hours")
-                    .font(.conditionSummary)
-                    .foregroundColor(theme.secondaryText)
-            } else {
-                wet
-            }
-        }
-    }
-
-    private var wet: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                leadLine
-                    .font(.conditionSummary)
-                    .foregroundColor(theme.primaryText)
-
-                amountLine
+        VStack(alignment: .leading, spacing: 10) {
+            if let line = summary {
+                line
                     .font(.detailRowCaption)
                     .foregroundColor(theme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            .accessibilityElement(children: .combine)
 
-            if !isCompactLayout {
+            if !outlook.isDry && !isCompactLayout {
                 bars
                 axis
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(spokenSummary)
     }
 
-    // MARK: - The sentences
+    // MARK: - The sentence
 
-    private var leadLine: Text {
-        guard let arrival = outlook.arrival else {
-            return Text("Rain in the next 2 hours")
+    /// Nil when the row above has already said everything there is to say,
+    /// which is the dry outlook on a day that was never likely to rain.
+    private var summary: Text? {
+        guard !outlook.isDry else {
+            return amountIsAlreadyShown ? nil : Text("None in the next 2 hours")
         }
 
-        // A first step already wet means it is falling now, not that it is
-        // about to: the first bucket is the quarter hour in progress.
+        let timing = timingPhrase
+        guard !amountIsAlreadyShown else { return Text(timing) }
+
+        let total = units.precipitation(outlook.total)
+        return Text("\(timing) · \(total) in the next 2 hours")
+    }
+
+    /// The first bucket is the quarter hour in progress, so rain in it is
+    /// falling now rather than on its way.
+    private var timingPhrase: String {
+        guard let arrival = outlook.arrival else { return String(localized: "Expected") }
         guard arrival.time != outlook.steps.first?.time else {
-            return Text("Raining in \(cityName) now")
+            return String(localized: "Falling now")
         }
 
         let clock = arrival.time
             .formatted(Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone))
             .lowercased()
-        return Text("Rain reaching \(cityName) at \(clock)")
+        return String(localized: "Starts \(clock)")
     }
 
-    /// How much, and how hard. The total answers "will I get wet"; the rate
-    /// answers "how badly", and they are different questions — two hours of
-    /// drizzle and ten minutes of downpour can total the same.
-    private var amountLine: Text {
+    /// The bars carry nothing to a reader who cannot see them, so the spoken
+    /// form says the shape in words.
+    private var spokenSummary: Text {
+        guard !outlook.isDry else { return Text("No rain in the next 2 hours") }
+
         let total = units.precipitation(outlook.total)
         let rate = units.precipitation(outlook.peakRatePerHour)
-        return Text("\(total) total · up to \(rate) an hour")
+        return Text("\(timingPhrase). \(total) in the next 2 hours, up to \(rate) an hour.")
     }
 
     // MARK: - The bars

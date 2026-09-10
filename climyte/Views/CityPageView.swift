@@ -85,18 +85,6 @@ struct CityPageView: View {
 
             HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
 
-            // Between the 24-hour strip and the sun arc, so the page reads in
-            // order of how far ahead it looks: now, two hours, a day, today's
-            // light, a week.
-            if let outlook = weather.rainOutlook {
-                RainOutlookView(
-                    cityName: entry.city.name,
-                    outlook: outlook,
-                    timeZone: weather.timeZone,
-                    theme: theme
-                )
-            }
-
             SunArcView(weather: weather, theme: theme)
 
             DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)

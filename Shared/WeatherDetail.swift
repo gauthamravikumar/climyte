@@ -78,6 +78,19 @@ enum WeatherDetails {
                 value: percentage(chance),
                 caption: rainCaption(for: weather, units: units)
             ))
+        } else if let outlook = weather.rainOutlook {
+            // The day as a whole was never likely enough to earn a row, so this
+            // one speaks for the next two hours instead — including when the
+            // answer is none, which is worth saying rather than leaving the
+            // reader to infer it from an absent row.
+            details.append(WeatherDetail(
+                kind: .rain,
+                label: "Rain",
+                value: outlook.isDry
+                    ? String(localized: "None")
+                    : units.precipitation(outlook.total),
+                caption: String(localized: "in the next 2 hours")
+            ))
         }
 
         if weather.visibility < Threshold.poorVisibilityKilometres {
@@ -133,6 +146,14 @@ enum WeatherDetails {
         }
 
         return details
+    }
+
+    /// True when the row's own value is the day's chance rather than the next
+    /// two hours' amount, so the strip beneath it knows whether it still has to
+    /// say how much.
+    static func rainRowLeadsWithToday(_ weather: CityWeather) -> Bool {
+        guard let chance = weather.precipitationChance else { return false }
+        return chance >= Threshold.rainChance
     }
 
     private static func rainCaption(for weather: CityWeather, units: UnitSystem) -> String? {
