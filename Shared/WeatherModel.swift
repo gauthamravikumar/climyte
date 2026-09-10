@@ -136,6 +136,13 @@ struct CityWeather: Identifiable {
     /// sunrise and sunset *instants* the widget flips its palette on.
     let timeZone: TimeZone
 
+    /// Rain over the next two hours, when the response carries it.
+    ///
+    /// Nil for a cached response fetched before this was requested, and for
+    /// anywhere the model publishes no quarter-hour data. The section is absent
+    /// rather than empty in that case.
+    let rainOutlook: RainOutlook?
+
     /// Sunrise and sunset for every day the response covers, in order.
     ///
     /// Kept as dates rather than the formatted strings alongside them, because
@@ -235,6 +242,11 @@ struct CityWeather: Identifiable {
         cityCalendar.timeZone = cityTimeZone
 
         let isoFormatter = Self.apiFormatter("yyyy-MM-dd'T'HH:mm", in: cityTimeZone)
+
+        self.rainOutlook = response.minutely_15.flatMap {
+            RainOutlook(times: $0.time, precipitation: $0.precipitation,
+                        parser: isoFormatter, now: Date())
+        }
         let dateParser = Self.apiFormatter("yyyy-MM-dd", in: cityTimeZone)
 
         // Day names are for reading, so this one follows the reader's locale.
@@ -428,6 +440,18 @@ nonisolated struct WeatherResponse: Codable {
     let current: CurrentWeatherResponse
     let hourly: HourlyWeatherResponse
     let daily: DailyWeatherResponse
+
+    /// Quarter-hour precipitation, for the next two hours.
+    ///
+    /// Optional for the same reason `timezone` is: every reader has a cached
+    /// response from before this was asked for, and a non-optional field here
+    /// would throw all of them away on upgrade.
+    var minutely_15: MinutelyWeatherResponse?
+}
+
+nonisolated struct MinutelyWeatherResponse: Codable {
+    let time: [String]
+    let precipitation: [Double?]
 }
 
 nonisolated struct CurrentWeatherResponse: Codable {

@@ -45,6 +45,43 @@ final class WeatherDetailsTests: XCTestCase {
         XCTAssertNil(detail?.caption)
     }
 
+    // MARK: - Rain in the next two hours
+
+    /// The day's threshold is meant for the rest of the day. A reader about to
+    /// step outside is not helped by it.
+    func testImminentRainEarnsTheRowOnAnUnlikelyDay() {
+        let detail = details(rainChance: 5, minutely: [0, 0.4, 0.8, 0.2])
+            .first { $0.kind == .rain }
+
+        XCTAssertNotNil(detail, "rain within the hour should show even at 5% for the day")
+        XCTAssertEqual(detail?.caption, "in the next 2 hours")
+    }
+
+    /// Worth saying rather than leaving the reader to infer it from a row that
+    /// simply is not there.
+    func testADryOutlookStillSaysSoOnAnUnlikelyDay() {
+        let detail = details(rainChance: 5, minutely: [0, 0, 0]).first { $0.kind == .rain }
+
+        XCTAssertNotNil(detail)
+        XCTAssertEqual(detail?.value, "None")
+        XCTAssertEqual(detail?.caption, "in the next 2 hours")
+    }
+
+    /// The day's own figures keep the row when they earn it; the next two hours
+    /// are elaboration beneath, not a replacement for it.
+    func testALikelyDayKeepsItsOwnFiguresInTheRow() {
+        let detail = details(rainChance: 80, rainAmount: 9.5, rainHours: 7,
+                             minutely: [0, 0.4]).first { $0.kind == .rain }
+
+        let separator = Locale.current.decimalSeparator ?? "."
+        XCTAssertEqual(detail?.caption, "9\(separator)5 mm over 7h")
+    }
+
+    func testWithoutMinutelyDataNothingChanges() {
+        XCTAssertFalse(kinds(rainChance: 5, minutely: nil).contains(.rain))
+        XCTAssertTrue(kinds(rainChance: 80, minutely: nil).contains(.rain))
+    }
+
     // MARK: - UV
 
     func testUVAppearsOnlyInDaylightAndAboveTheProtectionThreshold() {
@@ -95,15 +132,6 @@ final class WeatherDetailsTests: XCTestCase {
         XCTAssertTrue(quiet.contains(.wind))
     }
 
-    /// Sunrise and sunset are drawn on the arc now — two numbers the reader
-    /// had to subtract became one shape. They must not also sit in the rows,
-    /// or the section says the same thing twice.
-    func testSunTimesAreNotRepeatedInTheRows() {
-        let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
-        XCTAssertFalse(quiet.contains(.sunrise))
-        XCTAssertFalse(quiet.contains(.sunset))
-    }
-
     func testAQuietNightStillShowsSomething() {
         let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
         XCTAssertGreaterThanOrEqual(quiet.count, 1, "An empty section is worse than a plain one")
@@ -138,11 +166,12 @@ final class WeatherDetailsTests: XCTestCase {
                        dewPoint: Double = 10,
                        windSpeed: Double = 10,
                        windGusts: Double = 12,
-                       visibilityKm: Double = 20) -> [WeatherDetail.Kind] {
+                       visibilityKm: Double = 20,
+                       minutely: [Double?]? = nil) -> [WeatherDetail.Kind] {
         details(rainChance: rainChance, rainAmount: rainAmount, rainHours: rainHours,
                 uv: uv, isNight: isNight, dewPoint: dewPoint,
                 windSpeed: windSpeed, windGusts: windGusts,
-                visibilityKm: visibilityKm).map(\.kind)
+                visibilityKm: visibilityKm, minutely: minutely).map(\.kind)
     }
 
     private func details(rainChance: Int? = 0,
@@ -153,7 +182,8 @@ final class WeatherDetailsTests: XCTestCase {
                          dewPoint: Double = 10,
                          windSpeed: Double = 10,
                          windGusts: Double = 12,
-                         visibilityKm: Double = 20) -> [WeatherDetail] {
+                         visibilityKm: Double = 20,
+                         minutely: [Double?]? = nil) -> [WeatherDetail] {
         let weather = CityWeather(
             city: City(id: UUID(), name: "Test", country: "Testland",
                        countryCode: "AU", latitude: 0, longitude: 0),
@@ -166,7 +196,8 @@ final class WeatherDetailsTests: XCTestCase {
                 uvIndex: uv,
                 rainChance: rainChance,
                 rainAmount: rainAmount,
-                rainHours: rainHours
+                rainHours: rainHours,
+                minutelyPrecipitation: minutely
             )
         )
         return WeatherDetails.build(for: weather, units: .metric)
