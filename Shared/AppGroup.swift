@@ -25,7 +25,4 @@ nonisolated enum AppGroup {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)
     }
 
-    /// Whether shared storage is actually available. False in a build without
-    /// the entitlement, which is worth knowing rather than silently ignoring.
-    static var isAvailable: Bool { containerURL != nil }
 }

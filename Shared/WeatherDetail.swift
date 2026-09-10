@@ -11,7 +11,7 @@ import Foundation
 /// so a still, clear night shows fewer lines than a wet and windy afternoon.
 struct WeatherDetail: Identifiable, Equatable {
     enum Kind: String {
-        case rain, visibility, uv, humidity, wind, sunrise, sunset, daylight
+        case rain, visibility, uv, humidity, wind, daylight
     }
 
     let kind: Kind

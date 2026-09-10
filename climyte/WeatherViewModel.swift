@@ -7,7 +7,6 @@
 
 import Foundation
 import os
-import Combine
 import CoreLocation
 
 /// Seam that lets tests drive the view model without touching the network.
@@ -83,7 +82,6 @@ class WeatherViewModel {
     var canRemoveCities: Bool { entries.count > 1 }
 
     private static let savedCitiesKeyName = "saved_cities"
-    private let savedCitiesKey = savedCitiesKeyName
     private let service: WeatherFetching
     private let defaults: UserDefaults
     private let cache: WeatherCache
@@ -368,11 +366,6 @@ class WeatherViewModel {
     /// Below this, returning to the app does not re-fetch. Weather does not
     /// move fast enough to justify a request every time someone switches back.
     static let foregroundRefreshAfter: TimeInterval = 15 * 60
-
-    func refreshSelected() async {
-        guard let selected = selectedEntry else { return }
-        await refresh(cityKey: selected.id)
-    }
 
     // MARK: - Fetching
 

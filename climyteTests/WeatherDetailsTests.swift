@@ -132,15 +132,6 @@ final class WeatherDetailsTests: XCTestCase {
         XCTAssertTrue(quiet.contains(.wind))
     }
 
-    /// Sunrise and sunset are drawn on the arc now — two numbers the reader
-    /// had to subtract became one shape. They must not also sit in the rows,
-    /// or the section says the same thing twice.
-    func testSunTimesAreNotRepeatedInTheRows() {
-        let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
-        XCTAssertFalse(quiet.contains(.sunrise))
-        XCTAssertFalse(quiet.contains(.sunset))
-    }
-
     func testAQuietNightStillShowsSomething() {
         let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
         XCTAssertGreaterThanOrEqual(quiet.count, 1, "An empty section is worse than a plain one")
