@@ -100,11 +100,11 @@ struct SmallWidgetView: View {
                 Divider().overlay(divider)
                     .padding(.bottom, 4)
 
-                // Same rule as the app's details section: rain earns the line
-                // when it is likely, otherwise the day's range does.
-                if let chance = weather.precipitationChance,
-                   chance >= WeatherDetails.Threshold.rainChance {
-                    Text(rainLine(chance: chance, weather: weather))
+                // The app's own rule, so the widget and the Rain row never
+                // disagree about whether rain is worth mentioning; otherwise
+                // the day's range takes the line.
+                if let line = rainLine(weather) {
+                    Text(line)
                         .font(.widgetDetail)
                         .foregroundStyle(primary)
                         .lineLimit(1)
@@ -123,10 +123,16 @@ struct SmallWidgetView: View {
         }
     }
 
-    private func rainLine(chance: Int, weather: CityWeather) -> String {
-        guard let amount = weather.precipitationAmount, amount > 0 else {
-            return String(localized: "Rain \(WeatherDetails.percentage(chance))")
+    private func rainLine(_ weather: CityWeather) -> String? {
+        switch WeatherDetails.rainRowLead(weather) {
+        case .chance:
+            let chance = String(localized: "Rain \(WeatherDetails.percentage(weather.precipitationChance ?? 0))")
+            guard let amount = weather.precipitationAmount, amount > 0 else { return chance }
+            return "\(chance) · \(entry.units.precipitation(amount))"
+        case .amountAhead:
+            return String(localized: "Rain \(entry.units.precipitation(weather.precipitationAmount ?? 0))")
+        case .nextTwoHours, nil:
+            return nil
         }
-        return "\(String(localized: "Rain \(WeatherDetails.percentage(chance))")) · \(entry.units.precipitation(amount))"
     }
 }

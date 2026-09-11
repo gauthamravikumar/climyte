@@ -44,7 +44,7 @@ struct WeatherDetailsView: View {
                             outlook: outlook,
                             timeZone: weather.timeZone,
                             theme: theme,
-                            amountIsAlreadyShown: !WeatherDetails.rainRowLeadsWithChance(weather)
+                            amountIsAlreadyShown: WeatherDetails.rainRowLead(weather) == .nextTwoHours
                         )
                         .padding(.bottom, 13)
                     }
