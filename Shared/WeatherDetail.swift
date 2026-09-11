@@ -78,17 +78,15 @@ enum WeatherDetails {
                 value: percentage(chance),
                 caption: rainCaption(for: weather, units: units)
             ))
-        } else if let outlook = weather.rainOutlook {
-            // The day as a whole was never likely enough to earn a row, so this
-            // one speaks for the next two hours instead — including when the
-            // answer is none, which is worth saying rather than leaving the
-            // reader to infer it from an absent row.
+        } else if let outlook = weather.rainOutlook, !outlook.isDry {
+            // Rain in the next two hours earns the row even when the chance
+            // across the next day never reached the threshold. The quarter-hour
+            // model and the hourly probability do not always agree, and a
+            // reader about to walk outside should hear about the rain either way.
             details.append(WeatherDetail(
                 kind: .rain,
                 label: "Rain",
-                value: outlook.isDry
-                    ? String(localized: "None")
-                    : units.precipitation(outlook.total),
+                value: units.precipitation(outlook.total),
                 caption: String(localized: "in the next 2 hours")
             ))
         }
@@ -148,20 +146,45 @@ enum WeatherDetails {
         return details
     }
 
-    /// True when the row's own value is the day's chance rather than the next
-    /// two hours' amount, so the strip beneath it knows whether it still has to
-    /// say how much.
-    static func rainRowLeadsWithToday(_ weather: CityWeather) -> Bool {
+    /// True when the row's own value is the chance of rain in the next day
+    /// rather than the next two hours' amount, so the strip beneath it knows
+    /// whether it still has to say how much.
+    static func rainRowLeadsWithChance(_ weather: CityWeather) -> Bool {
         guard let chance = weather.precipitationChance else { return false }
         return chance >= Threshold.rainChance
     }
 
     private static func rainCaption(for weather: CityWeather, units: UnitSystem) -> String? {
         guard let amount = weather.precipitationAmount, amount > 0 else { return nil }
-        guard let hours = weather.precipitationHours, hours >= 1 else {
-            return units.precipitation(amount)
-        }
-        return String(localized: "\(units.precipitation(amount)) over \(hours.toInt(.towardZero))h")
+        return rainCaption(amount: units.precipitation(amount), start: weather.precipitationStart,
+                           now: Date(), timeZone: weather.timeZone)
+    }
+
+    /// How much, and when it starts: "3 mm from 6 am tomorrow".
+    ///
+    /// When rather than how long, because a day ahead the question is whether
+    /// to take an umbrella this morning, and the bars beneath the row already
+    /// give the shape of anything inside the next two hours. Rain in the hour
+    /// already under way gets the amount alone: the strip under the row says
+    /// whether it is falling now.
+    nonisolated static func rainCaption(amount: String, start: Date?,
+                                        now: Date, timeZone: TimeZone) -> String {
+        guard let start, start > now else { return amount }
+
+        // Hour style, as the 24-hour strip above uses. Rain starts on the hour
+        // in this data, so "7:00 am" would spell out minutes that are always
+        // zero.
+        let clock = start
+            .formatted(Date.FormatStyle(timeZone: timeZone).hour(.defaultDigits(amPM: .abbreviated)))
+            .lowercased()
+
+        // Gregorian for the same reason the parsing is: "tomorrow" is a
+        // question about the API's dates, not the reader's calendar.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar.isDate(start, inSameDayAs: now)
+            ? String(localized: "\(amount) from \(clock)")
+            : String(localized: "\(amount) from \(clock) tomorrow")
     }
 
     // MARK: - Formatting

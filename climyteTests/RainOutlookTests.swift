@@ -111,7 +111,69 @@ final class RainOutlookTests: XCTestCase {
                        "past the floor the chart scales to what is actually falling")
     }
 
+    // MARK: - The next 24 hours
+
+    /// London at 2 pm: every drop fell before 5 am. None of it may count.
+    func testRainThatHasAlreadyFallenIsLeftOut() throws {
+        let rain: [Double?] = [0.4, 0.2, 0, 0.6, 0.1] + Array(repeating: 0.0, count: 19)
+        let chance: [Int?] = [62, 71, 76, 76, 69] + Array(repeating: 0, count: 19)
+        let ahead = try XCTUnwrap(hours(from: -10, rain: rain, chance: chance))
+
+        XCTAssertEqual(ahead.chance, 0)
+        XCTAssertEqual(ahead.amount, 0, accuracy: 0.0001)
+        XCTAssertNil(ahead.start)
+    }
+
+    /// The hour already under way has not finished raining.
+    func testTheHourInProgressCounts() throws {
+        let ahead = try XCTUnwrap(hours(from: 0, rain: [2, 0], chance: [90, 0]))
+
+        XCTAssertEqual(ahead.amount, 2, accuracy: 0.0001)
+        XCTAssertEqual(ahead.chance, 90)
+        XCTAssertEqual(ahead.start, now.addingTimeInterval(-20 * 60), "that hour began before now")
+    }
+
+    func testOnlyTwentyFourHoursCount() throws {
+        let ahead = try XCTUnwrap(hours(from: 0, rain: Array(repeating: 1, count: 48),
+                                        chance: Array(repeating: 50, count: 48)))
+        XCTAssertEqual(ahead.amount, 24, accuracy: 0.0001)
+    }
+
+    /// The same measure the day's figure used — its peak hour — so the 20%
+    /// threshold keeps its meaning.
+    func testTheChanceIsTheHighestHourAhead() throws {
+        let ahead = try XCTUnwrap(hours(from: 0, rain: [0, 0, 0], chance: [10, 80, 30]))
+        XCTAssertEqual(ahead.chance, 80)
+    }
+
+    func testTheStartIsTheFirstMeasurableRainNotTheFirstDamp() throws {
+        let ahead = try XCTUnwrap(hours(from: 0, rain: [0, 0.05, 0.3, 2], chance: [0, 20, 60, 90]))
+        XCTAssertEqual(ahead.start, now.addingTimeInterval(TimeInterval((-20 + 120) * 60)))
+    }
+
+    /// A cached response from before hourly rain was requested carries neither
+    /// array. Nothing beats a guess from stale daily figures.
+    func testAResponseWithoutHourlyRainGivesNothing() {
+        XCTAssertNil(RainAhead(times: [string(offset: 40)], precipitation: nil, probability: nil,
+                               parser: formatter(), now: now))
+    }
+
+    func testAMissingProbabilityLeavesTheChanceUnknown() throws {
+        let ahead = try XCTUnwrap(hours(from: 0, rain: [1, 0], chance: nil))
+
+        XCTAssertNil(ahead.chance)
+        XCTAssertEqual(ahead.amount, 1, accuracy: 0.0001)
+    }
+
     // MARK: - Helpers
+
+    /// Hourly times on the hour, starting `first` hours from the one in
+    /// progress. `now` is twenty minutes past the hour.
+    private func hours(from first: Int, rain: [Double?], chance: [Int?]?) -> RainAhead? {
+        let times = rain.indices.map { string(offset: -20 + 60 * (first + $0)) }
+        return RainAhead(times: times, precipitation: rain, probability: chance,
+                         parser: formatter(), now: now)
+    }
 
     private func formatter() -> DateFormatter {
         let formatter = DateFormatter()

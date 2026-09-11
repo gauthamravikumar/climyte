@@ -162,11 +162,18 @@ struct CityWeather: Identifiable {
     let dewPoint: Double
     let windGusts: Double
 
-    /// Chance of precipitation today, 0-100. Nil when the API has no
-    /// probability for the day.
-    let precipitationChance: Int?
-    let precipitationAmount: Double?
-    let precipitationHours: Double?
+    /// Rain over the next 24 hours: what the Rain row and both widgets report.
+    /// Nil for a response cached before hourly rain was requested.
+    let rainAhead: RainAhead?
+
+    /// The highest hourly chance of rain in the next 24 hours, 0-100.
+    ///
+    /// Not today's figure. The day runs midnight to midnight, so its chance
+    /// and total kept describing rain that had already fallen — see
+    /// `RainAhead`.
+    var precipitationChance: Int? { rainAhead?.chance }
+    var precipitationAmount: Double? { rainAhead?.amount }
+    var precipitationStart: Date? { rainAhead?.start }
 
     let daylightSeconds: Double?
     /// Today's daylight minus yesterday's. Nil when yesterday is unavailable.
@@ -308,9 +315,13 @@ struct CityWeather: Identifiable {
         self.dewPoint = response.current.dew_point_2m
         self.windGusts = response.current.wind_gusts_10m
 
-        self.precipitationChance = response.daily.precipitation_probability_max.value(at: todayIndex)
-        self.precipitationAmount = response.daily.precipitation_sum.value(at: todayIndex)
-        self.precipitationHours = response.daily.precipitation_hours.value(at: todayIndex)
+        self.rainAhead = RainAhead(
+            times: response.hourly.time,
+            precipitation: response.hourly.precipitation,
+            probability: response.hourly.precipitation_probability,
+            parser: isoFormatter,
+            now: Date()
+        )
 
         let daylightToday: Double? = response.daily.daylight_duration.value(at: todayIndex)
         self.daylightSeconds = daylightToday
@@ -476,6 +487,13 @@ nonisolated struct HourlyWeatherResponse: Codable {
     /// forecast and all — reported as "Couldn't read the weather data".
     let temperature_2m: [Double?]
     let weather_code: [Int?]
+
+    /// Hourly rain and its chance, for the Rain row's next 24 hours. `var` with
+    /// a nil default, which buys two things: a response cached before these
+    /// were requested still decodes rather than being thrown away, and the
+    /// memberwise initialiser keeps the shape the tests already call it with.
+    var precipitation: [Double?]? = nil
+    var precipitation_probability: [Int?]? = nil
 }
 
 nonisolated struct DailyWeatherResponse: Codable {

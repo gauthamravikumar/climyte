@@ -106,7 +106,7 @@ class WeatherService {
         latitude=\(city.latitude)&longitude=\(city.longitude)&\
         current=temperature_2m,apparent_temperature,is_day,weather_code,\
         relative_humidity_2m,dew_point_2m,wind_speed_10m,wind_gusts_10m,visibility&\
-        hourly=temperature_2m,weather_code&\
+        hourly=temperature_2m,weather_code,precipitation,precipitation_probability&\
         minutely_15=precipitation&forecast_minutely_15=8&\
         daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,\
         uv_index_max,precipitation_probability_max,precipitation_sum,\
