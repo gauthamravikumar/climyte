@@ -40,7 +40,7 @@ nonisolated enum SavedCities {
     /// A copy of the list and how new it is. `revision` is nil for the
     /// unversioned shape that shipped first, which is therefore the oldest
     /// anything can be.
-    private struct Copy {
+    private struct Copy: Equatable {
         let cities: [City]
         let revision: Int
     }
@@ -110,7 +110,11 @@ nonisolated enum SavedCities {
         }
 
         if let newest, !newest.cities.isEmpty {
-            if copies.count > 1 || stored == nil {
+            // Only when a copy is missing or wrong. Ordinarily all three hold
+            // the same list, and healing on the mere count logged a recovery
+            // and rewrote both stores on almost every launch — burying the
+            // real recoveries this line exists to report.
+            if stored == nil || copies.contains(where: { $0 != newest }) {
                 Log.cache.error("Saved cities taken from the newest of \(copies.count, privacy: .public) copies")
                 save(newest.cities, to: defaults, sources: sources, revision: newest.revision)
             }
