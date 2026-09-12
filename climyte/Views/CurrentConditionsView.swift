@@ -34,6 +34,9 @@ struct CurrentConditionsView: View {
         )
     }
 
+    /// At accessibility sizes the header stacks rather than truncating.
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
@@ -44,44 +47,69 @@ struct CurrentConditionsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            HStack(spacing: 8) {
-                if isUsingCurrentLocation {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: locationIcon))
-                        .foregroundColor(theme.primaryText.opacity(0.8))
-                        .accessibilityLabel("Current location")
+        // At accessibility sizes the name and the clock cannot share a line.
+        // One row truncated "Singapore" to "Singapo…" to keep the time whole,
+        // and giving the name layout priority only moved the truncation from
+        // one to the other. Stacked, the name takes the full width and wraps
+        // if it must — the same reflow the details rows use at these sizes.
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    cityName(wraps: true)
+                    localTime
                 }
+            } else {
+                HStack(alignment: .firstTextBaseline) {
+                    cityName(wraps: false)
 
-                Text(weather.city.name)
-                    .font(.cityName)
-                    .foregroundColor(theme.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    // The page's identifier outranks the clock beside it. With
-                    // the priority the other way round, a long name truncated
-                    // to "Bandar Se…" at accessibility sizes so a secondary
-                    // reading could stay full size.
-                    .layoutPriority(1)
+                    // Scales with the text, so the gap never collapses to the width of
+                    // a letter space and read as one run: "Sydney5:40 pm".
+                    Spacer(minLength: headerGap)
+
+                    localTime
+                }
+            }
+        }
+    }
+
+    private func cityName(wraps: Bool) -> some View {
+        HStack(spacing: 8) {
+            if isUsingCurrentLocation {
+                Image(systemName: "location.fill")
+                    .font(.system(size: locationIcon))
+                    .foregroundColor(theme.primaryText.opacity(0.8))
+                    .accessibilityLabel("Current location")
             }
 
-            // Scales with the text, so the gap never collapses to the width of
-            // a letter space and read as one run: "Sydney5:40 pm".
-            Spacer(minLength: headerGap)
+            Text(weather.city.name)
+                .font(.cityName)
+                .foregroundColor(theme.primaryText)
+                // On one line the name shrinks a little before it truncates;
+                // stacked, it has the whole width and wraps instead of either.
+                .lineLimit(wraps ? nil : 1)
+                .minimumScaleFactor(wraps ? 1 : 0.6)
+                .fixedSize(horizontal: false, vertical: wraps)
+                // The page's identifier outranks the clock beside it. With
+                // the priority the other way round, a long name truncated
+                // to "Bandar Se…" at accessibility sizes so a secondary
+                // reading could stay full size.
+                .layoutPriority(1)
+        }
+    }
 
-            // Re-renders every minute so the city's local time stays honest.
-            TimelineView(.everyMinute) { context in
-                Text(Self.localTime(at: context.date, in: weather.timeZone))
-                    .font(.localTime)
-                    .foregroundColor(theme.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    // accessibilityLabel replaces a Text's content, so naming
-                    // the element here without a value would leave the time
-                    // itself unspoken — the one thing this element exists for.
-                    .accessibilityLabel("Local time in \(weather.city.name)")
-                    .accessibilityValue(Self.localTime(at: context.date, in: weather.timeZone))
-            }
+    private var localTime: some View {
+        // Re-renders every minute so the city's local time stays honest.
+        TimelineView(.everyMinute) { context in
+            Text(Self.localTime(at: context.date, in: weather.timeZone))
+                .font(.localTime)
+                .foregroundColor(theme.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                // accessibilityLabel replaces a Text's content, so naming
+                // the element here without a value would leave the time
+                // itself unspoken — the one thing this element exists for.
+                .accessibilityLabel("Local time in \(weather.city.name)")
+                .accessibilityValue(Self.localTime(at: context.date, in: weather.timeZone))
         }
     }
 

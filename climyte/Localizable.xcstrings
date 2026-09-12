@@ -1,22 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%@ longer" : {
-
-    },
-    "%@ over %lldh" : {
+    "[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ over %lldh"
+            "value" : "[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
           }
         }
       }
     },
-    "%@ shorter" : {
-
+    "%@ · %@ in the next 2 hours" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@ in the next 2 hours"
+          }
+        }
+      }
     },
     "%@ · feels %lld° cooler" : {
       "extractionState" : "manual",
@@ -39,6 +43,43 @@
           }
         }
       }
+    },
+    "%@ from %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ from %2$@"
+          }
+        }
+      }
+    },
+    "%@ from %@ tomorrow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ from %2$@ tomorrow"
+          }
+        }
+      }
+    },
+    "%@ longer" : {
+
+    },
+    "%@ over %lldh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ over %lldh"
+          }
+        }
+      }
+    },
+    "%@ shorter" : {
+
     },
     "%@, %lld degrees" : {
       "extractionState" : "manual",
@@ -65,6 +106,16 @@
         }
       }
     },
+    "%@. %@ in the next 2 hours, up to %@ an hour." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. %2$@ in the next 2 hours, up to %3$@ an hour."
+          }
+        }
+      }
+    },
     "%lld  ·  %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -87,6 +138,19 @@
         }
       }
     },
+    "%lld hours %lld minutes of daylight left, sunset %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld hours %2$lld minutes of daylight left, sunset %3$@"
+          }
+        }
+      }
+    },
+    "%lld min of light left" : {
+
+    },
     "%lld of %lld" : {
       "localizations" : {
         "en" : {
@@ -102,6 +166,16 @@
     },
     "%lldh" : {
 
+    },
+    "%lldh %lldm of light left" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lldh %2$lldm of light left"
+          }
+        }
+      }
     },
     "%lldm longer" : {
       "extractionState" : "manual",
@@ -125,13 +199,19 @@
         }
       }
     },
-    "[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)" : {
+    "+1h" : {
+
+    },
+    "+2h" : {
+
+    },
+    "7d" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)"
+            "value" : "7d"
           }
         }
       }
@@ -143,17 +223,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "24h"
-          }
-        }
-      }
-    },
-    "7d" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "7d"
           }
         }
       }
@@ -300,6 +369,17 @@
     "Delete %@" : {
 
     },
+    "dew point %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "dew point %@"
+          }
+        }
+      }
+    },
     "Dry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -310,6 +390,9 @@
           }
         }
       }
+    },
+    "Expected" : {
+
     },
     "Extreme" : {
       "comment" : "UV index category",
@@ -324,6 +407,9 @@
       }
     },
     "Failed to parse the weather data response." : {
+
+    },
+    "Falling now" : {
 
     },
     "Foggy" : {
@@ -349,6 +435,12 @@
         }
       }
     },
+    "from %@" : {
+
+    },
+    "from %@ tomorrow" : {
+
+    },
     "Gentle breeze" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -356,6 +448,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gentle breeze"
+          }
+        }
+      }
+    },
+    "gusts %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "gusts %@"
           }
         }
       }
@@ -393,6 +496,9 @@
           }
         }
       }
+    },
+    "in the next 2 hours" : {
+
     },
     "Light air" : {
       "extractionState" : "manual",
@@ -501,17 +607,6 @@
     "Network error: %@" : {
 
     },
-    "Next 24 hours" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next 24 hours"
-          }
-        }
-      }
-    },
     "Next 7 days" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -519,6 +614,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Next 7 days"
+          }
+        }
+      }
+    },
+    "Next 24 hours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next 24 hours"
           }
         }
       }
@@ -547,6 +653,9 @@
           }
         }
       }
+    },
+    "now" : {
+
     },
     "Opens Settings" : {
       "extractionState" : "manual",
@@ -660,6 +769,9 @@
         }
       }
     },
+    "Starts %@" : {
+
+    },
     "Stormy" : {
       "comment" : "Weather condition",
       "extractionState" : "manual",
@@ -706,28 +818,6 @@
         }
       }
     },
-    "Sunrise" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunrise"
-          }
-        }
-      }
-    },
-    "Sunset" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunset"
-          }
-        }
-      }
-    },
     "The API URL was invalid." : {
 
     },
@@ -744,6 +834,16 @@
     },
     "The secure connection failed." : {
 
+    },
+    "The sun is down. Sunrise %@, sunset %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The sun is down. Sunrise %1$@, sunset %2$@."
+          }
+        }
+      }
     },
     "The weather service is unavailable right now." : {
       "extractionState" : "manual",
@@ -845,28 +945,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Wind"
-          }
-        }
-      }
-    },
-    "dew point %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "dew point %@"
-          }
-        }
-      }
-    },
-    "gusts %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "gusts %@"
           }
         }
       }

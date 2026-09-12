@@ -34,18 +34,17 @@ struct WeatherDetailsView: View {
                     // The next two hours belong to the Rain row rather than to
                     // a section of their own: the row already says "Rain", and
                     // two headings for one subject read as two subjects.
-                    // Skipped entirely when the row above has already said
-                    // it all — a dry outlook on a day that was never likely to
-                    // rain. An empty strip still claims its padding, which left
-                    // the Rain row sitting further from its divider than every
-                    // other row in the block.
-                    if detail.kind == .rain, let outlook = weather.rainOutlook,
-                       !outlook.isDry || WeatherDetails.rainRowLeadsWithToday(weather) {
+                    // Only when rain is actually on its way. "None" under a row
+                    // that already gives the chance of rain read as a
+                    // contradiction rather than a reassurance. Skipping the
+                    // strip outright also keeps its padding from pushing the
+                    // row away from its divider.
+                    if detail.kind == .rain, let outlook = weather.rainOutlook, !outlook.isDry {
                         RainOutlookView(
                             outlook: outlook,
                             timeZone: weather.timeZone,
                             theme: theme,
-                            amountIsAlreadyShown: !WeatherDetails.rainRowLeadsWithToday(weather)
+                            amountIsAlreadyShown: WeatherDetails.rainRowLead(weather) == .nextTwoHours
                         )
                         .padding(.bottom, 13)
                     }

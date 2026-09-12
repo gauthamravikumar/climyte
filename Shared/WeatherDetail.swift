@@ -50,6 +50,12 @@ enum WeatherDetails {
     enum Threshold {
         /// Below this, a chance of rain is noise rather than news.
         static let rainChance = 20
+
+        /// Over the next 24 hours, below this an amount is a passing shower that
+        /// the chance threshold exists to keep off the page. At or above it, rain
+        /// earns the row even when the hourly chance says 0%, because the chance and
+        /// the amount come from different models and do not always agree.
+        static let rainAmount: Double = 1.0
         /// The WHO advises sun protection from UV 3.
         static let uvIndex = 3.0
         /// Visibility is only worth a line when it is actually reduced.
@@ -71,26 +77,38 @@ enum WeatherDetails {
     static func build(for weather: CityWeather, units: UnitSystem) -> [WeatherDetail] {
         var details: [WeatherDetail] = []
 
-        if let chance = weather.precipitationChance, chance >= Threshold.rainChance {
+        switch rainRowLead(weather) {
+        case .chance:
             details.append(WeatherDetail(
                 kind: .rain,
                 label: "Rain",
-                value: percentage(chance),
+                value: percentage(weather.precipitationChance ?? 0),
                 caption: rainCaption(for: weather, units: units)
             ))
-        } else if let outlook = weather.rainOutlook {
-            // The day as a whole was never likely enough to earn a row, so this
-            // one speaks for the next two hours instead — including when the
-            // answer is none, which is worth saying rather than leaving the
-            // reader to infer it from an absent row.
+        case .amountAhead:
+            // Paris was seen at 0% on every hour with 3.4 mm due that evening.
+            // "0%" beside 3.4 mm would contradict itself, so the amount leads
+            // and the caption says only when.
             details.append(WeatherDetail(
                 kind: .rain,
                 label: "Rain",
-                value: outlook.isDry
-                    ? String(localized: "None")
-                    : units.precipitation(outlook.total),
-                caption: String(localized: "in the next 2 hours")
+                value: units.precipitation(weather.precipitationAmount ?? 0),
+                caption: rainStartCaption(start: weather.precipitationStart,
+                                          now: Date(), timeZone: weather.timeZone)
             ))
+        case .nextTwoHours:
+            // Rain in the next two hours earns the row even when nothing further
+            // out does. A reader about to walk outside should hear about it.
+            if let outlook = weather.rainOutlook {
+                details.append(WeatherDetail(
+                    kind: .rain,
+                    label: "Rain",
+                    value: units.precipitation(outlook.total),
+                    caption: String(localized: "in the next 2 hours")
+                ))
+            }
+        case nil:
+            break
         }
 
         if weather.visibility < Threshold.poorVisibilityKilometres {
@@ -148,20 +166,81 @@ enum WeatherDetails {
         return details
     }
 
-    /// True when the row's own value is the day's chance rather than the next
-    /// two hours' amount, so the strip beneath it knows whether it still has to
-    /// say how much.
-    static func rainRowLeadsWithToday(_ weather: CityWeather) -> Bool {
-        guard let chance = weather.precipitationChance else { return false }
-        return chance >= Threshold.rainChance
+    /// What the Rain row leads with, or nil when it has nothing to say.
+    enum RainRowLead: Equatable {
+        /// The chance of rain in the next day.
+        case chance
+        /// The amount due in the next day, when the chance misses it.
+        case amountAhead
+        /// The next two hours' amount, when nothing further out earns the row.
+        case nextTwoHours
     }
+
+    /// The one rule for whether rain is worth mentioning, shared by the Rain
+    /// row and both widgets so they never disagree about it.
+    static func rainRowLead(_ weather: CityWeather) -> RainRowLead? {
+        if let chance = weather.precipitationChance, chance >= Threshold.rainChance {
+            return .chance
+        }
+        if let amount = weather.precipitationAmount, amount >= Threshold.rainAmount {
+            return .amountAhead
+        }
+        if let outlook = weather.rainOutlook, !outlook.isDry {
+            return .nextTwoHours
+        }
+        return nil
+    }
+
 
     private static func rainCaption(for weather: CityWeather, units: UnitSystem) -> String? {
         guard let amount = weather.precipitationAmount, amount > 0 else { return nil }
-        guard let hours = weather.precipitationHours, hours >= 1 else {
-            return units.precipitation(amount)
-        }
-        return String(localized: "\(units.precipitation(amount)) over \(hours.toInt(.towardZero))h")
+        return rainCaption(amount: units.precipitation(amount), start: weather.precipitationStart,
+                           now: Date(), timeZone: weather.timeZone)
+    }
+
+    /// When rain ahead starts, for a row whose value is already the amount:
+    /// "from 8 pm", "from 7 am tomorrow". Nil once it is under way.
+    nonisolated static func rainStartCaption(start: Date?, now: Date,
+                                             timeZone: TimeZone) -> String? {
+        guard let phrase = startPhrase(start, now: now, timeZone: timeZone) else { return nil }
+        return phrase.isToday
+            ? String(localized: "from \(phrase.clock)")
+            : String(localized: "from \(phrase.clock) tomorrow")
+    }
+
+    /// How much, and when it starts: "3 mm from 6 am tomorrow".
+    ///
+    /// When rather than how long, because a day ahead the question is whether
+    /// to take an umbrella this morning, and the bars beneath the row already
+    /// give the shape of anything inside the next two hours. Rain in the hour
+    /// already under way gets the amount alone: the strip under the row says
+    /// whether it is falling now.
+    nonisolated static func rainCaption(amount: String, start: Date?,
+                                        now: Date, timeZone: TimeZone) -> String {
+        guard let phrase = startPhrase(start, now: now, timeZone: timeZone) else { return amount }
+        return phrase.isToday
+            ? String(localized: "\(amount) from \(phrase.clock)")
+            : String(localized: "\(amount) from \(phrase.clock) tomorrow")
+    }
+
+    /// The clock for a start still ahead, and whether it falls today. Nil once
+    /// the rain is under way.
+    private nonisolated static func startPhrase(_ start: Date?, now: Date,
+                                                timeZone: TimeZone) -> (clock: String, isToday: Bool)? {
+        guard let start, start > now else { return nil }
+
+        // Hour style, as the 24-hour strip above uses. Rain starts on the hour
+        // in this data, so "7:00 am" would spell out minutes that are always
+        // zero.
+        let clock = start
+            .formatted(Date.FormatStyle(timeZone: timeZone).hour(.defaultDigits(amPM: .abbreviated)))
+            .lowercased()
+
+        // Gregorian for the same reason the parsing is: "tomorrow" is a
+        // question about the API's dates, not the reader's calendar.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return (clock, calendar.isDate(start, inSameDayAs: now))
     }
 
     // MARK: - Formatting

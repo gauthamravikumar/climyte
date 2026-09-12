@@ -14,13 +14,15 @@ import SwiftUI
 /// Bars rather than a curve because a bar *is* a quarter hour. The model gives
 /// eight buckets, and a line drawn through them would imply a continuity it
 /// does not claim.
+///
+/// Shown only for a wet outlook. A dry one has nothing worth a line.
 struct RainOutlookView: View {
     let outlook: RainOutlook
     let timeZone: TimeZone
     let theme: WeatherTheme
 
     /// True when the row above already carries the two-hour amount, so the line
-    /// here need only say when — and, on a dry outlook, need not appear at all.
+    /// here need only say when.
     let amountIsAlreadyShown: Bool
 
     @Environment(\.unitSystem) private var units
@@ -37,14 +39,12 @@ struct RainOutlookView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let line = summary {
-                line
-                    .font(.detailRowCaption)
-                    .foregroundColor(theme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            summary
+                .font(.detailRowCaption)
+                .foregroundColor(theme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
-            if !outlook.isDry && !isCompactLayout {
+            if !isCompactLayout {
                 bars
                 axis
             }
@@ -56,13 +56,7 @@ struct RainOutlookView: View {
 
     // MARK: - The sentence
 
-    /// Nil when the row above has already said everything there is to say,
-    /// which is the dry outlook on a day that was never likely to rain.
-    private var summary: Text? {
-        guard !outlook.isDry else {
-            return amountIsAlreadyShown ? nil : Text("None in the next 2 hours")
-        }
-
+    private var summary: Text {
         let timing = timingPhrase
         guard !amountIsAlreadyShown else { return Text(timing) }
 
@@ -87,8 +81,6 @@ struct RainOutlookView: View {
     /// The bars carry nothing to a reader who cannot see them, so the spoken
     /// form says the shape in words.
     private var spokenSummary: Text {
-        guard !outlook.isDry else { return Text("No rain in the next 2 hours") }
-
         let total = units.precipitation(outlook.total)
         let rate = units.precipitation(outlook.peakRatePerHour)
         return Text("\(timingPhrase). \(total) in the next 2 hours, up to \(rate) an hour.")

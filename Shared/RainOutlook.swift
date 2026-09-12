@@ -99,3 +99,79 @@ extension RainOutlook {
         self.steps = collected
     }
 }
+
+/// Rain at one city over the next 24 hours, from the hourly forecast.
+///
+/// What the Rain row, the Home Screen widget and the rectangular Lock Screen
+/// widget report. It replaces the day's own figures, which run midnight to
+/// midnight and so kept describing rain that had already fallen: London at
+/// 2 pm said "76% · 1.3 mm over 4h" about rain that stopped before 5 am, when
+/// every hour still to come was dry. A rolling day only ever describes hours
+/// still ahead, and unlike "the rest of today" it does not go quiet late in the
+/// evening about the next morning.
+nonisolated struct RainAhead: Equatable {
+    /// The highest hourly chance in the window, 0–100. The same measure the
+    /// day's figure was — its peak hour — without the hours already gone, so
+    /// the 20% threshold keeps its meaning. Nil when the model publishes no
+    /// probability for any of these hours.
+    let chance: Int?
+
+    /// Everything expected to fall across the window, in millimetres.
+    let amount: Double
+
+    /// The start of the first hour with measurable rain, or nil if none is
+    /// expected. Earlier than now when that hour is the one in progress.
+    let start: Date?
+
+    static let hourCount = 24
+
+    /// A tenth of a millimetre in an hour: the least that counts as rain
+    /// starting rather than damp air.
+    static let wetThreshold: Double = 0.1
+}
+
+extension RainAhead {
+
+    /// Reads the next 24 hours out of the forecast's hourly block.
+    ///
+    /// Returns nil for a response cached before hourly rain was requested,
+    /// which carries neither array. The row then says nothing until the next
+    /// fetch, rather than falling back on daily figures that may describe
+    /// hours long gone — the very thing this type exists to stop.
+    init?(times: [String], precipitation: [Double?]?, probability: [Int?]?,
+          parser: DateFormatter, now: Date) {
+        guard precipitation != nil || probability != nil else { return nil }
+        let precipitation = precipitation ?? []
+        let probability = probability ?? []
+
+        // The hour in progress counts: it has not finished raining yet. An hour
+        // that ended before now is exactly what is being left out.
+        let earliest = now.addingTimeInterval(-3_600)
+
+        var chance: Int?
+        var amount = 0.0
+        var start: Date?
+        var counted = 0
+
+        for index in times.indices {
+            guard counted < Self.hourCount else { break }
+            guard let hour = parser.date(from: times[index]), hour > earliest else { continue }
+            counted += 1
+
+            let reported: Double = precipitation.value(at: index) ?? 0
+            let millimetres = max(reported, 0)
+            amount += millimetres
+            if start == nil, millimetres >= Self.wetThreshold {
+                start = hour
+            }
+            if let hourChance: Int = probability.value(at: index) {
+                chance = max(chance ?? hourChance, hourChance)
+            }
+        }
+
+        guard counted > 0 else { return nil }
+        self.chance = chance
+        self.amount = amount
+        self.start = start
+    }
+}

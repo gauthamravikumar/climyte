@@ -30,6 +30,26 @@ struct CityNameStrip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// The strip's visible width, measured, because the room after the last
+    /// name depends on it.
+    @State private var viewportWidth: CGFloat = 0
+
+    /// Room after the last name. At accessibility sizes it is wide enough for
+    /// any name — the last one included — to be scrolled to the leading edge.
+    ///
+    /// Without it the scroll view clamps at the end of its content, and the
+    /// name before the last is left straddling the edge beside the search
+    /// button: "urne  Singapore" rather than "Singapore". That read as a name
+    /// missing its first letters. Empty room past the end is the lesser evil;
+    /// a clipped word reads as a different word.
+    ///
+    /// The viewport less 44 — the narrowest a name's target can be — is enough
+    /// for even the narrowest last name to reach the leading edge.
+    private var trailingRoom: CGFloat {
+        guard typeSize.isAccessibilitySize else { return 24 }
+        return max(viewportWidth - 44, 24)
+    }
+
     /// Centring shows the names either side of you, which is the whole reason
     /// this strip is set in type rather than dots. But once a single name is
     /// wider than the screen — a long one at an accessibility size — centring
@@ -54,8 +74,14 @@ struct CityNameStrip: View {
                     }
                 }
                 .padding(.leading, leadingInset)
-                .padding(.trailing, 24)
+                .padding(.trailing, trailingRoom)
                 .padding(.vertical, 12)
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { viewportWidth = $0 }
+            // The room above only exists once the width is known, which is
+            // after the first scroll has already happened — and clamped.
+            .onChange(of: viewportWidth) { _, _ in
+                proxy.scrollTo(selectedKey, anchor: scrollAnchor)
             }
             // Keep the current city in view when it changes by swipe as well
             // as by tap, otherwise the strip and the page disagree.

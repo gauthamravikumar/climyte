@@ -68,6 +68,26 @@ enum TestResponse {
         let sunrise = now.addingTimeInterval(isDay == 1 ? -3_600 : -7_200)
         let sunset = now.addingTimeInterval(isDay == 1 ? 3_600 : -3_600)
 
+        // Hourly rain from the top of the current hour, which is what the Rain
+        // row reads now that it looks a day ahead. Temperatures stay null so the
+        // 24-hour strip is as empty as it always was in these tests; the rain is
+        // spread over the first `rainHours` hours, starting with the one in
+        // progress.
+        let hourStart = Date(timeIntervalSince1970:
+            (now.timeIntervalSince1970 / 3_600).rounded(.down) * 3_600)
+        let rainyHours = max(Int((rainHours ?? 0).rounded()), 1)
+        let hourlyRain: [Double?] = (0..<24).map { index in
+            guard let rainAmount else { return nil }
+            return index < rainyHours ? rainAmount / Double(rainyHours) : 0
+        }
+        let generatedHourly = HourlyWeatherResponse(
+            time: (0..<24).map { stamp.string(from: hourStart.addingTimeInterval(TimeInterval($0 * 3_600))) },
+            temperature_2m: Array(repeating: nil, count: 24),
+            weather_code: Array(repeating: nil, count: 24),
+            precipitation: hourlyRain,
+            precipitation_probability: Array(repeating: rainChance, count: 24)
+        )
+
         return WeatherResponse(
             latitude: 0,
             longitude: 0,
@@ -83,7 +103,7 @@ enum TestResponse {
                 wind_gusts_10m: windGusts,
                 visibility: visibilityMetres
             ),
-            hourly: hourly ?? HourlyWeatherResponse(time: [], temperature_2m: [], weather_code: []),
+            hourly: hourly ?? generatedHourly,
             daily: DailyWeatherResponse(
                 time: [day.string(from: yesterday), day.string(from: now)],
                 weather_code: [weatherCode, weatherCode],
