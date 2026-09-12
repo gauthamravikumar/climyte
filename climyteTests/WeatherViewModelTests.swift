@@ -1089,6 +1089,53 @@ final class SavedCitiesTests: XCTestCase {
         XCTAssertNotNil(defaults.data(forKey: SavedCities.key))
     }
 
+    /// The ordinary launch: all three copies hold the same list. Healing then
+    /// rewrote them anyway and logged a recovery, on almost every launch, which
+    /// buried the real recoveries — the one signal wanted if a city vanishes.
+    /// The copies are stored in an equivalent but different encoding, so a
+    /// rewrite shows up as the encoder's own bytes coming back.
+    func testCopiesThatAgreeAreNotRewritten() throws {
+        let mirror = temporaryMirror()
+        let backing = temporaryBackingFile()
+        let sources = SavedCities.Sources(mirror: mirror, backingFile: backing)
+
+        SavedCities.save([paris, tokyo], to: defaults, sources: sources)
+        let written = try XCTUnwrap(defaults.data(forKey: SavedCities.key))
+        let reshaped = try JSONSerialization.data(
+            withJSONObject: JSONSerialization.jsonObject(with: written),
+            options: [.prettyPrinted, .sortedKeys])
+        XCTAssertNotEqual(reshaped, written)
+
+        defaults.set(reshaped, forKey: SavedCities.key)
+        try reshaped.write(to: mirror)
+        try NSDictionary(dictionary: [SavedCities.key: reshaped]).write(to: backing)
+
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: sources)?.map(\.name),
+                       ["Paris", "Tokyo"])
+        XCTAssertEqual(defaults.data(forKey: SavedCities.key), reshaped,
+                       "Agreeing copies must not be rewritten")
+        XCTAssertEqual(try Data(contentsOf: mirror), reshaped,
+                       "Agreeing copies must not be rewritten")
+    }
+
+    /// Two saves racing can leave copies at the same revision holding
+    /// different lists. That is still a disagreement: the tie keeps the
+    /// earlier source, and the other copy is brought into line with it.
+    func testCopiesAtTheSameRevisionThatDisagreeAreStillHealed() throws {
+        let mirror = temporaryMirror()
+        let withMirror = SavedCities.Sources(mirror: mirror, backingFile: nil)
+
+        SavedCities.save([paris, tokyo], to: defaults, sources: withMirror, revision: 1)
+        SavedCities.save([paris], to: defaults, sources: .none, revision: 1)
+
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: withMirror)?.map(\.name),
+                       ["Paris"])
+
+        defaults.removeObject(forKey: SavedCities.key)
+        XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: withMirror)?.map(\.name),
+                       ["Paris"], "The mirror should have been healed to the winning copy")
+    }
+
     func testAnUnreadableStoreReportsUnreadableRatherThanEmpty() {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
 
