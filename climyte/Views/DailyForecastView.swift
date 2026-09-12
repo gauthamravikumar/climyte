@@ -75,25 +75,46 @@ struct DailyForecastView: View {
         let rawLows = zip(rawHighs, forecasts.map { y(for: $0.minTemp) })
             .map { high, low in max(low, high + minimumBandThickness) }
 
-        // The band reaches both margins like every other full-width element on
-        // the page, while its vertices stay above the days they belong to. The
-        // half-column at each end continues the slope of the segment beside it
-        // — the week does not stop at Monday, and a flat shoulder would say it
-        // did.
-        let xs = [0] + vertices + [width]
-        let highs = extendedToEdges(rawHighs, at: vertices, width: width)
-        let lows = extendedToEdges(rawLows, at: vertices, width: width)
+        let outline = Self.outline(highs: rawHighs, lows: rawLows, at: vertices,
+                                   width: width, chartHeight: chartHeight)
 
         ZStack {
-            band(xs: xs, highs: highs, lows: lows)
+            band(xs: outline.xs, highs: outline.highs, lows: outline.lows)
                 .fill(theme.dividerColor)
 
-            line(xs: xs, ys: highs)
+            line(xs: outline.xs, ys: outline.highs)
                 .stroke(theme.primaryText, style: .init(lineWidth: 2, lineCap: .round, lineJoin: .round))
 
-            line(xs: xs, ys: lows)
+            line(xs: outline.xs, ys: outline.lows)
                 .stroke(theme.secondaryText, style: .init(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
         }
+    }
+
+    /// The band reaches both margins like every other full-width element on
+    /// the page, while its vertices stay above the days they belong to. The
+    /// half-column at each end continues the slope of the segment beside it
+    /// — the week does not stop at Monday, and a flat shoulder would say it
+    /// did.
+    nonisolated static func outline(highs: [CGFloat], lows: [CGFloat], at vertices: [CGFloat],
+                                    width: CGFloat, chartHeight: CGFloat)
+        -> (xs: [CGFloat], highs: [CGFloat], lows: [CGFloat]) {
+        // Every x needs a high and a low, or the drawing indexes past the end
+        // and the app dies at launch. No days is nothing to draw.
+        guard !vertices.isEmpty, highs.count == vertices.count, lows.count == vertices.count else {
+            return (xs: [], highs: [], lows: [])
+        }
+
+        // One day has no slope to continue, so it runs flat to both margins.
+        // A forecast whose days have all passed is left with just this.
+        guard vertices.count > 1 else {
+            return (xs: [0] + vertices + [width],
+                    highs: Array(repeating: highs[0], count: 3),
+                    lows: Array(repeating: lows[0], count: 3))
+        }
+
+        return (xs: [0] + vertices + [width],
+                highs: extendedToEdges(highs, at: vertices, width: width, chartHeight: chartHeight),
+                lows: extendedToEdges(lows, at: vertices, width: width, chartHeight: chartHeight))
     }
 
     private func band(xs: [CGFloat], highs: [CGFloat], lows: [CGFloat]) -> Path {
@@ -123,7 +144,8 @@ struct DailyForecastView: View {
     /// Continues the first and last segments out to the frame's edges.
     /// Clamped to the drawable band, so a steep end cannot push the shape out
     /// of its own frame and into the rule above it.
-    private func extendedToEdges(_ ys: [CGFloat], at xs: [CGFloat], width: CGFloat) -> [CGFloat] {
+    private nonisolated static func extendedToEdges(_ ys: [CGFloat], at xs: [CGFloat],
+                                                    width: CGFloat, chartHeight: CGFloat) -> [CGFloat] {
         guard ys.count >= 2, xs.count == ys.count else { return ys }
 
         let inset: CGFloat = 3
