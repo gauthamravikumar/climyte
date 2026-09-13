@@ -342,3 +342,19 @@ final class StaleNoticeTests: XCTestCase {
         XCTAssertEqual(notice, "Showing readings from 10d ago.")
     }
 }
+
+/// The location arrow is hidden from VoiceOver in the city strip, as it is in
+/// the saved list, so the words have to say which city is the located one.
+/// The saved list already did; the strip read only the name, so the located
+/// city and a saved city of the same name sounded identical there.
+final class SpokenCityNameTests: XCTestCase {
+
+    func testTheLocatedCityIsSaidToBeTheCurrentLocation() {
+        XCTAssertEqual(CityNameStrip.spokenName("Melbourne", isCurrentLocation: true),
+                       "Melbourne, current location")
+    }
+
+    func testASavedCityIsJustItsName() {
+        XCTAssertEqual(CityNameStrip.spokenName("Singapore", isCurrentLocation: false), "Singapore")
+    }
+}
