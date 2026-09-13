@@ -255,3 +255,49 @@ final class SearchResultRegionTests: XCTestCase {
         XCTAssertEqual(SearchResultsView.region(for: minnesota, among: results), "Minnesota, United States")
     }
 }
+
+/// The strip centres the city you are on, so its neighbours run off both
+/// edges. Cut hard, "Melbourne" arrived as "rne" — a word that is not there.
+/// Faded, a cut name reads as "more this way".
+final class CityNameStripFadeTests: XCTestCase {
+
+    private func fade(offset: CGFloat, content: CGFloat = 800, viewport: CGFloat = 346,
+                      fadesLeading: Bool = true) -> CityNameStrip.EdgeFade {
+        CityNameStrip.EdgeFade(offset: offset, namesWidth: content, viewportWidth: viewport,
+                               fadeWidth: 32, fadesLeading: fadesLeading)
+    }
+
+    /// Scrolled to the start, the first name begins at the edge. Fading it
+    /// would take letters off the one name there that is whole.
+    func testNothingFadesAtAnEdgeNoNameRunsPast() {
+        XCTAssertEqual(fade(offset: 0).leading, 0)
+        XCTAssertEqual(fade(offset: 800 - 346).trailing, 0)
+    }
+
+    func testBothEdgesFadeInTheMiddleOfTheList() {
+        let middle = fade(offset: 200)
+        XCTAssertEqual(middle.leading, 1)
+        XCTAssertEqual(middle.trailing, 1)
+    }
+
+    /// The fade eases in over its own width rather than switching on at the
+    /// first point of scroll.
+    func testAFadeEasesInAsNamesScrollPastTheEdge() {
+        XCTAssertEqual(fade(offset: 16).leading, 0.5, accuracy: 0.001)
+        XCTAssertEqual(fade(offset: 800 - 346 - 8).trailing, 0.25, accuracy: 0.001)
+    }
+
+    /// At accessibility sizes the current city sits at the leading edge;
+    /// fading there would fade the one name the strip is for.
+    func testTheLeadingEdgeStaysSharpWhenTheCurrentCitySitsThere() {
+        let large = fade(offset: 200, fadesLeading: false)
+        XCTAssertEqual(large.leading, 0)
+        XCTAssertEqual(large.trailing, 1)
+    }
+
+    func testAListThatFitsDoesNotFade() {
+        let fits = fade(offset: 0, content: 300)
+        XCTAssertEqual(fits.leading, 0)
+        XCTAssertEqual(fits.trailing, 0)
+    }
+}
