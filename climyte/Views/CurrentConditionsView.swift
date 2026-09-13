@@ -197,10 +197,4 @@ struct CurrentConditionsView: View {
             Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone)
         )
     }
-
-    /// Kept for callers that only have an offset, such as tests covering the
-    /// fallback used when a response carries no zone name.
-    static func localTime(at date: Date, utcOffsetSeconds: Int) -> String {
-        localTime(at: date, in: TimeZone(secondsFromGMT: utcOffsetSeconds) ?? .current)
-    }
 }

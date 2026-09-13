@@ -17,15 +17,13 @@ final class ResponseRobustnessTests: XCTestCase {
     func testANullHourIsSkippedRatherThanFailingTheWholeCity() throws {
         let json = """
         {"time":["2026-08-31T00:00","2026-08-31T01:00","2026-08-31T02:00"],
-         "temperature_2m":[12.0,null,14.0],
-         "weather_code":[0,1,null]}
+         "temperature_2m":[12.0,null,14.0]}
         """.data(using: .utf8)!
 
         let hourly = try JSONDecoder().decode(HourlyWeatherResponse.self, from: json)
 
         XCTAssertEqual(hourly.temperature_2m.count, 3)
         XCTAssertNil(hourly.temperature_2m[1])
-        XCTAssertNil(hourly.weather_code[2])
     }
 
     func testHoursWithNullValuesAreDroppedButTheRestSurvive() {
@@ -40,8 +38,7 @@ final class ResponseRobustnessTests: XCTestCase {
         let response = TestResponse.make(
             hourly: HourlyWeatherResponse(
                 time: times,
-                temperature_2m: [12.0, nil, 14.0, 15.0],
-                weather_code: [0, 0, nil, 0]
+                temperature_2m: [12.0, nil, nil, 15.0]
             )
         )
 

@@ -326,3 +326,12 @@ private final class StubWeatherService: WeatherFetching {
         return searchResults
     }
 }
+
+private extension WeatherViewModel {
+    /// The results of the last successful search, or none. Only these tests
+    /// want the search state reduced to a list, so it lives here, not in the app.
+    var searchResults: [GeocodingResult] {
+        if case .results(let results) = searchState { return results }
+        return []
+    }
+}

@@ -145,7 +145,6 @@ struct CityWeather: Identifiable {
     let feelsLike: Double
     let condition: WeatherCondition
     let hourlyForecasts: [HourlyForecast]
-    let utcOffsetSeconds: Int
 
     /// The city's actual time zone.
     ///
@@ -285,7 +284,6 @@ struct CityWeather: Identifiable {
         self.temperature = response.current.temperature_2m
         self.feelsLike = response.current.apparent_temperature
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
-        self.utcOffsetSeconds = response.utc_offset_seconds
         
         let cityTimeZone = response.timezone.flatMap(TimeZone.init(identifier:))
             ?? TimeZone(secondsFromGMT: response.utc_offset_seconds)
@@ -334,7 +332,7 @@ struct CityWeather: Identifiable {
         let firstDayAhead = response.daily.time.firstIndex { $0 >= todayKey } ?? response.daily.time.count
 
         var dailyList: [DailyForecast] = []
-        let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
+        let dailyCount = min(response.daily.time.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
         
         // Clamped: mismatched array lengths can put firstDayAhead past
         // dailyCount, and `firstDayAhead..<dailyCount` traps when reversed.
@@ -343,8 +341,7 @@ struct CityWeather: Identifiable {
 
             // Drop a day the API has no readings for rather than charting a
             // zero, which would put a false trough in the week's ribbon.
-            guard let code: Int = response.daily.weather_code.value(at: i),
-                  let low: Double = response.daily.temperature_2m_min.value(at: i),
+            guard let low: Double = response.daily.temperature_2m_min.value(at: i),
                   let high: Double = response.daily.temperature_2m_max.value(at: i) else { continue }
 
             var dayLabel = dateStr
@@ -357,7 +354,6 @@ struct CityWeather: Identifiable {
             let forecast = DailyForecast(
                 id: dateStr,
                 day: dayLabel,
-                condition: WeatherCondition.from(wmoCode: code),
                 minTemp: low,
                 maxTemp: high
             )
@@ -429,7 +425,7 @@ struct CityWeather: Identifiable {
         
         var hourlyList: [HourlyForecast] = []
         let currentEpoch = Date().timeIntervalSince1970
-        let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count, response.hourly.weather_code.count)
+        let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count)
         var parsedHours = 0
         
         for i in 0..<hourCount {
@@ -442,13 +438,11 @@ struct CityWeather: Identifiable {
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
                     // A null hour is skipped, not fatal: the rest of the day
                     // is still worth showing.
-                    guard let temperature: Double = response.hourly.temperature_2m.value(at: i),
-                          let code: Int = response.hourly.weather_code.value(at: i) else { continue }
+                    guard let temperature: Double = response.hourly.temperature_2m.value(at: i) else { continue }
 
                     let forecast = HourlyForecast(
                         id: timeString,
                         time: date.formatted(hourStyle).lowercased(),
-                        condition: WeatherCondition.from(wmoCode: code),
                         temperature: temperature
                     )
                     hourlyList.append(forecast)
@@ -466,14 +460,12 @@ struct CityWeather: Identifiable {
 struct HourlyForecast: Identifiable {
     let id: String   // e.g. "2026-07-25T23:00"
     let time: String // e.g. "11 pm"
-    let condition: WeatherCondition
     let temperature: Double
 }
 
 struct DailyForecast: Identifiable {
     let id: String  // e.g. "2026-07-25"
     let day: String // e.g. "Today", "Wed"
-    let condition: WeatherCondition
     let minTemp: Double
     let maxTemp: Double
 }
@@ -547,7 +539,6 @@ nonisolated struct HourlyWeatherResponse: Codable {
     /// single missing hour cost the reader the entire city — temperature,
     /// forecast and all — reported as "Couldn't read the weather data".
     let temperature_2m: [Double?]
-    let weather_code: [Int?]
 
     /// Hourly rain and its chance, for the Rain row's next 24 hours. `var` with
     /// a nil default, which buys two things: a response cached before these
@@ -564,15 +555,11 @@ nonisolated struct DailyWeatherResponse: Codable {
     /// horizon of the model backing it, and a single null in a non-optional
     /// array fails the entire decode — blanking the city rather than the one
     /// day that is missing.
-    let weather_code: [Int?]
     let temperature_2m_max: [Double?]
     let temperature_2m_min: [Double?]
     let sunrise: [String?]
     let sunset: [String?]
     let uv_index_max: [Double?]
-    let precipitation_probability_max: [Int?]
-    let precipitation_sum: [Double?]
-    let precipitation_hours: [Double?]
     let daylight_duration: [Double?]
 }
 

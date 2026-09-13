@@ -38,18 +38,13 @@ final class WeatherModelTests: XCTestCase {
             },
             "hourly": {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
-                "temperature_2m": [20.0, 21.5, 23.0],
-                "weather_code": [0, 2, 61]
+                "temperature_2m": [20.0, 21.5, 23.0]
             },
             "daily": {
                 "time": ["2026-07-25"],
-                "weather_code": [0],
                 "temperature_2m_max": [25.0],
                 "temperature_2m_min": [15.0],
-                "uv_index_max": [2.0],
-                "precipitation_probability_max": [null],
-                "precipitation_sum": [0.0],
-                "precipitation_hours": [0.0],
+                "uv_index_max": [null],
                 "daylight_duration": [49993.0],
                 "sunrise": ["2026-07-25T06:00"],
                 "sunset": ["2026-07-25T18:00"]
@@ -64,12 +59,11 @@ final class WeatherModelTests: XCTestCase {
 
         XCTAssertEqual(response.hourly.time.count, 3)
         XCTAssertEqual(response.hourly.temperature_2m, [20.0, 21.5, 23.0])
-        XCTAssertEqual(response.hourly.weather_code, [0, 2, 61])
         XCTAssertEqual(response.utc_offset_seconds, 36000)
         XCTAssertEqual(response.current.visibility, 10000.0)
         XCTAssertEqual(response.current.wind_gusts_10m, 18.0)
-        XCTAssertEqual(response.daily.precipitation_probability_max, [nil],
-                       "A null probability must decode rather than fail the whole response")
+        XCTAssertEqual(response.daily.uv_index_max, [nil],
+                       "A null must decode rather than fail the whole response")
     }
 
     // MARK: - Hourly parsing
@@ -104,8 +98,7 @@ final class WeatherModelTests: XCTestCase {
             current: response.current,
             hourly: HourlyWeatherResponse(
                 time: response.hourly.time,                      // 10
-                temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0],  // 5
-                weather_code: [0, 1, 2, 3, 45, 51, 61]           // 7
+                temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0]  // 5
             ),
             daily: response.daily
         )
@@ -129,10 +122,9 @@ final class WeatherModelTests: XCTestCase {
             current: response.current,
             hourly: response.hourly,
             daily: DailyWeatherResponse(
-                time: [], weather_code: [], temperature_2m_max: [],
+                time: [], temperature_2m_max: [],
                 temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: [],
-                precipitation_probability_max: [], precipitation_sum: [],
-                precipitation_hours: [], daylight_duration: []
+                daylight_duration: []
             )
         )
 
@@ -336,15 +328,11 @@ final class WeatherModelTests: XCTestCase {
             current: base.current, hourly: base.hourly,
             daily: DailyWeatherResponse(
                 time: ["2026-09-01", "2026-09-02"],
-                weather_code: [0, 0],
                 temperature_2m_max: [20, 21],
                 temperature_2m_min: [10, 11],
                 sunrise: ["2026-09-01T06:10", "2026-09-02T06:09"],
                 sunset: ["2026-09-01T17:40", "2026-09-02T17:41"],
                 uv_index_max: [nil, nil],
-                precipitation_probability_max: [nil, nil],
-                precipitation_sum: [nil, nil],
-                precipitation_hours: [nil, nil],
                 daylight_duration: [nil, nil]
             )
         )
@@ -405,15 +393,13 @@ final class WeatherModelTests: XCTestCase {
         let times = days.indices.map { day.string(from: Date().addingTimeInterval(Double($0) * 86_400)) }
 
         return withDailyTimes(base, times: times,
-                              maxTemps: days.map(\.2), minTemps: days.map(\.1),
-                              codes: days.map { $0.1 == nil ? nil : 0 })
+                              maxTemps: days.map(\.2), minTemps: days.map(\.1))
     }
 
     private func withDailyTimes(_ base: WeatherResponse,
                                 times: [String],
                                 maxTemps: [Double?],
-                                minTemps: [Double?],
-                                codes: [Int?]? = nil) -> WeatherResponse {
+                                minTemps: [Double?]) -> WeatherResponse {
         WeatherResponse(
             latitude: base.latitude,
             longitude: base.longitude,
@@ -422,15 +408,11 @@ final class WeatherModelTests: XCTestCase {
             hourly: base.hourly,
             daily: DailyWeatherResponse(
                 time: times,
-                weather_code: codes ?? Array(repeating: 0, count: times.count),
                 temperature_2m_max: maxTemps,
                 temperature_2m_min: minTemps,
                 sunrise: Array(repeating: nil, count: times.count),
                 sunset: Array(repeating: nil, count: times.count),
                 uv_index_max: Array(repeating: nil, count: times.count),
-                precipitation_probability_max: Array(repeating: nil, count: times.count),
-                precipitation_sum: Array(repeating: nil, count: times.count),
-                precipitation_hours: Array(repeating: nil, count: times.count),
                 daylight_duration: Array(repeating: nil, count: times.count)
             )
         )
@@ -465,13 +447,11 @@ final class WeatherModelTests: XCTestCase {
         let now = Date()
         var times: [String] = []
         var temps: [Double] = []
-        var codes: [Int] = []
 
         for offset in hourOffsets {
             guard let date = calendar.date(byAdding: .hour, value: offset, to: now) else { continue }
             times.append(isoFormatter.string(from: date))
             temps.append(20.0 + Double(offset))
-            codes.append(offset % 2 == 0 ? 0 : 61)
         }
 
         let sunrise = calendar.date(byAdding: .hour, value: sunriseOffsetHours, to: now)!
@@ -494,20 +474,15 @@ final class WeatherModelTests: XCTestCase {
             ),
             hourly: HourlyWeatherResponse(
                 time: times,
-                temperature_2m: temps,
-                weather_code: codes
+                temperature_2m: temps
             ),
             daily: DailyWeatherResponse(
                 time: [dateFormatter.string(from: now)],
-                weather_code: [0],
                 temperature_2m_max: [25.0],
                 temperature_2m_min: [15.0],
                 sunrise: [isoFormatter.string(from: sunrise)],
                 sunset: [isoFormatter.string(from: sunset)],
                 uv_index_max: [2.0],
-                precipitation_probability_max: [0],
-                precipitation_sum: [0],
-                precipitation_hours: [0],
                 daylight_duration: [49993]
             )
         )

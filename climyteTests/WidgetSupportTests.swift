@@ -197,18 +197,14 @@ final class WidgetSupportTests: XCTestCase {
                 weather_code: 0, relative_humidity_2m: 60, dew_point_2m: 10,
                 wind_speed_10m: 10, wind_gusts_10m: 12, visibility: 20_000
             ),
-            hourly: HourlyWeatherResponse(time: [], temperature_2m: [], weather_code: []),
+            hourly: HourlyWeatherResponse(time: [], temperature_2m: []),
             daily: DailyWeatherResponse(
                 time: ["2026-06-01", "2026-06-02"],
-                weather_code: [0, 0],
                 temperature_2m_max: [24, 24],
                 temperature_2m_min: [12, 12],
                 sunrise: sunrises,
                 sunset: sunsets,
                 uv_index_max: [4, 4],
-                precipitation_probability_max: [0, 0],
-                precipitation_sum: [0, 0],
-                precipitation_hours: [0, 0],
                 daylight_duration: [50_400, 50_400]
             )
         )

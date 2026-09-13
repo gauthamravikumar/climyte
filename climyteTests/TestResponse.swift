@@ -83,7 +83,6 @@ enum TestResponse {
         let generatedHourly = HourlyWeatherResponse(
             time: (0..<24).map { stamp.string(from: hourStart.addingTimeInterval(TimeInterval($0 * 3_600))) },
             temperature_2m: Array(repeating: nil, count: 24),
-            weather_code: Array(repeating: nil, count: 24),
             precipitation: hourlyRain,
             precipitation_probability: Array(repeating: rainChance, count: 24)
         )
@@ -106,15 +105,11 @@ enum TestResponse {
             hourly: hourly ?? generatedHourly,
             daily: DailyWeatherResponse(
                 time: [day.string(from: yesterday), day.string(from: now)],
-                weather_code: [weatherCode, weatherCode],
                 temperature_2m_max: [maxTemp, maxTemp],
                 temperature_2m_min: [minTemp, minTemp],
                 sunrise: [stamp.string(from: sunrise.addingTimeInterval(-86_400)), stamp.string(from: sunrise)],
                 sunset: [stamp.string(from: sunset.addingTimeInterval(-86_400)), stamp.string(from: sunset)],
                 uv_index_max: [uvIndex, uvIndex],
-                precipitation_probability_max: [rainChance, rainChance],
-                precipitation_sum: [rainAmount, rainAmount],
-                precipitation_hours: [rainHours, rainHours],
                 daylight_duration: [daylightYesterday, daylightToday]
             ),
             minutely_15: minutely

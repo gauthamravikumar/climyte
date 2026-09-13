@@ -16,7 +16,6 @@ extension Font {
         case medium = "Manrope-Medium"
         case semiBold = "Manrope-SemiBold"
         case bold = "Manrope-Bold"
-        case extraBold = "Manrope-ExtraBold"
     }
 
     /// Pairs a fixed point size with a text style so the result scales with the
