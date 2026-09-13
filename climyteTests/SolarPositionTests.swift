@@ -197,3 +197,29 @@ final class DuskByLatitudeTests: XCTestCase {
         XCTAssertGreaterThan(evening?.intensity ?? 0, deepest?.intensity ?? 1)
     }
 }
+
+/// Whether the sun is up, from the sun itself. A forecast's sun times cover
+/// only its own days, and a saved forecast old enough for all of them to have
+/// passed left the page judging today against a sunset a week gone — dark all
+/// day.
+@MainActor
+final class SunUpTests: XCTestCase {
+
+    func testTheSunIsUpAtMiddayAndDownAtMidnight() {
+        // Sydney is ten hours ahead of UTC in September.
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso2("2026-09-13T02:00"), latitude: -33.87, longitude: 151.21))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso2("2026-09-13T14:00"), latitude: -33.87, longitude: 151.21))
+    }
+
+    /// London's sunset on 13 September, by Open-Meteo, was 18:19 UTC.
+    func testItSetsWithinMinutesOfTheForecastsOwnSunset() {
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso2("2026-09-13T18:12"), latitude: 51.51, longitude: -0.13))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso2("2026-09-13T18:26"), latitude: 51.51, longitude: -0.13))
+    }
+
+    func testTheMidnightSunAndThePolarNight() {
+        // Longyearbyen, Svalbard: up at 1:30 am local in June, down at noon in December.
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso2("2026-06-21T23:30"), latitude: 78.22, longitude: 15.65))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso2("2026-12-21T11:00"), latitude: 78.22, longitude: 15.65))
+    }
+}

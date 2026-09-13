@@ -222,6 +222,14 @@ struct CityWeather: Identifiable {
         guard let day = solarDays.last(where: { $0.sunrise <= date }) else {
             return true
         }
+
+        // A day or more past the last sunrise the forecast has, its sun times
+        // no longer describe `date`: a saved forecast whose days have all
+        // passed would otherwise judge today against a sunset a week gone and
+        // keep the page dark all day. The sun itself decides instead.
+        guard date.timeIntervalSince(day.sunrise) < 86_400 else {
+            return !SolarPosition.isSunUp(at: date, latitude: city.latitude, longitude: city.longitude)
+        }
         return date > day.sunset
     }
 

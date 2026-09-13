@@ -324,6 +324,37 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertEqual(weather.maxTemp, 26)
     }
 
+    /// The page's theme follows the sun. When every day in a saved forecast has
+    /// passed, its sun times can't say whether it is day now: judged against a
+    /// sunset a week gone, the page stayed dark all day. The sun itself answers
+    /// instead.
+    func testAForecastWhoseDaysHavePassedStillKnowsDayFromNight() {
+        let base = TestResponse.make()
+        let response = WeatherResponse(
+            latitude: sydney.latitude, longitude: sydney.longitude, utc_offset_seconds: 36_000,
+            current: base.current, hourly: base.hourly,
+            daily: DailyWeatherResponse(
+                time: ["2026-09-01", "2026-09-02"],
+                weather_code: [0, 0],
+                temperature_2m_max: [20, 21],
+                temperature_2m_min: [10, 11],
+                sunrise: ["2026-09-01T06:10", "2026-09-02T06:09"],
+                sunset: ["2026-09-01T17:40", "2026-09-02T17:41"],
+                uv_index_max: [nil, nil],
+                precipitation_probability_max: [nil, nil],
+                precipitation_sum: [nil, nil],
+                precipitation_hours: [nil, nil],
+                daylight_duration: [nil, nil]
+            )
+        )
+        let weather = CityWeather(city: sydney, response: response)
+        XCTAssertFalse(weather.solarDays.isEmpty, "The fixture has sun times, just old ones")
+
+        let utc = ISO8601DateFormatter()
+        XCTAssertFalse(weather.isNight(at: utc.date(from: "2026-09-13T02:00:00Z")!), "Midday in Sydney")
+        XCTAssertTrue(weather.isNight(at: utc.date(from: "2026-09-13T14:00:00Z")!), "Midnight in Sydney")
+    }
+
     // MARK: - Fixtures
 
     private func withDaily(_ base: WeatherResponse,
