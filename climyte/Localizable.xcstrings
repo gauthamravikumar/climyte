@@ -430,33 +430,11 @@
         }
       }
     },
-    "Fresh breeze" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fresh breeze"
-          }
-        }
-      }
-    },
     "from %@" : {
 
     },
     "from %@ tomorrow" : {
 
-    },
-    "Gentle breeze" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gentle breeze"
-          }
-        }
-      }
     },
     "gusts %@" : {
       "extractionState" : "manual",
@@ -481,17 +459,6 @@
         }
       }
     },
-    "High wind" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "High wind"
-          }
-        }
-      }
-    },
     "Humid" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -505,28 +472,6 @@
     },
     "in the next 2 hours" : {
 
-    },
-    "Light air" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light air"
-          }
-        }
-      }
-    },
-    "Light breeze" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Light breeze"
-          }
-        }
-      }
     },
     "Local time in %@" : {
       "extractionState" : "manual",
@@ -576,17 +521,6 @@
     },
     "Moderate" : {
       "comment" : "UV index category, spoken"
-    },
-    "Moderate breeze" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moderate breeze"
-          }
-        }
-      }
     },
     "Move down" : {
       "extractionState" : "manual",
@@ -786,17 +720,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stormy"
-          }
-        }
-      }
-    },
-    "Strong breeze" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Strong breeze"
           }
         }
       }
