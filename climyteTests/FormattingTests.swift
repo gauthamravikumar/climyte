@@ -220,3 +220,38 @@ final class FormattingTests: XCTestCase {
         XCTAssertFalse(result.isEmpty)
     }
 }
+
+/// Two places can share a name, a state and a country — Oslo, Minnesota is two
+/// towns in two counties — and the results showed both as "Minnesota, United
+/// States", so the reader could not tell which one they were adding.
+final class SearchResultRegionTests: XCTestCase {
+
+    private func place(_ id: Int, admin2: String?, admin1: String?, country: String?) -> GeocodingResult {
+        GeocodingResult(id: id, name: "Oslo", latitude: 0, longitude: 0,
+                        country: country, country_code: nil, admin1: admin1, admin2: admin2)
+    }
+
+    func testNamesakesInOneStateAreToldApartByTheirCounty() {
+        let marshall = place(1, admin2: "Marshall", admin1: "Minnesota", country: "United States")
+        let dodge = place(2, admin2: "Dodge", admin1: "Minnesota", country: "United States")
+        let results = [place(3, admin2: nil, admin1: "Oslo", country: "Norway"), marshall, dodge]
+
+        XCTAssertEqual(SearchResultsView.region(for: marshall, among: results),
+                       "Marshall, Minnesota, United States")
+        XCTAssertEqual(SearchResultsView.region(for: dodge, among: results),
+                       "Dodge, Minnesota, United States")
+    }
+
+    /// The county is noise when nothing else in the list could be mistaken
+    /// for this place, so the short form stays wherever it is enough.
+    func testAPlaceWithNoNamesakeKeepsTheShortForm() {
+        let norway = place(3, admin2: "Oslo", admin1: "Oslo", country: "Norway")
+        let florida = place(4, admin2: "Manatee", admin1: "Florida", country: "United States")
+        let minnesota = place(1, admin2: "Marshall", admin1: "Minnesota", country: "United States")
+        let results = [norway, florida, minnesota]
+
+        XCTAssertEqual(SearchResultsView.region(for: norway, among: results), "Oslo, Norway")
+        XCTAssertEqual(SearchResultsView.region(for: florida, among: results), "Florida, United States")
+        XCTAssertEqual(SearchResultsView.region(for: minnesota, among: results), "Minnesota, United States")
+    }
+}

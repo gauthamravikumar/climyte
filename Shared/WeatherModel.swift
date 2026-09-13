@@ -449,6 +449,10 @@ nonisolated struct GeocodingResult: Decodable, Identifiable, Equatable {
     let country: String?
     let country_code: String?
     let admin1: String?
+
+    /// The county or district. Shown only to tell apart namesakes that share
+    /// a state, so a response without it costs nothing.
+    var admin2: String? = nil
 }
 
 // MARK: - Open-Meteo Weather Decodable Structures
