@@ -563,10 +563,6 @@ struct WeatherTheme {
     let secondaryText: Color
     let dividerColor: Color
 
-    /// Which side of the inversion this is. The horizon light needs it: the
-    /// same glow that reads as light on near-black reads as a stain on white.
-    var isNight: Bool = false
-    
     /// Secondary text is a different grey in each theme, on purpose.
     ///
     /// One value cannot serve both: #727272 was picked against white, where it
@@ -581,8 +577,7 @@ struct WeatherTheme {
                 background: Color(hex: "0E0F13"),
                 primaryText: Color(hex: "F2F2F0"),
                 secondaryText: Color(hex: "808080"),
-                dividerColor: Color(hex: "F2F2F0").opacity(0.12),
-                isNight: true
+                dividerColor: Color(hex: "F2F2F0").opacity(0.12)
             )
         } else {
             return WeatherTheme(
