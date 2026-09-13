@@ -34,6 +34,15 @@ struct CityNameStrip: View {
     /// name depends on it.
     @State private var viewportWidth: CGFloat = 0
 
+    /// How far in each edge fades. Narrow enough that a whole name beside it
+    /// stays legible, wide enough that a cut one dissolves instead of
+    /// reading as a word.
+    private let fadeWidth: CGFloat = 32
+
+    /// How strongly each edge is fading, from where the strip is scrolled.
+    @State private var edgeFade = EdgeFade(offset: 0, namesWidth: 0, viewportWidth: 0,
+                                           fadeWidth: 32, fadesLeading: true)
+
     /// Room after the last name. At accessibility sizes it is wide enough for
     /// any name — the last one included — to be scrolled to the leading edge.
     ///
@@ -78,6 +87,19 @@ struct CityNameStrip: View {
                 .padding(.vertical, 12)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { viewportWidth = $0 }
+            // Measured to the names, not the padding: the room after the last
+            // name is empty, and fading it would fade the last name.
+            .onScrollGeometryChange(for: EdgeFade.self) {
+                [leadingInset, trailingRoom, fadeWidth, typeSize] geometry in
+                EdgeFade(offset: geometry.contentOffset.x - leadingInset,
+                         namesWidth: geometry.contentSize.width - leadingInset - trailingRoom,
+                         viewportWidth: geometry.containerSize.width,
+                         fadeWidth: fadeWidth,
+                         fadesLeading: !typeSize.isAccessibilitySize)
+            } action: { _, fade in
+                edgeFade = fade
+            }
+            .mask { fadeMask }
             // The room above only exists once the width is known, which is
             // after the first scroll has already happened — and clamped.
             .onChange(of: viewportWidth) { _, _ in
@@ -101,6 +123,47 @@ struct CityNameStrip: View {
             .onChange(of: typeSize) { _, _ in
                 proxy.scrollTo(selectedKey, anchor: scrollAnchor)
             }
+        }
+    }
+
+    /// How strongly each edge fades, from 0 to 1.
+    ///
+    /// Centring the current city runs its neighbours off both edges, and cut
+    /// hard, "Melbourne" arrived as "rne" — a word that is not there. Faded, a
+    /// cut name reads as "more this way". An edge fades only as far as names
+    /// actually run past it, easing in over the fade's own width: scrolled to
+    /// the start, the first name begins at the edge, and fading it would take
+    /// letters off the one name there that is whole.
+    ///
+    /// At accessibility sizes the current city sits at the leading edge, so
+    /// only the trailing edge fades.
+    nonisolated struct EdgeFade: Equatable {
+        var leading: CGFloat
+        var trailing: CGFloat
+
+        /// `offset` and `namesWidth` are measured from the first name's
+        /// leading edge to the last name's trailing edge.
+        init(offset: CGFloat, namesWidth: CGFloat, viewportWidth: CGFloat,
+             fadeWidth: CGFloat, fadesLeading: Bool) {
+            let pastLeading = max(offset, 0)
+            let pastTrailing = max(namesWidth - (offset + viewportWidth), 0)
+            leading = fadesLeading ? min(pastLeading / fadeWidth, 1) : 0
+            trailing = min(pastTrailing / fadeWidth, 1)
+        }
+    }
+
+    /// Opaque across the middle; at each edge it eases toward clear over
+    /// `fadeWidth`, by as much as that edge is fading. A mask changes only
+    /// what is drawn, so every name keeps its full tap target.
+    private var fadeMask: some View {
+        HStack(spacing: 0) {
+            LinearGradient(colors: [.black.opacity(1 - edgeFade.leading), .black],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(width: fadeWidth)
+            Color.black
+            LinearGradient(colors: [.black, .black.opacity(1 - edgeFade.trailing)],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(width: fadeWidth)
         }
     }
 

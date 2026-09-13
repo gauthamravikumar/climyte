@@ -46,7 +46,7 @@ struct SearchResultsView: View {
                     Button {
                         onSelect(result)
                     } label: {
-                        row(for: result)
+                        row(for: result, among: results)
                     }
 
                     ThemeDivider(theme: theme)
@@ -55,7 +55,7 @@ struct SearchResultsView: View {
         }
     }
 
-    private func row(for result: GeocodingResult) -> some View {
+    private func row(for result: GeocodingResult, among results: [GeocodingResult]) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(result.name)
                 .font(.searchResultCity)
@@ -63,7 +63,7 @@ struct SearchResultsView: View {
 
             Spacer()
 
-            Text(region(for: result))
+            Text(Self.region(for: result, among: results))
                 .font(.searchResultRegion)
                 .foregroundColor(theme.secondaryText)
         }
@@ -72,8 +72,20 @@ struct SearchResultsView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func region(for result: GeocodingResult) -> String {
-        [result.admin1, result.country]
+    /// Where a result is, as short as still tells it apart.
+    ///
+    /// Two places can share a name, a state and a country — Oslo, Minnesota
+    /// is two towns in two counties — and "Minnesota, United States" on both
+    /// rows left the reader guessing which one they were adding. The county
+    /// goes in front only then; anywhere else it is noise.
+    static func region(for result: GeocodingResult, among results: [GeocodingResult]) -> String {
+        let hasNamesake = results.contains {
+            $0.id != result.id && $0.name == result.name
+                && $0.admin1 == result.admin1 && $0.country == result.country
+        }
+        let county = hasNamesake && result.admin2 != result.admin1 ? result.admin2 : nil
+
+        return [county, result.admin1, result.country]
             .compactMap { $0 }
             .joined(separator: ", ")
     }

@@ -249,6 +249,9 @@
         }
       }
     },
+    "Clear" : {
+      "comment" : "Weather condition: a clear sky after dark"
+    },
     "Clear search" : {
       "extractionState" : "manual",
       "localizations" : {

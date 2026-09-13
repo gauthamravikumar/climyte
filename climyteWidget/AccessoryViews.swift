@@ -84,7 +84,7 @@ struct AccessoryRectangularView: View {
             let amount = weather.city.unitSystem.precipitation(weather.precipitationAmount ?? 0)
             return String(localized: "Rain \(amount)")
         case .nextTwoHours, nil:
-            return weather.condition.description
+            return weather.conditionDescription(at: entry.date)
         }
     }
 }
@@ -118,14 +118,14 @@ struct AccessoryInlineView: View {
         }
 
         let reading = entry.units.temperatureValue(weather.temperature)
-        let base = String(localized: "\(name), \(reading) degrees, \(weather.condition.description)")
+        let base = String(localized: "\(name), \(reading) degrees, \(weather.conditionDescription(at: entry.date))")
         guard let age = entry.shortAge else { return base }
         return String(localized: "\(base), from \(age) ago")
     }
 
     private var full: String {
         guard let weather = entry.weather, let city = entry.city else { return short }
-        return "\(city.name) \(entry.units.temperature(weather.temperature)) · \(weather.condition.description)"
+        return "\(city.name) \(entry.units.temperature(weather.temperature)) · \(weather.conditionDescription(at: entry.date))"
     }
 
     private var medium: String {
@@ -162,7 +162,7 @@ private extension View {
         let low = entry.units.temperatureValue(weather.minTemp)
         let high = entry.units.temperatureValue(weather.maxTemp)
         return self.accessibilityLabel(
-            Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.condition.description)\(age)")
+            Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.conditionDescription(at: entry.date))\(age)")
         )
     }
 }
