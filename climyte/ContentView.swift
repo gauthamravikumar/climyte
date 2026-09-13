@@ -30,10 +30,14 @@ struct ContentView: View {
         reduceMotion ? nil : .default
     }
 
+    /// The app's clock, so the theme turns on the same minute as everything
+    /// else that knows day from night.
+    @Environment(\.now) private var now
+
     /// The theme follows whichever city is on screen, so swiping from a
     /// daytime city to a night-time one inverts the whole app.
     private var theme: WeatherTheme {
-        viewModel.selectedEntry?.weather?.theme ?? WeatherTheme.forIsNight(false)
+        WeatherTheme.forIsNight(viewModel.selectedEntry?.weather?.isNight(at: now) ?? false)
     }
 
     var body: some View {

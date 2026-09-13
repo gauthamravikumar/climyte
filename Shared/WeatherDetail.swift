@@ -74,7 +74,7 @@ enum WeatherDetails {
     /// Conditional entries lead because their presence is itself the signal;
     /// the always-present ones follow in a stable order so the section does
     /// not reshuffle on every refresh.
-    static func build(for weather: CityWeather, units: UnitSystem) -> [WeatherDetail] {
+    static func build(for weather: CityWeather, units: UnitSystem, now: Date = Date()) -> [WeatherDetail] {
         var details: [WeatherDetail] = []
 
         switch rainRowLead(weather) {
@@ -119,7 +119,8 @@ enum WeatherDetails {
             ))
         }
 
-        if !weather.isNight && weather.uvIndex >= Threshold.uvIndex {
+        // By the app's clock, so UV leaves on the same minute the page turns dark.
+        if !weather.isNight(at: now) && weather.uvIndex >= Threshold.uvIndex {
             details.append(WeatherDetail(
                 kind: .uv,
                 label: "UV",

@@ -37,6 +37,9 @@ struct CurrentConditionsView: View {
     /// At accessibility sizes the header stacks rather than truncating.
     @Environment(\.dynamicTypeSize) private var typeSize
 
+    /// The app's clock: the minute the header's time and words describe.
+    @Environment(\.now) private var now
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
@@ -98,19 +101,18 @@ struct CurrentConditionsView: View {
     }
 
     private var localTime: some View {
-        // Re-renders every minute so the city's local time stays honest.
-        TimelineView(.everyMinute) { context in
-            Text(Self.localTime(at: context.date, in: weather.timeZone))
-                .font(.localTime)
-                .foregroundColor(theme.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                // accessibilityLabel replaces a Text's content, so naming
-                // the element here without a value would leave the time
-                // itself unspoken — the one thing this element exists for.
-                .accessibilityLabel("Local time in \(weather.city.name)")
-                .accessibilityValue(Self.localTime(at: context.date, in: weather.timeZone))
-        }
+        // The app's clock ticks on the minute, so the city's local time stays
+        // honest without a timer of its own.
+        Text(Self.localTime(at: now, in: weather.timeZone))
+            .font(.localTime)
+            .foregroundColor(theme.secondaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            // accessibilityLabel replaces a Text's content, so naming
+            // the element here without a value would leave the time
+            // itself unspoken — the one thing this element exists for.
+            .accessibilityLabel("Local time in \(weather.city.name)")
+            .accessibilityValue(Self.localTime(at: now, in: weather.timeZone))
     }
 
     private var temperature: some View {
@@ -160,7 +162,7 @@ struct CurrentConditionsView: View {
 
     private var summary: some View {
         Text(Self.summary(
-            condition: weather.conditionDescription(),
+            condition: weather.conditionDescription(at: now),
             actual: units.temperatureValue(weather.temperature),
             apparent: units.temperatureValue(weather.feelsLike)
         ))

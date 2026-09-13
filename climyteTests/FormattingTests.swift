@@ -332,3 +332,20 @@ final class SpokenCityNameTests: XCTestCase {
         XCTAssertEqual(CityNameStrip.spokenName("Singapore", isCurrentLocation: false), "Singapore")
     }
 }
+
+/// Daylight left, in whole minutes. Rounded down, the last minute before
+/// sunset read "0 min of light left" beside a sun still drawn up.
+final class DaylightMinutesTests: XCTestCase {
+
+    func testAPartMinuteOfLightRoundsUp() {
+        XCTAssertEqual(SunArcView.minutesLeft(30), 1)
+        XCTAssertEqual(SunArcView.minutesLeft(60), 1)
+        XCTAssertEqual(SunArcView.minutesLeft(61), 2)
+        XCTAssertEqual(SunArcView.minutesLeft(3_594), 60)
+    }
+
+    func testNoLightLeftIsNoCountdown() {
+        XCTAssertNil(SunArcView.minutesLeft(0))
+        XCTAssertNil(SunArcView.minutesLeft(nil))
+    }
+}

@@ -211,10 +211,6 @@ struct CityWeather: Identifiable {
     /// written to the cache and rebuilt later without a second parse.
     let response: WeatherResponse
 
-    var theme: WeatherTheme {
-        WeatherTheme.forIsNight(isNight)
-    }
-
     /// Whether it is night in this city right now.
     var isNight: Bool { isNight(at: Date()) }
 

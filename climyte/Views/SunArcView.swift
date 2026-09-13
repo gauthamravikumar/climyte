@@ -16,33 +16,36 @@ struct SunArcView: View {
 
     @ScaledMetric(relativeTo: .caption) private var arcHeight: CGFloat = 58
 
+    /// The app's clock, shared with the theme, so the arc and the page turn on
+    /// the same minute. With a timer of its own the arc could still show the
+    /// sun up after the page had gone dark.
+    @Environment(\.now) private var now
+
     var body: some View {
-        TimelineView(.everyMinute) { context in
-            let days = weather.solarDays
-            let progress = SolarPosition.daylightProgress(at: context.date, in: days)
+        let days = weather.solarDays
+        let progress = SolarPosition.daylightProgress(at: now, in: days)
 
-            VStack(alignment: .leading, spacing: 6) {
-                SectionRule(label: "Sun",
-                            accessibilityLabel: "Today's daylight",
-                            theme: theme)
-                    .padding(.bottom, 10)
+        VStack(alignment: .leading, spacing: 6) {
+            SectionRule(label: "Sun",
+                        accessibilityLabel: "Today's daylight",
+                        theme: theme)
+                .padding(.bottom, 10)
 
-                arc(progress: progress)
-                    .frame(height: arcHeight)
+            arc(progress: progress)
+                .frame(height: arcHeight)
 
-                HStack(alignment: .firstTextBaseline) {
-                    Text(weather.sunriseFormatted)
-                    Spacer(minLength: 12)
-                    Text(trailingLabel(at: context.date, days: days))
-                }
-                .font(.hourLabel)
-                .foregroundColor(theme.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+            HStack(alignment: .firstTextBaseline) {
+                Text(weather.sunriseFormatted)
+                Spacer(minLength: 12)
+                Text(trailingLabel(at: now, days: days))
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(spokenLabel(at: context.date, days: days))
+            .font(.hourLabel)
+            .foregroundColor(theme.secondaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenLabel(at: now, days: days))
     }
 
     private func arc(progress: Double?) -> some View {
@@ -92,26 +95,34 @@ struct SunArcView: View {
     }
 
     private var hasRisenToday: Bool {
-        guard let day = SolarPosition.day(containing: Date(), in: weather.solarDays) else { return false }
-        return Date() > day.sunrise
+        guard let day = SolarPosition.day(containing: now, in: weather.solarDays) else { return false }
+        return now > day.sunrise
+    }
+
+    /// Whole minutes of daylight left, rounded up, or nil once none is left.
+    ///
+    /// Rounded down, the last minute before sunset read "0 min of light left"
+    /// beside a sun still drawn up. With thirty seconds to go there is still
+    /// light, so it says one minute; at sunset there is nothing to count.
+    static func minutesLeft(_ remaining: TimeInterval?) -> Int? {
+        guard let remaining, remaining > 0 else { return nil }
+        return (remaining / 60).toInt(.up)
     }
 
     /// While the sun is up this counts down, which is the thing worth knowing.
     /// Once it is down there is nothing to count, so it names sunset instead.
     private func trailingLabel(at date: Date, days: [SolarDay]) -> String {
-        guard let remaining = SolarPosition.remainingDaylight(at: date, in: days) else {
+        guard let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) else {
             return weather.sunsetFormatted
         }
-        let minutes = (remaining / 60).toInt()
         guard minutes >= 60 else { return String(localized: "\(minutes) min of light left") }
         return String(localized: "\(minutes / 60)h \(minutes % 60)m of light left")
     }
 
     private func spokenLabel(at date: Date, days: [SolarDay]) -> String {
-        guard let remaining = SolarPosition.remainingDaylight(at: date, in: days) else {
+        guard let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) else {
             return String(localized: "The sun is down. Sunrise \(weather.sunriseFormatted), sunset \(weather.sunsetFormatted).")
         }
-        let minutes = (remaining / 60).toInt()
         return String(localized: "\(minutes / 60) hours \(minutes % 60) minutes of daylight left, sunset \(weather.sunsetFormatted)")
     }
 }
