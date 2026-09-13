@@ -79,6 +79,11 @@ struct DailyForecastView: View {
                                    width: width, chartHeight: chartHeight)
 
         ZStack {
+            // Decoration, not data. The high and low lines carry the week, at
+            // 4.8:1 or better against the page; the fill only shades the space
+            // between them, and at about 1.3:1 it is faint on purpose. Raised to
+            // the 3:1 a graphic that carries meaning needs, it swallowed the grey
+            // low line, which then measured about 1.5:1 against it.
             band(xs: outline.xs, highs: outline.highs, lows: outline.lows)
                 .fill(theme.dividerColor)
 
