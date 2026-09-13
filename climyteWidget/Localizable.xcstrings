@@ -230,6 +230,9 @@
         }
       }
     },
+    "Clear" : {
+      "comment" : "Weather condition: a clear sky after dark"
+    },
     "Climyte" : {
       "extractionState" : "manual",
       "localizations" : {

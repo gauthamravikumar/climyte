@@ -151,7 +151,7 @@ struct CurrentConditionsView: View {
 
     private var summary: some View {
         Text(Self.summary(
-            condition: weather.condition.description,
+            condition: weather.conditionDescription(),
             actual: units.temperatureValue(weather.temperature),
             apparent: units.temperatureValue(weather.feelsLike)
         ))

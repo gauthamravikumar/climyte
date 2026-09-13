@@ -245,6 +245,47 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertFalse(weather.isNight, "Between sunrise and sunset should read as day")
     }
 
+    // MARK: - A clear sky by day and by night
+
+    /// A clear sky after dark is not sunny. The words follow the city's own
+    /// sunrise and sunset — the same clock that turns the page dark — so the
+    /// line under the reading never contradicts the page it sits on.
+    func testAClearSkyAfterDarkReadsClearNotSunny() {
+        let response = makeResponse(hourOffsets: 0..<3, sunriseOffsetHours: -12,
+                                    sunsetOffsetHours: -1, isDay: 1)
+        let weather = CityWeather(city: sydney, response: response)
+        XCTAssertEqual(weather.condition, .sunny, "The fixture is a clear sky")
+
+        XCTAssertEqual(weather.conditionDescription(), "Clear")
+    }
+
+    func testAClearSkyByDayStillReadsSunny() {
+        let response = makeResponse(hourOffsets: 0..<3, sunriseOffsetHours: -2,
+                                    sunsetOffsetHours: 6, isDay: 0)
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.conditionDescription(), "Sunny")
+    }
+
+    /// A widget draws entries for moments still to come, so one reading can be
+    /// shown by day and again after sunset. The words are for the moment
+    /// drawn, not the moment fetched.
+    func testTheWordsFollowTheMomentTheyAreShownFor() {
+        let response = makeResponse(hourOffsets: 0..<3, sunriseOffsetHours: -2,
+                                    sunsetOffsetHours: 6, isDay: 1)
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.conditionDescription(at: Date()), "Sunny")
+        XCTAssertEqual(weather.conditionDescription(at: Date().addingTimeInterval(7 * 3_600)), "Clear")
+    }
+
+    func testOnlyAClearSkyChangesItsWordsAtNight() {
+        XCTAssertEqual(WeatherCondition.sunny.description(isNight: false), "Sunny")
+        XCTAssertEqual(WeatherCondition.sunny.description(isNight: true), "Clear")
+        XCTAssertEqual(WeatherCondition.cloudy.description(isNight: true), "Cloudy")
+        XCTAssertEqual(WeatherCondition.rainy.description(isNight: true), "Rainy")
+    }
+
     // MARK: - Fixtures
 
     private func withDaily(_ base: WeatherResponse,

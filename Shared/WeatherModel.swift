@@ -46,9 +46,16 @@ enum WeatherCondition: String, Codable {
     case stormy
     
     /// Shown to the user, so localized rather than the raw case name.
-    var description: String {
+    ///
+    /// A clear sky is only sunny while the sun is up. After dark the same code
+    /// reads "Clear": "Sunny" at 3 am, under a page already turned dark,
+    /// contradicted the page it sat on.
+    func description(isNight: Bool) -> String {
         switch self {
-        case .sunny: return String(localized: "Sunny", comment: "Weather condition")
+        case .sunny:
+            return isNight
+                ? String(localized: "Clear", comment: "Weather condition: a clear sky after dark")
+                : String(localized: "Sunny", comment: "Weather condition")
         case .cloudy: return String(localized: "Cloudy", comment: "Weather condition")
         case .foggy: return String(localized: "Foggy", comment: "Weather condition")
         case .rainy: return String(localized: "Rainy", comment: "Weather condition")
@@ -208,6 +215,14 @@ struct CityWeather: Identifiable {
             return true
         }
         return date > day.sunset
+    }
+
+    /// The condition in words, for the moment it is shown.
+    ///
+    /// `date` matters to the widget, whose entries are drawn at moments still
+    /// to come: one reading can be shown by day and again after sunset.
+    func conditionDescription(at date: Date = Date()) -> String {
+        condition.description(isNight: isNight(at: date))
     }
     
     /// A formatter for the API's own date strings.
