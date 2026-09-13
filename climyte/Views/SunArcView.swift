@@ -9,8 +9,7 @@ import SwiftUI
 ///
 /// Replaces the separate Sunrise and Sunset rows: two numbers you had to read
 /// and subtract become one shape you glance at. It answers the question those
-/// rows never did — how much of the day is left — and it shares its arithmetic
-/// with the light on the background, so the two always agree.
+/// rows never did: how much of the day is left.
 struct SunArcView: View {
     let weather: CityWeather
     let theme: WeatherTheme
