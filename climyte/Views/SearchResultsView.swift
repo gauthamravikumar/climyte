@@ -57,15 +57,20 @@ struct SearchResultsView: View {
 
     private func row(for result: GeocodingResult, among results: [GeocodingResult]) -> some View {
         HStack(alignment: .firstTextBaseline) {
+            // A Button centres a label's wrapped lines, so a long name such as
+            // "Seattle International Raceway" broke into two centred lines.
+            // The name reads from the left and the region from the right.
             Text(result.name)
                 .font(.searchResultCity)
                 .foregroundColor(theme.primaryText)
+                .multilineTextAlignment(.leading)
 
             Spacer()
 
             Text(Self.region(for: result, among: results))
                 .font(.searchResultRegion)
                 .foregroundColor(theme.secondaryText)
+                .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 18)
         .contentShape(Rectangle())

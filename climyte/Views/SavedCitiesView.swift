@@ -98,6 +98,9 @@ struct SavedCitiesView: View {
             Text(entry.city.name)
                 .font(.searchResultCity)
                 .foregroundColor(entry.id == selectedKey ? theme.primaryText : theme.secondaryText)
+                // As in the search results: a Button centres a long name's
+                // wrapped lines.
+                .multilineTextAlignment(.leading)
 
             Spacer()
 

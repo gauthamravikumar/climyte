@@ -16,6 +16,9 @@ struct WeatherDetailsView: View {
 
     @Environment(\.unitSystem) private var units
 
+    /// The app's clock, so UV leaves on the minute the page turns dark.
+    @Environment(\.now) private var now
+
     /// At accessibility sizes a label, a value and a caption cannot share one
     /// line. Squeezed onto one they lost the reading itself — "Humid" beside
     /// "dew point…" says nothing at all — so past that threshold the row
@@ -24,7 +27,7 @@ struct WeatherDetailsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(WeatherDetails.build(for: weather, units: units)) { detail in
+            ForEach(WeatherDetails.build(for: weather, units: units, now: now)) { detail in
                 // No spacing of its own: the row already carries 13 below it,
                 // and adding to that pushed the strip away from the row it
                 // belongs to.

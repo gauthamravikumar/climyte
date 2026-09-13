@@ -337,3 +337,21 @@ final class WeatherDetailsTests: XCTestCase {
         return WeatherDetails.build(for: weather, units: .metric)
     }
 }
+
+/// The details decide day or night by the moment they're given — the app's
+/// one clock — so the UV row can't still show after the page has gone dark.
+final class DetailsFollowTheAppClockTests: XCTestCase {
+
+    func testUVFollowsTheMomentItIsGiven() {
+        let city = City(id: UUID(), name: "Testville", country: "Nowhere",
+                        countryCode: "AU", latitude: 0, longitude: 0)
+        let weather = CityWeather(city: city, response: TestResponse.make(isDay: 1, uvIndex: 6))
+
+        let byDay = WeatherDetails.build(for: weather, units: .metric, now: Date())
+        let afterSunset = WeatherDetails.build(for: weather, units: .metric,
+                                               now: Date().addingTimeInterval(2 * 3_600))
+
+        XCTAssertTrue(byDay.map(\.kind).contains(.uv))
+        XCTAssertFalse(afterSunset.map(\.kind).contains(.uv), "The sun set an hour before this moment")
+    }
+}

@@ -94,6 +94,7 @@ as a launch argument. `simctl ui content_size` does not reach apps.
 
 ```
 climyte/
+  climyteApp.swift         App entry, and the one clock every page reads
   ContentView.swift        Paging shell, search overlay, theme selection
   WeatherViewModel.swift   Saved cities, per-city fetch state, search
   LocationManager.swift    Current location, resolved without blocking launch
@@ -111,7 +112,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              280 tests
+climyteTests/              283 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI
@@ -139,6 +140,11 @@ Tools/
   used to stand in for the whole week and for today's high. Now only the days
   and hours still ahead are shown, and once none of its sun times cover the
   moment, day and night come from the sun's own position at the city.
+- **One clock for the page.** A `TimelineView` in `climyteApp` ticks on the
+  minute and hands its instant down as `\.now`. The theme, the sun arc, the
+  header clock, the condition words and the UV row all read it, so they turn
+  together at sunset. Each keeping its own time let the page go dark while the
+  arc still showed the sun up.
 - **The saved list is mirrored to a file** in the App Group container. The
   shared defaults domain was seen to lose the key between the app and the
   widget; the file is the widget's fallback.
