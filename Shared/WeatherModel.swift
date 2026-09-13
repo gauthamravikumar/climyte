@@ -64,6 +64,20 @@ enum WeatherCondition: String, Codable {
         }
     }
     
+    /// The SF Symbol for the condition, for the one place the app shows one:
+    /// the inline Lock Screen widget, where the whole sentence crowded the
+    /// date beside it. A clear sky after dark is the moon, not the sun.
+    func symbolName(isNight: Bool) -> String {
+        switch self {
+        case .sunny: return isNight ? "moon.stars" : "sun.max"
+        case .cloudy: return "cloud"
+        case .foggy: return "cloud.fog"
+        case .rainy: return "cloud.rain"
+        case .snowy: return "cloud.snow"
+        case .stormy: return "cloud.bolt.rain"
+        }
+    }
+
     static func from(wmoCode: Int) -> WeatherCondition {
         switch wmoCode {
         case 0, 1:
@@ -239,6 +253,11 @@ struct CityWeather: Identifiable {
     /// to come: one reading can be shown by day and again after sunset.
     func conditionDescription(at date: Date = Date()) -> String {
         condition.description(isNight: isNight(at: date))
+    }
+
+    /// The condition's symbol, for the moment it is shown. See `symbolName`.
+    func conditionSymbol(at date: Date = Date()) -> String {
+        condition.symbolName(isNight: isNight(at: date))
     }
     
     /// A formatter for the API's own date strings.

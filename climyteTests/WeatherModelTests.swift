@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import UIKit
 @testable import climyte
 
 final class WeatherModelTests: XCTestCase {
@@ -353,6 +354,43 @@ final class WeatherModelTests: XCTestCase {
         let utc = ISO8601DateFormatter()
         XCTAssertFalse(weather.isNight(at: utc.date(from: "2026-09-13T02:00:00Z")!), "Midday in Sydney")
         XCTAssertTrue(weather.isNight(at: utc.date(from: "2026-09-13T14:00:00Z")!), "Midnight in Sydney")
+    }
+
+    // MARK: - The inline widget's symbol
+
+    /// The inline Lock Screen widget shows a symbol and the temperature. A
+    /// clear sky after dark is the moon; every other condition keeps its own
+    /// symbol by day and by night.
+    func testEachConditionHasItsSymbol() {
+        XCTAssertEqual(WeatherCondition.sunny.symbolName(isNight: false), "sun.max")
+        XCTAssertEqual(WeatherCondition.sunny.symbolName(isNight: true), "moon.stars")
+        XCTAssertEqual(WeatherCondition.cloudy.symbolName(isNight: true), "cloud")
+        XCTAssertEqual(WeatherCondition.foggy.symbolName(isNight: false), "cloud.fog")
+        XCTAssertEqual(WeatherCondition.rainy.symbolName(isNight: false), "cloud.rain")
+        XCTAssertEqual(WeatherCondition.snowy.symbolName(isNight: false), "cloud.snow")
+        XCTAssertEqual(WeatherCondition.stormy.symbolName(isNight: false), "cloud.bolt.rain")
+    }
+
+    /// A misspelt symbol name draws nothing, silently. Every one must exist.
+    func testEverySymbolExists() {
+        let all: [WeatherCondition] = [.sunny, .cloudy, .foggy, .rainy, .snowy, .stormy]
+        for condition in all {
+            for night in [false, true] {
+                XCTAssertNotNil(UIImage(systemName: condition.symbolName(isNight: night)),
+                                "\(condition), night: \(night)")
+            }
+        }
+    }
+
+    /// Like the words, the symbol is for the moment the widget is drawn, so
+    /// one reading shows the sun by day and the moon after sunset.
+    func testTheSymbolFollowsTheMomentItIsShownFor() {
+        let response = makeResponse(hourOffsets: 0..<3, sunriseOffsetHours: -2,
+                                    sunsetOffsetHours: 6, isDay: 1)
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.conditionSymbol(at: Date()), "sun.max")
+        XCTAssertEqual(weather.conditionSymbol(at: Date().addingTimeInterval(7 * 3_600)), "moon.stars")
     }
 
     // MARK: - Fixtures
