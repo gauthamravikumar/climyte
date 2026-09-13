@@ -79,34 +79,38 @@ final class HorizonLightTests: XCTestCase {
     private let days = [SolarDay(sunrise: iso2("2026-06-01T06:00"),
                                  sunset: iso2("2026-06-01T20:00"))]
 
+    /// Forty degrees north, where dusk in early June runs about 32 minutes —
+    /// the fixed window these cases were written against.
+    private static let latitude = 40.0
+
     func testTheLightIsFullStrengthAndTracksTheSunByDay() {
-        let noon = SolarPosition.horizonLight(at: iso2("2026-06-01T13:00"), in: days)
+        let noon = SolarPosition.horizonLight(at: iso2("2026-06-01T13:00"), in: days, latitude: Self.latitude)
         XCTAssertEqual(noon?.intensity ?? 0, 1, accuracy: 0.001)
         XCTAssertEqual(noon?.position ?? -1, 0.5, accuracy: 0.001)
     }
 
     func testTheLightStaysInTheWestAndFadesAfterSunset() {
-        let justAfter = SolarPosition.horizonLight(at: iso2("2026-06-01T20:08"), in: days)
+        let justAfter = SolarPosition.horizonLight(at: iso2("2026-06-01T20:08"), in: days, latitude: Self.latitude)
         XCTAssertEqual(justAfter?.position ?? -1, 1, accuracy: 0.001, "It set in the west")
         XCTAssertEqual(justAfter?.intensity ?? 0, 0.75, accuracy: 0.02)
 
-        let later = SolarPosition.horizonLight(at: iso2("2026-06-01T20:24"), in: days)
+        let later = SolarPosition.horizonLight(at: iso2("2026-06-01T20:24"), in: days, latitude: Self.latitude)
         XCTAssertLessThan(later?.intensity ?? 1, justAfter?.intensity ?? 0)
     }
 
     func testTheLightGathersInTheEastBeforeSunrise() {
-        let beforeDawn = SolarPosition.horizonLight(at: iso2("2026-06-01T05:44"), in: days)
+        let beforeDawn = SolarPosition.horizonLight(at: iso2("2026-06-01T05:44"), in: days, latitude: Self.latitude)
         XCTAssertEqual(beforeDawn?.position ?? -1, 0, accuracy: 0.001)
         XCTAssertGreaterThan(beforeDawn?.intensity ?? 0, 0)
     }
 
     func testThereIsNoLightInTheMiddleOfTheNight() {
-        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T02:00"), in: days))
-        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T21:30"), in: days))
+        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T02:00"), in: days, latitude: Self.latitude))
+        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T21:30"), in: days, latitude: Self.latitude))
     }
 
     func testNoSunTimesMeansNoLightRatherThanACrash() {
-        XCTAssertNil(SolarPosition.horizonLight(at: Date(), in: []))
+        XCTAssertNil(SolarPosition.horizonLight(at: Date(), in: [], latitude: Self.latitude))
     }
 }
 
@@ -117,4 +121,79 @@ private func iso2(_ string: String) -> Date {
     f.dateFormat = "yyyy-MM-dd'T'HH:mm"
     f.timeZone = TimeZone(secondsFromGMT: 0)
     return f.date(from: string)!
+}
+
+/// Dusk lasts as long as the sun takes to sink six degrees below the horizon,
+/// and that depends on how steeply it sets: nearly straight down at the
+/// equator, on a long slant towards the poles. A fixed half hour was right
+/// only in between.
+@MainActor
+final class CivilTwilightTests: XCTestCase {
+
+    private func minutes(_ latitude: Double, _ day: String) -> Double? {
+        SolarPosition.civilTwilight(latitude: latitude, on: iso2("\(day)T12:00")).map { $0 / 60 }
+    }
+
+    func testDuskIsShortAtTheEquator() {
+        XCTAssertEqual(minutes(1.35, "2026-09-13") ?? 0, 21, accuracy: 1.5, "Singapore")
+    }
+
+    func testDuskLengthensTowardThePoles() {
+        XCTAssertEqual(minutes(51.5, "2026-09-13") ?? 0, 34, accuracy: 1.5, "London in September")
+        XCTAssertEqual(minutes(51.5, "2026-06-21") ?? 0, 48, accuracy: 2, "London in June")
+        XCTAssertEqual(minutes(59.9, "2026-06-21") ?? 0, 104, accuracy: 6, "Oslo in June")
+    }
+
+    func testTheLongDusksAreInTheSouthernSummer() {
+        XCTAssertEqual(minutes(-37.8, "2026-12-21") ?? 0, 31, accuracy: 1.5, "Melbourne in December")
+        XCTAssertEqual(minutes(-37.8, "2026-09-13") ?? 0, 26, accuracy: 1.5, "Melbourne in September")
+    }
+
+    /// Reykjavík in June: the sun never gets six degrees down, so dusk runs
+    /// straight into dawn and there is no end to count to.
+    func testANightThatNeverGetsDarkHasNoEndToDusk() {
+        XCTAssertNil(minutes(64.15, "2026-06-21"))
+    }
+}
+
+/// The glow now lasts as long as the city's own dusk.
+@MainActor
+final class DuskByLatitudeTests: XCTestCase {
+
+    private let june = [SolarDay(sunrise: iso2("2026-06-21T05:00"), sunset: iso2("2026-06-21T21:00")),
+                        SolarDay(sunrise: iso2("2026-06-22T05:00"), sunset: iso2("2026-06-22T21:00"))]
+
+    func testTheEquatorsGlowIsGoneBeforeHalfAnHour() {
+        // 26 minutes after sunset: past the equator's dusk of about 23.
+        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-21T21:26"), in: june, latitude: 1.35))
+    }
+
+    func testLondonsSummerGlowOutlastsHalfAnHour() {
+        // 40 minutes after sunset: London's June dusk runs about 48.
+        let light = SolarPosition.horizonLight(at: iso2("2026-06-21T21:40"), in: june, latitude: 51.5)
+        XCTAssertNotNil(light)
+        XCTAssertEqual(light?.position ?? -1, 1, accuracy: 0.001, "Still in the west")
+    }
+
+    /// Before dawn the light gathers in the east against that morning's own
+    /// sunrise — not the previous day's, which has already passed and left
+    /// every dawn after the first without a glow.
+    func testTheGlowGathersBeforeTheSecondMorningsSunrise() {
+        let beforeDawn = SolarPosition.horizonLight(at: iso2("2026-06-22T04:45"), in: june, latitude: 40)
+        XCTAssertEqual(beforeDawn?.position ?? -1, 0, accuracy: 0.001)
+        XCTAssertGreaterThan(beforeDawn?.intensity ?? 0, 0)
+    }
+
+    /// A night that never gets dark keeps its glow. It drifts from west to
+    /// east across the night and dims only as far as the sun actually sinks —
+    /// in Reykjavík in June, to about seven tenths at the darkest point.
+    func testANightThatNeverGetsDarkKeepsItsGlowAllNight() {
+        let deepest = SolarPosition.horizonLight(at: iso2("2026-06-22T01:00"), in: june, latitude: 64.15)
+        XCTAssertEqual(deepest?.position ?? -1, 0.5, accuracy: 0.01)
+        XCTAssertEqual(deepest?.intensity ?? 0, 0.7, accuracy: 0.05)
+
+        let evening = SolarPosition.horizonLight(at: iso2("2026-06-21T22:00"), in: june, latitude: 64.15)
+        XCTAssertGreaterThan(evening?.position ?? 0, deepest?.position ?? 1)
+        XCTAssertGreaterThan(evening?.intensity ?? 0, deepest?.intensity ?? 1)
+    }
 }

@@ -16,11 +16,17 @@ struct HorizonGlow: View {
     let weather: CityWeather?
     let theme: WeatherTheme
 
+    /// A moment to draw instead of now: for previews, and for rendering the
+    /// glow at a chosen dusk to judge how it looks. Nil in the app.
+    var fixedDate: Date? = nil
+
     var body: some View {
         TimelineView(.everyMinute) { context in
+            let now = fixedDate ?? context.date
             let days = weather?.solarDays ?? []
-            let light = SolarPosition.horizonLight(at: context.date, in: days)
-            let elevation = SolarPosition.elevation(at: context.date, in: days)
+            let light = SolarPosition.horizonLight(at: now, in: days,
+                                                   latitude: weather?.city.latitude ?? 0)
+            let elevation = SolarPosition.elevation(at: now, in: days)
 
             GeometryReader { geometry in
                 ZStack(alignment: .bottom) {
