@@ -117,23 +117,6 @@ final class FormattingTests: XCTestCase {
         XCTAssertEqual(WeatherDetails.uvIndex(0), "0 Low")
     }
 
-    // MARK: - Wind
-
-    func testWindDescriptionCoversTheBeaufortBands() {
-        func description(_ speed: Double) -> String {
-            String(localized: WeatherDetails.windDescription(speed))
-        }
-
-        XCTAssertEqual(description(0), "Light air")
-        XCTAssertEqual(description(4.9), "Light air")
-        XCTAssertEqual(description(5), "Light breeze")
-        XCTAssertEqual(description(19.9), "Gentle breeze")
-        XCTAssertEqual(description(20), "Moderate breeze")
-        XCTAssertEqual(description(49.9), "Strong breeze")
-        XCTAssertEqual(description(50), "High wind")
-        XCTAssertEqual(description(120), "High wind")
-    }
-
     // MARK: - Condition summary
 
     func testSummaryOmitsApparentTemperatureWhenItMatches() {
@@ -195,8 +178,8 @@ final class FormattingTests: XCTestCase {
     func testLocalTimeReflectsTheCitysOffsetRatherThanTheDevices() {
         let instant = Date(timeIntervalSince1970: 1_753_440_000)
 
-        let sydney = CurrentConditionsView.localTime(at: instant, utcOffsetSeconds: 36000)
-        let london = CurrentConditionsView.localTime(at: instant, utcOffsetSeconds: 3600)
+        let sydney = CurrentConditionsView.localTime(at: instant, in: TimeZone(secondsFromGMT: 36000)!)
+        let london = CurrentConditionsView.localTime(at: instant, in: TimeZone(secondsFromGMT: 3600)!)
 
         XCTAssertNotEqual(sydney, london, "Same instant in different zones should render differently")
     }
@@ -206,18 +189,9 @@ final class FormattingTests: XCTestCase {
         let anHourLater = instant.addingTimeInterval(3600)
 
         XCTAssertNotEqual(
-            CurrentConditionsView.localTime(at: instant, utcOffsetSeconds: 0),
-            CurrentConditionsView.localTime(at: anHourLater, utcOffsetSeconds: 0)
+            CurrentConditionsView.localTime(at: instant, in: TimeZone(secondsFromGMT: 0)!),
+            CurrentConditionsView.localTime(at: anHourLater, in: TimeZone(secondsFromGMT: 0)!)
         )
-    }
-
-    func testLocalTimeFallsBackToDeviceZoneForAbsurdOffsets() {
-        let instant = Date(timeIntervalSince1970: 1_753_440_000)
-
-        // TimeZone(secondsFromGMT:) returns nil beyond ±18h; must not crash.
-        let result = CurrentConditionsView.localTime(at: instant, utcOffsetSeconds: 999_999)
-
-        XCTAssertFalse(result.isEmpty)
     }
 }
 
@@ -299,5 +273,62 @@ final class CityNameStripFadeTests: XCTestCase {
         let fits = fade(offset: 0, content: 300)
         XCTAssertEqual(fits.leading, 0)
         XCTAssertEqual(fits.trailing, 0)
+    }
+}
+
+/// When the page says how old its readings are. After a failed refresh, as
+/// ever — and now also whenever they are old enough to be called stale, so a
+/// forecast saved days ago never passes for today's. Not while a refresh is
+/// on its way, though: that would flash the notice for a second on every
+/// launch after a few hours away.
+final class StaleNoticeTests: XCTestCase {
+
+    private let now = Date(timeIntervalSince1970: 1_788_960_000)
+
+    private func shown(error: String? = nil, hoursOld: Double?, refreshing: Bool = false) -> Bool {
+        StaleDataNotice.isShown(errorMessage: error,
+                                fetchedAt: hoursOld.map { now.addingTimeInterval(-$0 * 3_600) },
+                                isRefreshing: refreshing, now: now)
+    }
+
+    func testAFailedRefreshAlwaysSaysSo() {
+        XCTAssertTrue(shown(error: "No internet connection.", hoursOld: 0.5))
+    }
+
+    func testAStaleReadingSaysHowOldItIs() {
+        XCTAssertTrue(shown(hoursOld: 240))
+        XCTAssertTrue(shown(hoursOld: 4))
+    }
+
+    func testAFreshReadingSaysNothing() {
+        XCTAssertFalse(shown(hoursOld: 1))
+        XCTAssertFalse(shown(hoursOld: nil))
+    }
+
+    func testNothingFlashesWhileARefreshIsOnItsWay() {
+        XCTAssertFalse(shown(hoursOld: 240, refreshing: true))
+    }
+
+    /// With no error there is no message to lead with, so the notice is the
+    /// age alone rather than an age after a stray space.
+    func testTheAgeStandsAloneWithoutAnError() {
+        let notice = StaleDataNotice.fullMessage(message: "", fetchedAt: now.addingTimeInterval(-240 * 3_600), now: now)
+        XCTAssertEqual(notice, "Showing readings from 10d ago.")
+    }
+}
+
+/// The location arrow is hidden from VoiceOver in the city strip, as it is in
+/// the saved list, so the words have to say which city is the located one.
+/// The saved list already did; the strip read only the name, so the located
+/// city and a saved city of the same name sounded identical there.
+final class SpokenCityNameTests: XCTestCase {
+
+    func testTheLocatedCityIsSaidToBeTheCurrentLocation() {
+        XCTAssertEqual(CityNameStrip.spokenName("Melbourne", isCurrentLocation: true),
+                       "Melbourne, current location")
+    }
+
+    func testASavedCityIsJustItsName() {
+        XCTAssertEqual(CityNameStrip.spokenName("Singapore", isCurrentLocation: false), "Singapore")
     }
 }

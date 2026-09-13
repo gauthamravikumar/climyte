@@ -11,13 +11,18 @@ looking at — not the system appearance.
 - **Swipe between saved cities.** One page each; the theme follows the visible
   page, so swiping from a daytime city to a night-time one inverts the app. The
   page indicator is set in type rather than dots — it names what's either side
-  of you, and you can tap a name to jump straight there.
+  of you, and you can tap a name to jump straight there. Names that run off
+  either edge fade out rather than being cut mid-word.
 - **Current location** is resolved on launch but never blocks the first render —
   saved cities paint immediately from cache. A newly located city goes first; one
   you had already saved keeps its place.
+- **Search** finds any city by name. Places that share a name and a state — two
+  Oslos in Minnesota — are told apart by county.
 - **Works offline.** The last successful fetch for every saved city is cached,
-  so a cold launch shows real data rather than a spinner, and a failed refresh
-  says how old the readings on screen are.
+  so a cold launch shows real data rather than a spinner. Once readings are more
+  than a few hours old the page says how old they are, and a saved forecast
+  whose days have passed shows only what is still true — the reading, not last
+  week's forecast.
 - **Each city in its own units**, derived from the city's ISO country code: a
   US city shows Fahrenheit, miles per hour and miles; a UK city Celsius with
   miles per hour and miles; everywhere else metric. There is no global setting
@@ -26,15 +31,21 @@ looking at — not the system appearance.
   only what is worth saying: rain when it is likely, UV in daylight above the
   protection threshold, visibility when it is actually poor, gusts when they
   exceed the average. A wet afternoon shows more rows than a still, clear night.
+  Words follow the city's own day: a clear sky after dark reads *Clear*, not
+  *Sunny*.
 - **Rain, looking ahead.** The Rain row describes the next 24 hours, never rain
   that has already fallen — `92% · 3.7 mm from 7 am tomorrow`. A low chance
   still gets a mention when a millimetre or more is expected. When rain is due
   in the next two hours, a strip of quarter-hour bars sits beneath the row with
   when it starts and how much.
 - **Widgets.** A small Home Screen widget, and circular, rectangular and inline
-  Lock Screen widgets, each showing a saved city of your choice.
+  Lock Screen widgets, each showing a saved city of your choice. The inline one
+  sits beside the date as a symbol and the temperature — `☾ 18°` — the only
+  weather icon in the app.
 - **Large text reflows** rather than truncates: the header stacks, the city strip
   keeps a whole name in view, and the rain bars give way to a sentence.
+  VoiceOver hears every row in full words, and which city is your current
+  location.
 
 ## Weather data
 
@@ -92,6 +103,7 @@ Shared/                    Compiled into both the app and the widget
   WeatherService.swift     Networking and error mapping
   RainOutlook.swift        The next two hours and the next 24 hours of rain
   WeatherDetail.swift      Which detail rows to show, and what they say
+  SolarPosition.swift      The sun arc, and day or night once a forecast runs out
   CityEntry.swift          Per-city state, and stable identity for a City
   SavedCities.swift        The saved list, shared with the widget
   WeatherCache.swift       On-disk cache of the last fetch per city
@@ -99,7 +111,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              257 tests
+climyteTests/              280 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI
@@ -123,6 +135,10 @@ Tools/
 - **Rain reads the next 24 hours, not the calendar day.** The day's own figures
   run midnight to midnight, so by the afternoon they described rain that had
   already fallen. The Rain row and the widgets read the hourly forecast instead.
+- **An old forecast claims nothing about today.** A saved forecast's last day
+  used to stand in for the whole week and for today's high. Now only the days
+  and hours still ahead are shown, and once none of its sun times cover the
+  moment, day and night come from the sun's own position at the city.
 - **The saved list is mirrored to a file** in the App Group container. The
   shared defaults domain was seen to lose the key between the app and the
   widget; the file is the widget's fallback.

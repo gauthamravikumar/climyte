@@ -99,7 +99,6 @@ final class WeatherDetailsTests: XCTestCase {
         let hourly = HourlyWeatherResponse(
             time: offsets.map { stamp.string(from: hourStart.addingTimeInterval(TimeInterval($0 * 3_600))) },
             temperature_2m: offsets.map { _ in nil },
-            weather_code: offsets.map { _ in nil },
             precipitation: offsets.map { $0 < -5 ? 0.3 : 0 },
             precipitation_probability: offsets.map { $0 < -5 ? 76 : 0 }
         )

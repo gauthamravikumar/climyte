@@ -10,7 +10,6 @@
 		<string>Manrope-Medium.ttf</string>
 		<string>Manrope-SemiBold.ttf</string>
 		<string>Manrope-Bold.ttf</string>
-		<string>Manrope-ExtraBold.ttf</string>
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Climyte uses your location to show weather for your current area.</string>

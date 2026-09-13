@@ -37,11 +37,14 @@ struct CityPageView: View {
                 .scaleEffect(1.5)
                 .padding(.top, 80)
         } else if let weather = entry.weather {
-            // A refresh can fail while cached data is still on screen — say so,
-            // and say how old what they're looking at is.
-            if let message = entry.errorMessage {
+            // A refresh can fail while cached data is still on screen, and a
+            // saved forecast can be days old — say so, and say how old what
+            // they're looking at is.
+            if StaleDataNotice.isShown(errorMessage: entry.errorMessage,
+                                       fetchedAt: entry.lastUpdated,
+                                       isRefreshing: entry.isLoading) {
                 StaleDataNotice(
-                    message: message,
+                    message: entry.errorMessage ?? "",
                     fetchedAt: entry.lastUpdated,
                     theme: theme
                 )
@@ -83,11 +86,21 @@ struct CityPageView: View {
                 isUsingCurrentLocation: entry.isCurrentLocation
             )
 
-            HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
+            // A saved forecast old enough for its hours and days to have
+            // passed has nothing left for these to show. A heading over
+            // nothing, or last Tuesday standing in for the week, is worse
+            // than no section at all.
+            if !weather.hourlyForecasts.isEmpty {
+                HourlyForecastView(hours: weather.hourlyForecasts, theme: theme)
+            }
 
-            SunArcView(weather: weather, theme: theme)
+            if weather.coversToday {
+                SunArcView(weather: weather, theme: theme)
+            }
 
-            DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
+            if !weather.dailyForecasts.isEmpty {
+                DailyForecastView(forecasts: weather.dailyForecasts, theme: theme)
+            }
 
             WeatherDetailsView(weather: weather, theme: theme)
 

@@ -64,6 +64,20 @@ enum WeatherCondition: String, Codable {
         }
     }
     
+    /// The SF Symbol for the condition, for the one place the app shows one:
+    /// the inline Lock Screen widget, where the whole sentence crowded the
+    /// date beside it. A clear sky after dark is the moon, not the sun.
+    func symbolName(isNight: Bool) -> String {
+        switch self {
+        case .sunny: return isNight ? "moon.stars" : "sun.max"
+        case .cloudy: return "cloud"
+        case .foggy: return "cloud.fog"
+        case .rainy: return "cloud.rain"
+        case .snowy: return "cloud.snow"
+        case .stormy: return "cloud.bolt.rain"
+        }
+    }
+
     static func from(wmoCode: Int) -> WeatherCondition {
         switch wmoCode {
         case 0, 1:
@@ -131,7 +145,6 @@ struct CityWeather: Identifiable {
     let feelsLike: Double
     let condition: WeatherCondition
     let hourlyForecasts: [HourlyForecast]
-    let utcOffsetSeconds: Int
 
     /// The city's actual time zone.
     ///
@@ -157,8 +170,16 @@ struct CityWeather: Identifiable {
     /// produced them and has to ask whether it is night *then*, not now.
     let solarDays: [SolarDay]
     let dailyForecasts: [DailyForecast]
-    let maxTemp: Double
-    let minTemp: Double
+    /// Today's high and low. Nil when today is not in the forecast — one
+    /// saved long enough ago that its days have passed — rather than another
+    /// day's figures shown as today's.
+    let maxTemp: Double?
+    let minTemp: Double?
+
+    /// Whether the forecast has an entry for today at all. A saved one whose
+    /// days have all passed does not, and nothing on the page should claim to
+    /// be today's then.
+    let coversToday: Bool
     let humidity: Int
     let windSpeed: Double
     let uvIndex: Double
@@ -214,6 +235,14 @@ struct CityWeather: Identifiable {
         guard let day = solarDays.last(where: { $0.sunrise <= date }) else {
             return true
         }
+
+        // A day or more past the last sunrise the forecast has, its sun times
+        // no longer describe `date`: a saved forecast whose days have all
+        // passed would otherwise judge today against a sunset a week gone and
+        // keep the page dark all day. The sun itself decides instead.
+        guard date.timeIntervalSince(day.sunrise) < 86_400 else {
+            return !SolarPosition.isSunUp(at: date, latitude: city.latitude, longitude: city.longitude)
+        }
         return date > day.sunset
     }
 
@@ -223,6 +252,11 @@ struct CityWeather: Identifiable {
     /// to come: one reading can be shown by day and again after sunset.
     func conditionDescription(at date: Date = Date()) -> String {
         condition.description(isNight: isNight(at: date))
+    }
+
+    /// The condition's symbol, for the moment it is shown. See `symbolName`.
+    func conditionSymbol(at date: Date = Date()) -> String {
+        condition.symbolName(isNight: isNight(at: date))
     }
     
     /// A formatter for the API's own date strings.
@@ -250,7 +284,6 @@ struct CityWeather: Identifiable {
         self.temperature = response.current.temperature_2m
         self.feelsLike = response.current.apparent_temperature
         self.condition = WeatherCondition.from(wmoCode: response.current.weather_code)
-        self.utcOffsetSeconds = response.utc_offset_seconds
         
         let cityTimeZone = response.timezone.flatMap(TimeZone.init(identifier:))
             ?? TimeZone(secondsFromGMT: response.utc_offset_seconds)
@@ -288,22 +321,27 @@ struct CityWeather: Identifiable {
         // index 0 would silently render yesterday as today, which looks
         // entirely plausible and is wrong.
         let todayKey = dateParser.string(from: Date())
+        // Today's own entry and nothing else. A saved forecast old enough for
+        // its days to have passed has no today, and taking another day's high,
+        // UV or daylight instead put figures on screen that looked right and
+        // were not today's.
         let todayIndex = response.daily.time.firstIndex(of: todayKey)
-            ?? response.daily.time.firstIndex { $0 >= todayKey }
-            ?? max(response.daily.time.count - 1, 0)
+
+        // The week starts at the first day not yet over; days already gone
+        // are not a forecast.
+        let firstDayAhead = response.daily.time.firstIndex { $0 >= todayKey } ?? response.daily.time.count
 
         var dailyList: [DailyForecast] = []
-        let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
+        let dailyCount = min(response.daily.time.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
         
-        // Clamped: mismatched array lengths can put todayIndex past dailyCount,
-        // and `todayIndex..<dailyCount` traps when the range is reversed.
-        for i in min(todayIndex, dailyCount)..<dailyCount {
+        // Clamped: mismatched array lengths can put firstDayAhead past
+        // dailyCount, and `firstDayAhead..<dailyCount` traps when reversed.
+        for i in min(firstDayAhead, dailyCount)..<dailyCount {
             let dateStr = response.daily.time[i]
 
             // Drop a day the API has no readings for rather than charting a
             // zero, which would put a false trough in the week's ribbon.
-            guard let code: Int = response.daily.weather_code.value(at: i),
-                  let low: Double = response.daily.temperature_2m_min.value(at: i),
+            guard let low: Double = response.daily.temperature_2m_min.value(at: i),
                   let high: Double = response.daily.temperature_2m_max.value(at: i) else { continue }
 
             var dayLabel = dateStr
@@ -316,15 +354,15 @@ struct CityWeather: Identifiable {
             let forecast = DailyForecast(
                 id: dateStr,
                 day: dayLabel,
-                condition: WeatherCondition.from(wmoCode: code),
                 minTemp: low,
                 maxTemp: high
             )
             dailyList.append(forecast)
         }
         self.dailyForecasts = dailyList
-        self.maxTemp = response.daily.temperature_2m_max.value(at: todayIndex) ?? response.current.temperature_2m
-        self.minTemp = response.daily.temperature_2m_min.value(at: todayIndex) ?? response.current.temperature_2m
+        self.maxTemp = todayIndex.flatMap { response.daily.temperature_2m_max.value(at: $0) }
+        self.minTemp = todayIndex.flatMap { response.daily.temperature_2m_min.value(at: $0) }
+        self.coversToday = todayIndex != nil
         
         self.humidity = response.current.relative_humidity_2m.toInt(.towardZero)
         self.dewPoint = response.current.dew_point_2m
@@ -338,9 +376,9 @@ struct CityWeather: Identifiable {
             now: Date()
         )
 
-        let daylightToday: Double? = response.daily.daylight_duration.value(at: todayIndex)
+        let daylightToday: Double? = todayIndex.flatMap { response.daily.daylight_duration.value(at: $0) }
         self.daylightSeconds = daylightToday
-        if let daylightToday,
+        if let daylightToday, let todayIndex,
            todayIndex > 0,
            let yesterday: Double = response.daily.daylight_duration.value(at: todayIndex - 1) {
             self.daylightChangeSeconds = daylightToday - yesterday
@@ -348,7 +386,7 @@ struct CityWeather: Identifiable {
             self.daylightChangeSeconds = nil
         }
         self.windSpeed = response.current.wind_speed_10m
-        self.uvIndex = response.daily.uv_index_max.value(at: todayIndex) ?? 0.0
+        self.uvIndex = todayIndex.flatMap { response.daily.uv_index_max.value(at: $0) } ?? 0.0
         self.visibility = response.current.visibility / 1000.0
         
         // `.shortened` rather than a hardcoded "h:mm a": the header clock in
@@ -357,14 +395,14 @@ struct CityWeather: Identifiable {
         // different clocks.
         let sunTimeStyle = Date.FormatStyle(date: .omitted, time: .shortened, timeZone: cityTimeZone)
         
-        if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
+        if let todayIndex, let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
            let sunriseDate = isoFormatter.date(from: sunriseStr) {
             self.sunriseFormatted = sunriseDate.formatted(sunTimeStyle).lowercased()
         } else {
             self.sunriseFormatted = "--"
         }
         
-        if let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
+        if let todayIndex, let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.sunsetFormatted = sunsetDate.formatted(sunTimeStyle).lowercased()
         } else {
@@ -387,7 +425,7 @@ struct CityWeather: Identifiable {
         
         var hourlyList: [HourlyForecast] = []
         let currentEpoch = Date().timeIntervalSince1970
-        let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count, response.hourly.weather_code.count)
+        let hourCount = min(response.hourly.time.count, response.hourly.temperature_2m.count)
         var parsedHours = 0
         
         for i in 0..<hourCount {
@@ -400,13 +438,11 @@ struct CityWeather: Identifiable {
                 if date.timeIntervalSince1970 >= currentEpoch - 3600 {
                     // A null hour is skipped, not fatal: the rest of the day
                     // is still worth showing.
-                    guard let temperature: Double = response.hourly.temperature_2m.value(at: i),
-                          let code: Int = response.hourly.weather_code.value(at: i) else { continue }
+                    guard let temperature: Double = response.hourly.temperature_2m.value(at: i) else { continue }
 
                     let forecast = HourlyForecast(
                         id: timeString,
                         time: date.formatted(hourStyle).lowercased(),
-                        condition: WeatherCondition.from(wmoCode: code),
                         temperature: temperature
                     )
                     hourlyList.append(forecast)
@@ -424,14 +460,12 @@ struct CityWeather: Identifiable {
 struct HourlyForecast: Identifiable {
     let id: String   // e.g. "2026-07-25T23:00"
     let time: String // e.g. "11 pm"
-    let condition: WeatherCondition
     let temperature: Double
 }
 
 struct DailyForecast: Identifiable {
     let id: String  // e.g. "2026-07-25"
     let day: String // e.g. "Today", "Wed"
-    let condition: WeatherCondition
     let minTemp: Double
     let maxTemp: Double
 }
@@ -505,7 +539,6 @@ nonisolated struct HourlyWeatherResponse: Codable {
     /// single missing hour cost the reader the entire city — temperature,
     /// forecast and all — reported as "Couldn't read the weather data".
     let temperature_2m: [Double?]
-    let weather_code: [Int?]
 
     /// Hourly rain and its chance, for the Rain row's next 24 hours. `var` with
     /// a nil default, which buys two things: a response cached before these
@@ -522,15 +555,11 @@ nonisolated struct DailyWeatherResponse: Codable {
     /// horizon of the model backing it, and a single null in a non-optional
     /// array fails the entire decode — blanking the city rather than the one
     /// day that is missing.
-    let weather_code: [Int?]
     let temperature_2m_max: [Double?]
     let temperature_2m_min: [Double?]
     let sunrise: [String?]
     let sunset: [String?]
     let uv_index_max: [Double?]
-    let precipitation_probability_max: [Int?]
-    let precipitation_sum: [Double?]
-    let precipitation_hours: [Double?]
     let daylight_duration: [Double?]
 }
 
@@ -540,10 +569,6 @@ struct WeatherTheme {
     let secondaryText: Color
     let dividerColor: Color
 
-    /// Which side of the inversion this is. The horizon light needs it: the
-    /// same glow that reads as light on near-black reads as a stain on white.
-    var isNight: Bool = false
-    
     /// Secondary text is a different grey in each theme, on purpose.
     ///
     /// One value cannot serve both: #727272 was picked against white, where it
@@ -558,8 +583,7 @@ struct WeatherTheme {
                 background: Color(hex: "0E0F13"),
                 primaryText: Color(hex: "F2F2F0"),
                 secondaryText: Color(hex: "808080"),
-                dividerColor: Color(hex: "F2F2F0").opacity(0.12),
-                isNight: true
+                dividerColor: Color(hex: "F2F2F0").opacity(0.12)
             )
         } else {
             return WeatherTheme(

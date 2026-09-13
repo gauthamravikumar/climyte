@@ -118,9 +118,8 @@ struct SavedCitiesView: View {
         // The arrow is hidden from VoiceOver and the row combines its
         // children, so without this the located entry and a saved city of the
         // same name are indistinguishable when read aloud.
-        .accessibilityLabel(entry.isCurrentLocation
-                            ? Text("\(entry.city.name), current location")
-                            : Text(entry.city.name))
+        .accessibilityLabel(CityNameStrip.spokenName(entry.city.name,
+                                                     isCurrentLocation: entry.isCurrentLocation))
         .accessibilityAddTraits(entry.id == selectedKey ? [.isSelected, .isButton] : .isButton)
         // Swipe-to-delete is the only way to remove a city, and combining the
         // row's children can swallow the action the list would otherwise

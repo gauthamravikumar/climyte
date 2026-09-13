@@ -7,10 +7,10 @@ import Foundation
 
 /// Where the sun is in the city's own day.
 ///
-/// Drives both the arc and the light on the background, so the two can never
-/// disagree about where the sun is. Kept out of the views because it is the
-/// kind of arithmetic that is wrong quietly — an off-by-one at midnight puts
-/// the light on the wrong side of the screen and nothing crashes.
+/// Drives the sun arc, and decides day from night when a forecast's own sun
+/// times have run out. Kept out of the views because it is the kind of
+/// arithmetic that is wrong quietly — an off-by-one at midnight puts the sun
+/// on the wrong side of the arc and nothing crashes.
 nonisolated enum SolarPosition {
 
     /// How far from sunrise to sunset, 0 to 1. Nil while the sun is down.
@@ -23,17 +23,6 @@ nonisolated enum SolarPosition {
         return date.timeIntervalSince(day.sunrise) / span
     }
 
-    /// How high the sun is, 0 at either horizon and 1 at the middle of the
-    /// day. Zero whenever it is down.
-    ///
-    /// Not true astronomical elevation — a parabola through the day is close
-    /// enough for deciding how warm and how strong the light should be, and it
-    /// needs no location beyond the sun times we already have.
-    static func elevation(at date: Date, in days: [SolarDay]) -> Double {
-        guard let progress = daylightProgress(at: date, in: days) else { return 0 }
-        return 1 - abs(progress - 0.5) * 2
-    }
-
     /// Daylight still to come, or nil once the sun is down.
     static func remainingDaylight(at date: Date, in days: [SolarDay]) -> TimeInterval? {
         guard let day = day(containing: date, in: days),
@@ -41,34 +30,45 @@ nonisolated enum SolarPosition {
         return day.sunset.timeIntervalSince(date)
     }
 
-    /// How long the horizon keeps its warm band after the sun has gone.
+    /// Whether the sun is above the horizon here at `date`, from the sun itself
+    /// rather than from a forecast's sun times.
     ///
-    /// Roughly civil twilight. It matters because the theme inverts the moment
-    /// the sun sets: without this the screen would go dark and the light would
-    /// vanish in the same instant, which is not what dusk looks like and not
-    /// what the design is for.
-    static let twilight: TimeInterval = 32 * 60
+    /// Those cover only the forecast's own days. A saved forecast old enough
+    /// for every one of them to have passed left the page judging today
+    /// against a sunset a week gone, and dark all day. This needs nothing but
+    /// where the city is.
+    static func isSunUp(at date: Date, latitude: Double, longitude: Double) -> Bool {
+        altitude(at: date, latitude: latitude, longitude: longitude) > -0.833
+    }
 
-    /// Where the light on the horizon is, and how strong, from 0 to 1 across
-    /// the width of the screen. Nil in the middle of the night.
-    static func horizonLight(at date: Date, in days: [SolarDay]) -> (position: Double, intensity: Double)? {
-        if let progress = daylightProgress(at: date, in: days) {
-            return (progress, 1)
-        }
-        guard let day = day(containing: date, in: days) else { return nil }
+    /// The sun's height above the horizon in degrees, by NOAA's method: the
+    /// equation of time and the declination for the moment, then the hour
+    /// angle from true solar time. Good to a fraction of a degree, which is a
+    /// minute or two either side of sunrise and sunset.
+    private static func altitude(at date: Date, latitude: Double, longitude: Double) -> Double {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = Double(calendar.ordinality(of: .day, in: .year, for: date) ?? 1)
+        let minutes = date.timeIntervalSince(calendar.startOfDay(for: date)) / 60
+        let g = 2 * .pi / 365 * (day - 1 + (minutes / 60 - 12) / 24)
 
-        // Just past sunset: the light stays in the west and fades.
-        let sinceSunset = date.timeIntervalSince(day.sunset)
-        if sinceSunset >= 0, sinceSunset < twilight {
-            return (1, 1 - sinceSunset / twilight)
-        }
+        let equationOfTime = 229.18 * (0.000075 + 0.001868 * cos(g) - 0.032077 * sin(g)
+                                       - 0.014615 * cos(2 * g) - 0.040849 * sin(2 * g))
+        let hourAngle = ((minutes + equationOfTime + 4 * longitude) / 4 - 180) * .pi / 180
 
-        // Just before sunrise: it gathers in the east.
-        let untilSunrise = day.sunrise.timeIntervalSince(date)
-        if untilSunrise > 0, untilSunrise < twilight {
-            return (0, 1 - untilSunrise / twilight)
-        }
-        return nil
+        let phi = latitude * .pi / 180
+        let delta = declination(fractionalYear: g)
+        let cosZenith = sin(phi) * sin(delta) + cos(phi) * cos(delta) * cos(hourAngle)
+        return 90 - acos(min(max(cosZenith, -1), 1)) * 180 / .pi
+    }
+
+    /// How far north or south of the equator the sun stands, in radians, at a
+    /// point in the year given as an angle. Spencer's series: good to a few
+    /// hundredths of a degree.
+    private static func declination(fractionalYear g: Double) -> Double {
+        0.006918 - 0.399912 * cos(g) + 0.070257 * sin(g)
+            - 0.006758 * cos(2 * g) + 0.000907 * sin(2 * g)
+            - 0.002697 * cos(3 * g) + 0.00148 * sin(3 * g)
     }
 
     /// The day `date` falls in, so an evening and the following morning are

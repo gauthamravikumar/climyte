@@ -268,19 +268,6 @@ enum WeatherDetails {
         return "\(value.toInt()) \(category)"
     }
 
-    /// Beaufort-style description of the wind speed, in km/h.
-    nonisolated static func windDescription(_ speed: Double) -> LocalizedStringResource {
-        switch speed {
-        case ..<5: return "Light air"
-        case 5..<12: return "Light breeze"
-        case 12..<20: return "Gentle breeze"
-        case 20..<29: return "Moderate breeze"
-        case 29..<39: return "Fresh breeze"
-        case 39..<50: return "Strong breeze"
-        default: return "High wind"
-        }
-    }
-
     /// "4, Moderate" rather than "4 Mod", which VoiceOver reads as "mod".
     nonisolated static func uvIndexSpoken(_ value: Double) -> String {
         let category: String

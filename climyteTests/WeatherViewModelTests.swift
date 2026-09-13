@@ -841,12 +841,11 @@ final class WeatherViewModelTests: XCTestCase {
                 wind_gusts_10m: 14.0,
                 visibility: 10000.0
             ),
-            hourly: HourlyWeatherResponse(time: [], temperature_2m: [], weather_code: []),
+            hourly: HourlyWeatherResponse(time: [], temperature_2m: []),
             daily: DailyWeatherResponse(
-                time: [], weather_code: [], temperature_2m_max: [],
+                time: [], temperature_2m_max: [],
                 temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: [],
-                precipitation_probability_max: [], precipitation_sum: [],
-                precipitation_hours: [], daylight_duration: []
+                daylight_duration: []
             )
         )
     }

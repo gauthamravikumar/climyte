@@ -67,7 +67,7 @@ struct StaleDataNotice: View {
                 .font(.system(size: noticeIcon))
                 .accessibilityHidden(true)
 
-            Text(fullMessage)
+            Text(displayedMessage)
                 .font(.inlineNotice)
 
             Spacer()
@@ -78,9 +78,30 @@ struct StaleDataNotice: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var fullMessage: String {
+    private var displayedMessage: String {
+        Self.fullMessage(message: message, fetchedAt: fetchedAt)
+    }
+
+    /// The message, then how old the readings are. With no error to lead
+    /// with, the age stands alone.
+    static func fullMessage(message: String, fetchedAt: Date?, now: Date = Date()) -> String {
         guard let fetchedAt else { return message }
-        return "\(message) \(Self.age(of: fetchedAt))"
+        let age = age(of: fetchedAt, relativeTo: now)
+        return message.isEmpty ? age : "\(message) \(age)"
+    }
+
+    /// Whether the page should say how old its readings are.
+    ///
+    /// After a failed refresh, as ever. And whenever the readings are old
+    /// enough to be called stale — the threshold the widget uses — so a
+    /// forecast saved days ago never passes for today's. Not while a refresh
+    /// is on its way: that would flash the notice for a second on every launch
+    /// after a few hours away, then take it back.
+    static func isShown(errorMessage: String?, fetchedAt: Date?,
+                        isRefreshing: Bool, now: Date = Date()) -> Bool {
+        if errorMessage != nil { return true }
+        guard let fetchedAt, !isRefreshing else { return false }
+        return ReadingAge.isStale(now.timeIntervalSince(fetchedAt))
     }
 
     /// How old the reading on screen is, so "no internet connection" doesn't

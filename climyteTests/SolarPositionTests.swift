@@ -6,9 +6,8 @@
 import XCTest
 @testable import climyte
 
-/// The sun's position drives both the arc and the light on the background, so
-/// an error here puts the light on the wrong side of the screen without
-/// anything failing.
+/// The sun's position drives the arc, so an error here puts the sun on the
+/// wrong side of it without anything failing.
 @MainActor
 final class SolarPositionTests: XCTestCase {
 
@@ -38,16 +37,6 @@ final class SolarPositionTests: XCTestCase {
                        0.5, accuracy: 0.001, "Past the next sunrise it is the middle of that day")
     }
 
-    func testElevationPeaksAtMiddayAndIsZeroAtTheHorizons() {
-        XCTAssertEqual(SolarPosition.elevation(at: iso("2026-06-01T13:00"), in: days), 1, accuracy: 0.001)
-        XCTAssertEqual(SolarPosition.elevation(at: iso("2026-06-01T06:00"), in: days), 0, accuracy: 0.001)
-        XCTAssertEqual(SolarPosition.elevation(at: iso("2026-06-01T20:00"), in: days), 0, accuracy: 0.001)
-    }
-
-    func testElevationIsZeroAtNight() {
-        XCTAssertEqual(SolarPosition.elevation(at: iso("2026-06-01T02:00"), in: days), 0)
-    }
-
     func testRemainingDaylightCountsDownToSunset() {
         let left = SolarPosition.remainingDaylight(at: iso("2026-06-01T19:00"), in: days)
         XCTAssertEqual(left ?? 0, 3600, accuracy: 1)
@@ -56,7 +45,6 @@ final class SolarPositionTests: XCTestCase {
 
     func testNoSunTimesIsHandledRatherThanCrashing() {
         XCTAssertNil(SolarPosition.daylightProgress(at: Date(), in: []))
-        XCTAssertEqual(SolarPosition.elevation(at: Date(), in: []), 0)
         XCTAssertNil(SolarPosition.remainingDaylight(at: Date(), in: []))
     }
 }
@@ -70,51 +58,28 @@ private func iso(_ string: String) -> Date {
     return f.date(from: string)!
 }
 
-/// The horizon keeps its light after the sun has gone. Without that the
-/// screen would invert to dark and the light would vanish in the same
-/// instant — the one moment the design exists for would never render.
+/// Whether the sun is up, from the sun itself. A forecast's sun times cover
+/// only its own days, and a saved forecast old enough for all of them to have
+/// passed left the page judging today against a sunset a week gone — dark all
+/// day.
 @MainActor
-final class HorizonLightTests: XCTestCase {
+final class SunUpTests: XCTestCase {
 
-    private let days = [SolarDay(sunrise: iso2("2026-06-01T06:00"),
-                                 sunset: iso2("2026-06-01T20:00"))]
-
-    func testTheLightIsFullStrengthAndTracksTheSunByDay() {
-        let noon = SolarPosition.horizonLight(at: iso2("2026-06-01T13:00"), in: days)
-        XCTAssertEqual(noon?.intensity ?? 0, 1, accuracy: 0.001)
-        XCTAssertEqual(noon?.position ?? -1, 0.5, accuracy: 0.001)
+    func testTheSunIsUpAtMiddayAndDownAtMidnight() {
+        // Sydney is ten hours ahead of UTC in September.
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso("2026-09-13T02:00"), latitude: -33.87, longitude: 151.21))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso("2026-09-13T14:00"), latitude: -33.87, longitude: 151.21))
     }
 
-    func testTheLightStaysInTheWestAndFadesAfterSunset() {
-        let justAfter = SolarPosition.horizonLight(at: iso2("2026-06-01T20:08"), in: days)
-        XCTAssertEqual(justAfter?.position ?? -1, 1, accuracy: 0.001, "It set in the west")
-        XCTAssertEqual(justAfter?.intensity ?? 0, 0.75, accuracy: 0.02)
-
-        let later = SolarPosition.horizonLight(at: iso2("2026-06-01T20:24"), in: days)
-        XCTAssertLessThan(later?.intensity ?? 1, justAfter?.intensity ?? 0)
+    /// London's sunset on 13 September, by Open-Meteo, was 18:19 UTC.
+    func testItSetsWithinMinutesOfTheForecastsOwnSunset() {
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso("2026-09-13T18:12"), latitude: 51.51, longitude: -0.13))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso("2026-09-13T18:26"), latitude: 51.51, longitude: -0.13))
     }
 
-    func testTheLightGathersInTheEastBeforeSunrise() {
-        let beforeDawn = SolarPosition.horizonLight(at: iso2("2026-06-01T05:44"), in: days)
-        XCTAssertEqual(beforeDawn?.position ?? -1, 0, accuracy: 0.001)
-        XCTAssertGreaterThan(beforeDawn?.intensity ?? 0, 0)
+    func testTheMidnightSunAndThePolarNight() {
+        // Longyearbyen, Svalbard: up at 1:30 am local in June, down at noon in December.
+        XCTAssertTrue(SolarPosition.isSunUp(at: iso("2026-06-21T23:30"), latitude: 78.22, longitude: 15.65))
+        XCTAssertFalse(SolarPosition.isSunUp(at: iso("2026-12-21T11:00"), latitude: 78.22, longitude: 15.65))
     }
-
-    func testThereIsNoLightInTheMiddleOfTheNight() {
-        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T02:00"), in: days))
-        XCTAssertNil(SolarPosition.horizonLight(at: iso2("2026-06-01T21:30"), in: days))
-    }
-
-    func testNoSunTimesMeansNoLightRatherThanACrash() {
-        XCTAssertNil(SolarPosition.horizonLight(at: Date(), in: []))
-    }
-}
-
-private func iso2(_ string: String) -> Date {
-    let f = DateFormatter()
-    f.locale = Locale(identifier: "en_US_POSIX")
-    f.calendar = Calendar(identifier: .gregorian)
-    f.dateFormat = "yyyy-MM-dd'T'HH:mm"
-    f.timeZone = TimeZone(secondsFromGMT: 0)
-    return f.date(from: string)!
 }

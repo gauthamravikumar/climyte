@@ -132,21 +132,30 @@ struct CurrentConditionsView: View {
 
             // The day's range, set as a span rather than two labelled values.
             // Only the reading itself carries a degree sign; these inherit it.
-            Text("\(units.temperatureValue(weather.minTemp))  ·  \(units.temperatureValue(weather.maxTemp))")
-                .font(.temperatureRange)
-                .foregroundColor(theme.secondaryText)
+            if let low = weather.minTemp, let high = weather.maxTemp {
+                Text("\(units.temperatureValue(low))  ·  \(units.temperatureValue(high))")
+                    .font(.temperatureRange)
+                    .foregroundColor(theme.secondaryText)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         // Terse on screen, explicit to VoiceOver — the visual shorthand
         // shouldn't cost a screen-reader user the meaning.
-        .accessibilityLabel(
-            """
-            \(units.temperatureValue(weather.temperature)) degrees, \
-            low \(units.temperatureValue(weather.minTemp)), \
-            high \(units.temperatureValue(weather.maxTemp))
-            """
-        )
+        .accessibilityLabel(spokenReading)
+    }
+
+    /// The reading, and today's range when there is one.
+    private var spokenReading: String {
+        let reading = units.temperatureValue(weather.temperature)
+        guard let low = weather.minTemp, let high = weather.maxTemp else {
+            return String(localized: "\(reading) degrees")
+        }
+        return String(localized: """
+            \(reading) degrees, \
+            low \(units.temperatureValue(low)), \
+            high \(units.temperatureValue(high))
+            """)
     }
 
     private var summary: some View {
@@ -187,11 +196,5 @@ struct CurrentConditionsView: View {
         date.formatted(
             Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone)
         )
-    }
-
-    /// Kept for callers that only have an offset, such as tests covering the
-    /// fallback used when a response carries no zone name.
-    static func localTime(at date: Date, utcOffsetSeconds: Int) -> String {
-        localTime(at: date, in: TimeZone(secondsFromGMT: utcOffsetSeconds) ?? .current)
     }
 }

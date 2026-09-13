@@ -167,6 +167,15 @@ struct CityNameStrip: View {
         }
     }
 
+    /// The name as VoiceOver reads it, in the strip and the saved list alike.
+    ///
+    /// The location arrow is hidden from VoiceOver in both, so without saying
+    /// so here the located city and a saved city of the same name are
+    /// indistinguishable when read aloud.
+    static func spokenName(_ name: String, isCurrentLocation: Bool) -> String {
+        isCurrentLocation ? String(localized: "\(name), current location") : name
+    }
+
     static func position(of entry: CityEntry, in entries: [CityEntry]) -> String {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return "" }
         return String(localized: "\(index + 1) of \(entries.count)")
@@ -201,7 +210,7 @@ struct CityNameStrip: View {
         // were dead space rather than shared target area.
         .frame(minWidth: 44, minHeight: 44)
         .contentShape(Rectangle())
-        .accessibilityLabel(entry.city.name)
+        .accessibilityLabel(Self.spokenName(entry.city.name, isCurrentLocation: entry.isCurrentLocation))
         // The strip replaces the page dots, so it is the only thing that can
         // say where the reader is. Without this a VoiceOver user hears five
         // city names and no indication of how many there are or which is

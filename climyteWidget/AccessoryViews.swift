@@ -59,8 +59,10 @@ struct AccessoryRectangularView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(entry.units.temperature(weather.temperature))
                         .font(.accessoryValue)
-                    Text("\(entry.units.temperatureValue(weather.minTemp)) · \(entry.units.temperatureValue(weather.maxTemp))")
-                        .font(.accessoryLabel)
+                    if let low = weather.minTemp, let high = weather.maxTemp {
+                        Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
+                            .font(.accessoryLabel)
+                    }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -92,16 +94,20 @@ struct AccessoryRectangularView: View {
 struct AccessoryInlineView: View {
     let entry: WeatherEntry
 
-    /// The system draws this line in its own font and colour — styling it is
-    /// pointless. What is ours to control is length, and the space available
-    /// varies by device and by what else sits beside the clock. Offering
-    /// progressively shorter forms lets the longest that actually fits win,
-    /// rather than shipping one string that truncates mid-word on smaller
-    /// screens.
+    /// The system draws this line in its own font and colour, so what is ours
+    /// to control is length. It sits beside the date, and the whole sentence
+    /// ("Melbourne 18° · Clear") crowded it: a symbol for the condition and
+    /// the temperature say the same at a glance. Where even that doesn't fit,
+    /// the temperature alone.
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            Text(full)
-            Text(medium)
+            if let weather = entry.weather {
+                Label {
+                    Text(entry.units.temperature(weather.temperature))
+                } icon: {
+                    Image(systemName: weather.conditionSymbol(at: entry.date))
+                }
+            }
             Text(short)
         }
         // Without a label, VoiceOver reads whichever variant the layout
@@ -121,16 +127,6 @@ struct AccessoryInlineView: View {
         let base = String(localized: "\(name), \(reading) degrees, \(weather.conditionDescription(at: entry.date))")
         guard let age = entry.shortAge else { return base }
         return String(localized: "\(base), from \(age) ago")
-    }
-
-    private var full: String {
-        guard let weather = entry.weather, let city = entry.city else { return short }
-        return "\(city.name) \(entry.units.temperature(weather.temperature)) · \(weather.conditionDescription(at: entry.date))"
-    }
-
-    private var medium: String {
-        guard let weather = entry.weather, let city = entry.city else { return short }
-        return "\(city.name) \(entry.units.temperature(weather.temperature))"
     }
 
     private var short: String {
@@ -159,8 +155,13 @@ private extension View {
             return self.accessibilityLabel(Text("\(name), \(reading) degrees\(age)"))
         }
 
-        let low = entry.units.temperatureValue(weather.minTemp)
-        let high = entry.units.temperatureValue(weather.maxTemp)
+        guard let minTemp = weather.minTemp, let maxTemp = weather.maxTemp else {
+            return self.accessibilityLabel(
+                Text("\(name), \(reading) degrees, \(weather.conditionDescription(at: entry.date))\(age)")
+            )
+        }
+        let low = entry.units.temperatureValue(minTemp)
+        let high = entry.units.temperatureValue(maxTemp)
         return self.accessibilityLabel(
             Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.conditionDescription(at: entry.date))\(age)")
         )

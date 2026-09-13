@@ -69,12 +69,6 @@ class WeatherViewModel {
     /// which is indistinguishable from the feature not existing.
     private(set) var locationAccessRefused = false
 
-    /// Convenience for callers that only care about the successful case.
-    var searchResults: [GeocodingResult] {
-        if case .results(let results) = searchState { return results }
-        return []
-    }
-
     var selectedEntry: CityEntry? {
         entries.first { $0.id == selectedCityKey } ?? entries.first
     }

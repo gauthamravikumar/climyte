@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import UIKit
 @testable import climyte
 
 final class WeatherModelTests: XCTestCase {
@@ -37,18 +38,13 @@ final class WeatherModelTests: XCTestCase {
             },
             "hourly": {
                 "time": ["2026-07-25T10:00", "2026-07-25T11:00", "2026-07-25T12:00"],
-                "temperature_2m": [20.0, 21.5, 23.0],
-                "weather_code": [0, 2, 61]
+                "temperature_2m": [20.0, 21.5, 23.0]
             },
             "daily": {
                 "time": ["2026-07-25"],
-                "weather_code": [0],
                 "temperature_2m_max": [25.0],
                 "temperature_2m_min": [15.0],
-                "uv_index_max": [2.0],
-                "precipitation_probability_max": [null],
-                "precipitation_sum": [0.0],
-                "precipitation_hours": [0.0],
+                "uv_index_max": [null],
                 "daylight_duration": [49993.0],
                 "sunrise": ["2026-07-25T06:00"],
                 "sunset": ["2026-07-25T18:00"]
@@ -63,12 +59,11 @@ final class WeatherModelTests: XCTestCase {
 
         XCTAssertEqual(response.hourly.time.count, 3)
         XCTAssertEqual(response.hourly.temperature_2m, [20.0, 21.5, 23.0])
-        XCTAssertEqual(response.hourly.weather_code, [0, 2, 61])
         XCTAssertEqual(response.utc_offset_seconds, 36000)
         XCTAssertEqual(response.current.visibility, 10000.0)
         XCTAssertEqual(response.current.wind_gusts_10m, 18.0)
-        XCTAssertEqual(response.daily.precipitation_probability_max, [nil],
-                       "A null probability must decode rather than fail the whole response")
+        XCTAssertEqual(response.daily.uv_index_max, [nil],
+                       "A null must decode rather than fail the whole response")
     }
 
     // MARK: - Hourly parsing
@@ -103,8 +98,7 @@ final class WeatherModelTests: XCTestCase {
             current: response.current,
             hourly: HourlyWeatherResponse(
                 time: response.hourly.time,                      // 10
-                temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0],  // 5
-                weather_code: [0, 1, 2, 3, 45, 51, 61]           // 7
+                temperature_2m: [20.0, 21.0, 22.0, 23.0, 24.0]  // 5
             ),
             daily: response.daily
         )
@@ -117,7 +111,9 @@ final class WeatherModelTests: XCTestCase {
         )
     }
 
-    func testEmptyDailyArraysFallBackToCurrentTemperature() {
+    /// No daily figures means no today: the range is unknown, not the
+    /// current temperature standing in for a high and a low it isn't.
+    func testEmptyDailyArraysLeaveTodaysRangeUnknown() {
         var response = makeResponse(hourOffsets: 0..<3)
         response = WeatherResponse(
             latitude: response.latitude,
@@ -126,18 +122,18 @@ final class WeatherModelTests: XCTestCase {
             current: response.current,
             hourly: response.hourly,
             daily: DailyWeatherResponse(
-                time: [], weather_code: [], temperature_2m_max: [],
+                time: [], temperature_2m_max: [],
                 temperature_2m_min: [], sunrise: [], sunset: [], uv_index_max: [],
-                precipitation_probability_max: [], precipitation_sum: [],
-                precipitation_hours: [], daylight_duration: []
+                daylight_duration: []
             )
         )
 
         let weather = CityWeather(city: sydney, response: response)
 
         XCTAssertTrue(weather.dailyForecasts.isEmpty)
-        XCTAssertEqual(weather.maxTemp, response.current.temperature_2m)
-        XCTAssertEqual(weather.minTemp, response.current.temperature_2m)
+        XCTAssertNil(weather.maxTemp)
+        XCTAssertNil(weather.minTemp)
+        XCTAssertFalse(weather.coversToday)
         XCTAssertEqual(weather.sunriseFormatted, "--")
         XCTAssertEqual(weather.sunsetFormatted, "--")
         XCTAssertEqual(weather.uvIndex, 0.0)
@@ -161,8 +157,9 @@ final class WeatherModelTests: XCTestCase {
     }
 
     /// Falling back to index 0 would render yesterday as today — plausible
-    /// looking and wrong. When today is absent, take the next day forward.
-    func testMissingTodayPicksTheNextDayForwardNotYesterday() {
+    /// looking and wrong. When today is absent the week starts at the next
+    /// day forward, and no other day's figures are passed off as today's.
+    func testMissingTodayStartsTheWeekTomorrowAndClaimsNoRange() {
         let day = DateFormatter()
         day.locale = Locale(identifier: "en_US_POSIX")
         day.calendar = Calendar(identifier: .gregorian)
@@ -178,7 +175,9 @@ final class WeatherModelTests: XCTestCase {
 
         let weather = CityWeather(city: sydney, response: response)
 
-        XCTAssertEqual(weather.maxTemp, 21, "Should take tomorrow, not yesterday's 99")
+        XCTAssertEqual(weather.dailyForecasts.first?.maxTemp, 21, "The week starts tomorrow, not with yesterday's 99")
+        XCTAssertNil(weather.maxTemp, "Tomorrow's high is not today's")
+        XCTAssertFalse(weather.coversToday)
     }
 
     /// Mismatched parallel array lengths can put today past the end of the
@@ -286,6 +285,102 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertEqual(WeatherCondition.rainy.description(isNight: true), "Rainy")
     }
 
+    // MARK: - A saved forecast whose days have passed
+
+    /// A forecast saved ten days ago and shown before a new one arrives — or
+    /// for as long as there is no connection. Its last day used to stand in
+    /// for the whole week and for today's high, UV and daylight.
+    func testAForecastWhoseDaysHaveAllPassedClaimsNothingAboutToday() {
+        let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(secondsFromGMT: 36000)
+        let times = [11, 10].map { day.string(from: Date().addingTimeInterval(Double(-$0) * 86_400)) }
+
+        let base = makeResponse(hourOffsets: -270 ..< -240)
+        let response = withDailyTimes(base, times: times, maxTemps: [21, 22], minTemps: [6, 7])
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertTrue(weather.dailyForecasts.isEmpty, "Days that are over are not a forecast")
+        XCTAssertTrue(weather.hourlyForecasts.isEmpty, "Nor are hours that are over")
+        XCTAssertNil(weather.maxTemp)
+        XCTAssertNil(weather.minTemp)
+        XCTAssertNil(weather.daylightSeconds)
+        XCTAssertEqual(weather.uvIndex, 0, "No UV row from a day long gone")
+        XCTAssertFalse(weather.coversToday)
+    }
+
+    func testAForecastThatIncludesTodayCoversIt() {
+        let weather = CityWeather(city: sydney, response: TestResponse.make())
+        XCTAssertTrue(weather.coversToday)
+        XCTAssertEqual(weather.maxTemp, 26)
+    }
+
+    /// The page's theme follows the sun. When every day in a saved forecast has
+    /// passed, its sun times can't say whether it is day now: judged against a
+    /// sunset a week gone, the page stayed dark all day. The sun itself answers
+    /// instead.
+    func testAForecastWhoseDaysHavePassedStillKnowsDayFromNight() {
+        let base = TestResponse.make()
+        let response = WeatherResponse(
+            latitude: sydney.latitude, longitude: sydney.longitude, utc_offset_seconds: 36_000,
+            current: base.current, hourly: base.hourly,
+            daily: DailyWeatherResponse(
+                time: ["2026-09-01", "2026-09-02"],
+                temperature_2m_max: [20, 21],
+                temperature_2m_min: [10, 11],
+                sunrise: ["2026-09-01T06:10", "2026-09-02T06:09"],
+                sunset: ["2026-09-01T17:40", "2026-09-02T17:41"],
+                uv_index_max: [nil, nil],
+                daylight_duration: [nil, nil]
+            )
+        )
+        let weather = CityWeather(city: sydney, response: response)
+        XCTAssertFalse(weather.solarDays.isEmpty, "The fixture has sun times, just old ones")
+
+        let utc = ISO8601DateFormatter()
+        XCTAssertFalse(weather.isNight(at: utc.date(from: "2026-09-13T02:00:00Z")!), "Midday in Sydney")
+        XCTAssertTrue(weather.isNight(at: utc.date(from: "2026-09-13T14:00:00Z")!), "Midnight in Sydney")
+    }
+
+    // MARK: - The inline widget's symbol
+
+    /// The inline Lock Screen widget shows a symbol and the temperature. A
+    /// clear sky after dark is the moon; every other condition keeps its own
+    /// symbol by day and by night.
+    func testEachConditionHasItsSymbol() {
+        XCTAssertEqual(WeatherCondition.sunny.symbolName(isNight: false), "sun.max")
+        XCTAssertEqual(WeatherCondition.sunny.symbolName(isNight: true), "moon.stars")
+        XCTAssertEqual(WeatherCondition.cloudy.symbolName(isNight: true), "cloud")
+        XCTAssertEqual(WeatherCondition.foggy.symbolName(isNight: false), "cloud.fog")
+        XCTAssertEqual(WeatherCondition.rainy.symbolName(isNight: false), "cloud.rain")
+        XCTAssertEqual(WeatherCondition.snowy.symbolName(isNight: false), "cloud.snow")
+        XCTAssertEqual(WeatherCondition.stormy.symbolName(isNight: false), "cloud.bolt.rain")
+    }
+
+    /// A misspelt symbol name draws nothing, silently. Every one must exist.
+    func testEverySymbolExists() {
+        let all: [WeatherCondition] = [.sunny, .cloudy, .foggy, .rainy, .snowy, .stormy]
+        for condition in all {
+            for night in [false, true] {
+                XCTAssertNotNil(UIImage(systemName: condition.symbolName(isNight: night)),
+                                "\(condition), night: \(night)")
+            }
+        }
+    }
+
+    /// Like the words, the symbol is for the moment the widget is drawn, so
+    /// one reading shows the sun by day and the moon after sunset.
+    func testTheSymbolFollowsTheMomentItIsShownFor() {
+        let response = makeResponse(hourOffsets: 0..<3, sunriseOffsetHours: -2,
+                                    sunsetOffsetHours: 6, isDay: 1)
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertEqual(weather.conditionSymbol(at: Date()), "sun.max")
+        XCTAssertEqual(weather.conditionSymbol(at: Date().addingTimeInterval(7 * 3_600)), "moon.stars")
+    }
+
     // MARK: - Fixtures
 
     private func withDaily(_ base: WeatherResponse,
@@ -298,15 +393,13 @@ final class WeatherModelTests: XCTestCase {
         let times = days.indices.map { day.string(from: Date().addingTimeInterval(Double($0) * 86_400)) }
 
         return withDailyTimes(base, times: times,
-                              maxTemps: days.map(\.2), minTemps: days.map(\.1),
-                              codes: days.map { $0.1 == nil ? nil : 0 })
+                              maxTemps: days.map(\.2), minTemps: days.map(\.1))
     }
 
     private func withDailyTimes(_ base: WeatherResponse,
                                 times: [String],
                                 maxTemps: [Double?],
-                                minTemps: [Double?],
-                                codes: [Int?]? = nil) -> WeatherResponse {
+                                minTemps: [Double?]) -> WeatherResponse {
         WeatherResponse(
             latitude: base.latitude,
             longitude: base.longitude,
@@ -315,15 +408,11 @@ final class WeatherModelTests: XCTestCase {
             hourly: base.hourly,
             daily: DailyWeatherResponse(
                 time: times,
-                weather_code: codes ?? Array(repeating: 0, count: times.count),
                 temperature_2m_max: maxTemps,
                 temperature_2m_min: minTemps,
                 sunrise: Array(repeating: nil, count: times.count),
                 sunset: Array(repeating: nil, count: times.count),
                 uv_index_max: Array(repeating: nil, count: times.count),
-                precipitation_probability_max: Array(repeating: nil, count: times.count),
-                precipitation_sum: Array(repeating: nil, count: times.count),
-                precipitation_hours: Array(repeating: nil, count: times.count),
                 daylight_duration: Array(repeating: nil, count: times.count)
             )
         )
@@ -358,13 +447,11 @@ final class WeatherModelTests: XCTestCase {
         let now = Date()
         var times: [String] = []
         var temps: [Double] = []
-        var codes: [Int] = []
 
         for offset in hourOffsets {
             guard let date = calendar.date(byAdding: .hour, value: offset, to: now) else { continue }
             times.append(isoFormatter.string(from: date))
             temps.append(20.0 + Double(offset))
-            codes.append(offset % 2 == 0 ? 0 : 61)
         }
 
         let sunrise = calendar.date(byAdding: .hour, value: sunriseOffsetHours, to: now)!
@@ -387,20 +474,15 @@ final class WeatherModelTests: XCTestCase {
             ),
             hourly: HourlyWeatherResponse(
                 time: times,
-                temperature_2m: temps,
-                weather_code: codes
+                temperature_2m: temps
             ),
             daily: DailyWeatherResponse(
                 time: [dateFormatter.string(from: now)],
-                weather_code: [0],
                 temperature_2m_max: [25.0],
                 temperature_2m_min: [15.0],
                 sunrise: [isoFormatter.string(from: sunrise)],
                 sunset: [isoFormatter.string(from: sunset)],
                 uv_index_max: [2.0],
-                precipitation_probability_max: [0],
-                precipitation_sum: [0],
-                precipitation_hours: [0],
                 daylight_duration: [49993]
             )
         )
