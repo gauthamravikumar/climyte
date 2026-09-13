@@ -76,6 +76,16 @@
         }
       }
     },
+    "%@, %lld degrees" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$lld degrees"
+          }
+        }
+      }
+    },
     "%@, %lld degrees, %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -83,6 +93,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$lld degrees, %3$@"
+          }
+        }
+      }
+    },
+    "%@, %lld degrees, %@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$lld degrees, %3$@%4$@"
           }
         }
       }

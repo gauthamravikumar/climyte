@@ -301,3 +301,44 @@ final class CityNameStripFadeTests: XCTestCase {
         XCTAssertEqual(fits.trailing, 0)
     }
 }
+
+/// When the page says how old its readings are. After a failed refresh, as
+/// ever — and now also whenever they are old enough to be called stale, so a
+/// forecast saved days ago never passes for today's. Not while a refresh is
+/// on its way, though: that would flash the notice for a second on every
+/// launch after a few hours away.
+final class StaleNoticeTests: XCTestCase {
+
+    private let now = Date(timeIntervalSince1970: 1_788_960_000)
+
+    private func shown(error: String? = nil, hoursOld: Double?, refreshing: Bool = false) -> Bool {
+        StaleDataNotice.isShown(errorMessage: error,
+                                fetchedAt: hoursOld.map { now.addingTimeInterval(-$0 * 3_600) },
+                                isRefreshing: refreshing, now: now)
+    }
+
+    func testAFailedRefreshAlwaysSaysSo() {
+        XCTAssertTrue(shown(error: "No internet connection.", hoursOld: 0.5))
+    }
+
+    func testAStaleReadingSaysHowOldItIs() {
+        XCTAssertTrue(shown(hoursOld: 240))
+        XCTAssertTrue(shown(hoursOld: 4))
+    }
+
+    func testAFreshReadingSaysNothing() {
+        XCTAssertFalse(shown(hoursOld: 1))
+        XCTAssertFalse(shown(hoursOld: nil))
+    }
+
+    func testNothingFlashesWhileARefreshIsOnItsWay() {
+        XCTAssertFalse(shown(hoursOld: 240, refreshing: true))
+    }
+
+    /// With no error there is no message to lead with, so the notice is the
+    /// age alone rather than an age after a stray space.
+    func testTheAgeStandsAloneWithoutAnError() {
+        let notice = StaleDataNotice.fullMessage(message: "", fetchedAt: now.addingTimeInterval(-240 * 3_600), now: now)
+        XCTAssertEqual(notice, "Showing readings from 10d ago.")
+    }
+}

@@ -76,11 +76,17 @@ struct SmallWidgetView: View {
         guard let weather = entry.weather else {
             return String(localized: "\(name), no reading yet")
         }
-        let reading = String(localized: """
-            \(name), \(entry.units.temperatureValue(weather.temperature)) degrees, \
-            low \(entry.units.temperatureValue(weather.minTemp)), \
-            high \(entry.units.temperatureValue(weather.maxTemp))
-            """)
+        let temperature = entry.units.temperatureValue(weather.temperature)
+        let reading: String
+        if let low = weather.minTemp, let high = weather.maxTemp {
+            reading = String(localized: """
+                \(name), \(temperature) degrees, \
+                low \(entry.units.temperatureValue(low)), \
+                high \(entry.units.temperatureValue(high))
+                """)
+        } else {
+            reading = String(localized: "\(name), \(temperature) degrees")
+        }
 
         // The visible "4h" is a duration with no noun attached; spoken, it
         // needs the noun or it is just a number in the middle of a sentence.
@@ -109,8 +115,8 @@ struct SmallWidgetView: View {
                         .foregroundStyle(primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                } else {
-                    Text("\(entry.units.temperatureValue(weather.minTemp)) · \(entry.units.temperatureValue(weather.maxTemp))")
+                } else if let low = weather.minTemp, let high = weather.maxTemp {
+                    Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
                         .font(.widgetDetail)
                         .foregroundStyle(primary)
                         .lineLimit(1)

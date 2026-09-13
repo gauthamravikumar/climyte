@@ -157,8 +157,16 @@ struct CityWeather: Identifiable {
     /// produced them and has to ask whether it is night *then*, not now.
     let solarDays: [SolarDay]
     let dailyForecasts: [DailyForecast]
-    let maxTemp: Double
-    let minTemp: Double
+    /// Today's high and low. Nil when today is not in the forecast — one
+    /// saved long enough ago that its days have passed — rather than another
+    /// day's figures shown as today's.
+    let maxTemp: Double?
+    let minTemp: Double?
+
+    /// Whether the forecast has an entry for today at all. A saved one whose
+    /// days have all passed does not, and nothing on the page should claim to
+    /// be today's then.
+    let coversToday: Bool
     let humidity: Int
     let windSpeed: Double
     let uvIndex: Double
@@ -288,16 +296,22 @@ struct CityWeather: Identifiable {
         // index 0 would silently render yesterday as today, which looks
         // entirely plausible and is wrong.
         let todayKey = dateParser.string(from: Date())
+        // Today's own entry and nothing else. A saved forecast old enough for
+        // its days to have passed has no today, and taking another day's high,
+        // UV or daylight instead put figures on screen that looked right and
+        // were not today's.
         let todayIndex = response.daily.time.firstIndex(of: todayKey)
-            ?? response.daily.time.firstIndex { $0 >= todayKey }
-            ?? max(response.daily.time.count - 1, 0)
+
+        // The week starts at the first day not yet over; days already gone
+        // are not a forecast.
+        let firstDayAhead = response.daily.time.firstIndex { $0 >= todayKey } ?? response.daily.time.count
 
         var dailyList: [DailyForecast] = []
         let dailyCount = min(response.daily.time.count, response.daily.weather_code.count, response.daily.temperature_2m_max.count, response.daily.temperature_2m_min.count)
         
-        // Clamped: mismatched array lengths can put todayIndex past dailyCount,
-        // and `todayIndex..<dailyCount` traps when the range is reversed.
-        for i in min(todayIndex, dailyCount)..<dailyCount {
+        // Clamped: mismatched array lengths can put firstDayAhead past
+        // dailyCount, and `firstDayAhead..<dailyCount` traps when reversed.
+        for i in min(firstDayAhead, dailyCount)..<dailyCount {
             let dateStr = response.daily.time[i]
 
             // Drop a day the API has no readings for rather than charting a
@@ -323,8 +337,9 @@ struct CityWeather: Identifiable {
             dailyList.append(forecast)
         }
         self.dailyForecasts = dailyList
-        self.maxTemp = response.daily.temperature_2m_max.value(at: todayIndex) ?? response.current.temperature_2m
-        self.minTemp = response.daily.temperature_2m_min.value(at: todayIndex) ?? response.current.temperature_2m
+        self.maxTemp = todayIndex.flatMap { response.daily.temperature_2m_max.value(at: $0) }
+        self.minTemp = todayIndex.flatMap { response.daily.temperature_2m_min.value(at: $0) }
+        self.coversToday = todayIndex != nil
         
         self.humidity = response.current.relative_humidity_2m.toInt(.towardZero)
         self.dewPoint = response.current.dew_point_2m
@@ -338,9 +353,9 @@ struct CityWeather: Identifiable {
             now: Date()
         )
 
-        let daylightToday: Double? = response.daily.daylight_duration.value(at: todayIndex)
+        let daylightToday: Double? = todayIndex.flatMap { response.daily.daylight_duration.value(at: $0) }
         self.daylightSeconds = daylightToday
-        if let daylightToday,
+        if let daylightToday, let todayIndex,
            todayIndex > 0,
            let yesterday: Double = response.daily.daylight_duration.value(at: todayIndex - 1) {
             self.daylightChangeSeconds = daylightToday - yesterday
@@ -348,7 +363,7 @@ struct CityWeather: Identifiable {
             self.daylightChangeSeconds = nil
         }
         self.windSpeed = response.current.wind_speed_10m
-        self.uvIndex = response.daily.uv_index_max.value(at: todayIndex) ?? 0.0
+        self.uvIndex = todayIndex.flatMap { response.daily.uv_index_max.value(at: $0) } ?? 0.0
         self.visibility = response.current.visibility / 1000.0
         
         // `.shortened` rather than a hardcoded "h:mm a": the header clock in
@@ -357,14 +372,14 @@ struct CityWeather: Identifiable {
         // different clocks.
         let sunTimeStyle = Date.FormatStyle(date: .omitted, time: .shortened, timeZone: cityTimeZone)
         
-        if let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
+        if let todayIndex, let sunriseStr: String = response.daily.sunrise.value(at: todayIndex),
            let sunriseDate = isoFormatter.date(from: sunriseStr) {
             self.sunriseFormatted = sunriseDate.formatted(sunTimeStyle).lowercased()
         } else {
             self.sunriseFormatted = "--"
         }
         
-        if let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
+        if let todayIndex, let sunsetStr: String = response.daily.sunset.value(at: todayIndex),
            let sunsetDate = isoFormatter.date(from: sunsetStr) {
             self.sunsetFormatted = sunsetDate.formatted(sunTimeStyle).lowercased()
         } else {

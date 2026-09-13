@@ -59,8 +59,10 @@ struct AccessoryRectangularView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(entry.units.temperature(weather.temperature))
                         .font(.accessoryValue)
-                    Text("\(entry.units.temperatureValue(weather.minTemp)) · \(entry.units.temperatureValue(weather.maxTemp))")
-                        .font(.accessoryLabel)
+                    if let low = weather.minTemp, let high = weather.maxTemp {
+                        Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
+                            .font(.accessoryLabel)
+                    }
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -159,8 +161,13 @@ private extension View {
             return self.accessibilityLabel(Text("\(name), \(reading) degrees\(age)"))
         }
 
-        let low = entry.units.temperatureValue(weather.minTemp)
-        let high = entry.units.temperatureValue(weather.maxTemp)
+        guard let minTemp = weather.minTemp, let maxTemp = weather.maxTemp else {
+            return self.accessibilityLabel(
+                Text("\(name), \(reading) degrees, \(weather.conditionDescription(at: entry.date))\(age)")
+            )
+        }
+        let low = entry.units.temperatureValue(minTemp)
+        let high = entry.units.temperatureValue(maxTemp)
         return self.accessibilityLabel(
             Text("\(name), \(reading) degrees, low \(low), high \(high), \(weather.conditionDescription(at: entry.date))\(age)")
         )

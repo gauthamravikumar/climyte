@@ -117,7 +117,9 @@ final class WeatherModelTests: XCTestCase {
         )
     }
 
-    func testEmptyDailyArraysFallBackToCurrentTemperature() {
+    /// No daily figures means no today: the range is unknown, not the
+    /// current temperature standing in for a high and a low it isn't.
+    func testEmptyDailyArraysLeaveTodaysRangeUnknown() {
         var response = makeResponse(hourOffsets: 0..<3)
         response = WeatherResponse(
             latitude: response.latitude,
@@ -136,8 +138,9 @@ final class WeatherModelTests: XCTestCase {
         let weather = CityWeather(city: sydney, response: response)
 
         XCTAssertTrue(weather.dailyForecasts.isEmpty)
-        XCTAssertEqual(weather.maxTemp, response.current.temperature_2m)
-        XCTAssertEqual(weather.minTemp, response.current.temperature_2m)
+        XCTAssertNil(weather.maxTemp)
+        XCTAssertNil(weather.minTemp)
+        XCTAssertFalse(weather.coversToday)
         XCTAssertEqual(weather.sunriseFormatted, "--")
         XCTAssertEqual(weather.sunsetFormatted, "--")
         XCTAssertEqual(weather.uvIndex, 0.0)
@@ -161,8 +164,9 @@ final class WeatherModelTests: XCTestCase {
     }
 
     /// Falling back to index 0 would render yesterday as today — plausible
-    /// looking and wrong. When today is absent, take the next day forward.
-    func testMissingTodayPicksTheNextDayForwardNotYesterday() {
+    /// looking and wrong. When today is absent the week starts at the next
+    /// day forward, and no other day's figures are passed off as today's.
+    func testMissingTodayStartsTheWeekTomorrowAndClaimsNoRange() {
         let day = DateFormatter()
         day.locale = Locale(identifier: "en_US_POSIX")
         day.calendar = Calendar(identifier: .gregorian)
@@ -178,7 +182,9 @@ final class WeatherModelTests: XCTestCase {
 
         let weather = CityWeather(city: sydney, response: response)
 
-        XCTAssertEqual(weather.maxTemp, 21, "Should take tomorrow, not yesterday's 99")
+        XCTAssertEqual(weather.dailyForecasts.first?.maxTemp, 21, "The week starts tomorrow, not with yesterday's 99")
+        XCTAssertNil(weather.maxTemp, "Tomorrow's high is not today's")
+        XCTAssertFalse(weather.coversToday)
     }
 
     /// Mismatched parallel array lengths can put today past the end of the
@@ -284,6 +290,38 @@ final class WeatherModelTests: XCTestCase {
         XCTAssertEqual(WeatherCondition.sunny.description(isNight: true), "Clear")
         XCTAssertEqual(WeatherCondition.cloudy.description(isNight: true), "Cloudy")
         XCTAssertEqual(WeatherCondition.rainy.description(isNight: true), "Rainy")
+    }
+
+    // MARK: - A saved forecast whose days have passed
+
+    /// A forecast saved ten days ago and shown before a new one arrives — or
+    /// for as long as there is no connection. Its last day used to stand in
+    /// for the whole week and for today's high, UV and daylight.
+    func testAForecastWhoseDaysHaveAllPassedClaimsNothingAboutToday() {
+        let day = DateFormatter()
+        day.locale = Locale(identifier: "en_US_POSIX")
+        day.calendar = Calendar(identifier: .gregorian)
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(secondsFromGMT: 36000)
+        let times = [11, 10].map { day.string(from: Date().addingTimeInterval(Double(-$0) * 86_400)) }
+
+        let base = makeResponse(hourOffsets: -270 ..< -240)
+        let response = withDailyTimes(base, times: times, maxTemps: [21, 22], minTemps: [6, 7])
+        let weather = CityWeather(city: sydney, response: response)
+
+        XCTAssertTrue(weather.dailyForecasts.isEmpty, "Days that are over are not a forecast")
+        XCTAssertTrue(weather.hourlyForecasts.isEmpty, "Nor are hours that are over")
+        XCTAssertNil(weather.maxTemp)
+        XCTAssertNil(weather.minTemp)
+        XCTAssertNil(weather.daylightSeconds)
+        XCTAssertEqual(weather.uvIndex, 0, "No UV row from a day long gone")
+        XCTAssertFalse(weather.coversToday)
+    }
+
+    func testAForecastThatIncludesTodayCoversIt() {
+        let weather = CityWeather(city: sydney, response: TestResponse.make())
+        XCTAssertTrue(weather.coversToday)
+        XCTAssertEqual(weather.maxTemp, 26)
     }
 
     // MARK: - Fixtures

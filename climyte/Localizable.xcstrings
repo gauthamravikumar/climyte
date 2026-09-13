@@ -127,6 +127,9 @@
         }
       }
     },
+    "%lld degrees" : {
+
+    },
     "%lld degrees, low %lld, high %lld" : {
       "extractionState" : "manual",
       "localizations" : {
