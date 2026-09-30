@@ -251,6 +251,10 @@ extension View {
     /// bar in the page's own black or white without a colour of its own.
     @ViewBuilder
     func glassBackground(in shape: some Shape) -> some View {
+        // The glass API arrived with the iOS 26 SDK. An older Xcode, such as
+        // the one CI builds with, has never heard of it, and takes the
+        // material path at compile time rather than at run time.
+        #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             // Behind the content rather than applied to it, so the glass is
             // never what hosts the search field.
@@ -258,6 +262,9 @@ extension View {
         } else {
             background(.ultraThinMaterial, in: shape)
         }
+        #else
+        background(.ultraThinMaterial, in: shape)
+        #endif
     }
 }
 
