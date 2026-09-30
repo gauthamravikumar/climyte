@@ -568,6 +568,14 @@ struct WeatherTheme {
     let background: Color
     let primaryText: Color
     let secondaryText: Color
+
+    /// Secondary text on the bottom bar's glass.
+    ///
+    /// Glass is not the page's colour. At night it sits well above the
+    /// near-black ground, around #3C3D43, and the page's grey measured 2.8:1
+    /// on it. This one keeps 4.5:1 there. By day the glass is as good as
+    /// white and the page's own grey already holds.
+    let barSecondaryText: Color
     let dividerColor: Color
 
     /// Secondary text is a different grey in each theme, on purpose.
@@ -584,6 +592,7 @@ struct WeatherTheme {
                 background: Color(hex: "0E0F13"),
                 primaryText: Color(hex: "F2F2F0"),
                 secondaryText: Color(hex: "808080"),
+                barSecondaryText: Color(hex: "ADADAD"),
                 dividerColor: Color(hex: "F2F2F0").opacity(0.12)
             )
         } else {
@@ -591,6 +600,7 @@ struct WeatherTheme {
                 background: Color(hex: "FFFFFF"),
                 primaryText: Color(hex: "1A1A1A"),
                 secondaryText: Color(hex: "727272"),
+                barSecondaryText: Color(hex: "727272"),
                 dividerColor: Color(hex: "1A1A1A").opacity(0.12)
             )
         }

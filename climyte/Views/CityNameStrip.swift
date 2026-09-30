@@ -205,7 +205,7 @@ struct CityNameStrip: View {
         // 2.27:1, the worst contrast in the app and under even the 3:1 floor
         // for non-text. The weight and colour difference already distinguish
         // the current city; the fade only made the others hard to read.
-        .foregroundStyle(isSelected ? theme.primaryText : theme.secondaryText)
+        .foregroundStyle(isSelected ? theme.primaryText : theme.barSecondaryText)
         // Without a minimum the target is only as wide as the name, so short
         // ones like "Oslo" fell well under 44pt and the gaps between entries
         // were dead space rather than shared target area.

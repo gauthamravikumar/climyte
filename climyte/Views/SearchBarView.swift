@@ -51,7 +51,7 @@ struct SearchBarView: View {
     private var field: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(theme.secondaryText)
+                .foregroundStyle(theme.barSecondaryText)
                 .font(.system(size: icon))
                 .accessibilityHidden(true)
 
@@ -72,7 +72,7 @@ struct SearchBarView: View {
                 .overlay(alignment: .leading) {
                     Text("Search city")
                         .font(.searchField)
-                        .foregroundStyle(theme.secondaryText)
+                        .foregroundStyle(theme.barSecondaryText)
                         // At accessibility sizes this truncated to
                         // "Searc…", leaving an unexplained empty field
                         // for exactly the readers who need the hint.
@@ -97,7 +97,7 @@ struct SearchBarView: View {
                 query = ""
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(theme.secondaryText)
+                    .foregroundStyle(theme.barSecondaryText)
                     .font(.system(size: icon))
                     // The frame and hit shape give the glyph the 44pt
                     // target it never had on its own — as a floor, not a
