@@ -8,8 +8,7 @@ import XCTest
 
 /// What the app does when things go wrong: failed searches, hostile input,
 /// a corrupted cache, and requests racing each other.
-@MainActor
-final class ErrorHandlingTests: XCTestCase {
+nonisolated final class ErrorHandlingTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
@@ -37,7 +36,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     /// Zero matches and a failed request are different things and must not
     /// look the same: one means "try another name", the other "try again".
-    func testZeroResultsIsDistinguishableFromAFailure() async {
+    @MainActor func testZeroResultsIsDistinguishableFromAFailure() async {
         let service = StubWeatherService()
         let viewModel = makeViewModel(service: service)
 
@@ -54,7 +53,7 @@ final class ErrorHandlingTests: XCTestCase {
         }
     }
 
-    func testEverySearchFailureSaysSomethingUseful() {
+    @MainActor func testEverySearchFailureSaysSomethingUseful() {
         let cases: [(WeatherService.WeatherError, String)] = [
             (.offline, "internet"),
             (.serverError(statusCode: 500), "unavailable"),
@@ -73,7 +72,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     /// The weather path names the URLError code; the search path used to
     /// collapse every transport fault into one anonymous sentence.
-    func testAnUnrecognisedSearchFaultNamesItsCode() {
+    @MainActor func testAnUnrecognisedSearchFaultNamesItsCode() {
         let message = WeatherViewModel.searchErrorMessage(
             for: WeatherService.WeatherError.networkError(URLError(.init(rawValue: -1007)))
         )
@@ -81,13 +80,13 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertFalse(message.contains("-1,007"), "An error code is an identifier, not a quantity")
     }
 
-    func testANonWeatherErrorStillProducesAMessage() {
+    @MainActor func testANonWeatherErrorStillProducesAMessage() {
         let message = WeatherViewModel.searchErrorMessage(for: CocoaError(.fileNoSuchFile))
         XCTAssertFalse(message.isEmpty)
     }
 
     /// Typing quickly cancels the in-flight search; the last query must win.
-    func testASupersededSearchDoesNotOverwriteTheNewerOne() async {
+    @MainActor func testASupersededSearchDoesNotOverwriteTheNewerOne() async {
         let service = StubWeatherService()
         let viewModel = makeViewModel(service: service)
 
@@ -105,7 +104,7 @@ final class ErrorHandlingTests: XCTestCase {
     /// A query of only spaces is not a search. The view and the search have
     /// to agree about that, or the saved-cities list disappears and nothing
     /// takes its place.
-    func testAWhitespaceOnlyQueryIsNotASearch() async {
+    @MainActor func testAWhitespaceOnlyQueryIsNotASearch() async {
         let service = StubWeatherService()
         service.searchResults = [result(name: "London")]
         let viewModel = makeViewModel(service: service)
@@ -117,7 +116,7 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertEqual(viewModel.searchState, SearchState.idle)
     }
 
-    func testARealQuerySurroundedBySpacesStillSearches() async {
+    @MainActor func testARealQuerySurroundedBySpacesStillSearches() async {
         let service = StubWeatherService()
         service.searchResults = [result(name: "London")]
         let viewModel = makeViewModel(service: service)
@@ -132,7 +131,7 @@ final class ErrorHandlingTests: XCTestCase {
     // MARK: - Hostile query text
 
     /// Every one of these has to survive percent-encoding into a real URL.
-    func testAwkwardQueriesProduceAWellFormedRequest() async throws {
+    @MainActor func testAwkwardQueriesProduceAWellFormedRequest() async throws {
         let queries = ["São Paulo", "Zürich", "Washington D.C.", "北京",
                        "a b  c", "Ōtaki", "!!!", "🌦️", String(repeating: "a", count: 500)]
 
@@ -151,7 +150,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     /// A city whose coordinates are nonsense must not build a URL that
     /// silently asks for weather somewhere arbitrary.
-    func testAbsurdCoordinatesAreRejectedRatherThanRequested() async {
+    @MainActor func testAbsurdCoordinatesAreRejectedRatherThanRequested() async {
         let broken: [(String, Double, Double)] = [
             ("not a number", .nan, 0),
             ("infinite", 0, .infinity),
@@ -177,7 +176,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Corrupt storage
 
-    func testATruncatedCacheFileReadsAsEmptyRatherThanCrashing() throws {
+    @MainActor func testATruncatedCacheFileReadsAsEmptyRatherThanCrashing() throws {
         cache.save(city: sydney, response: TestResponse.make())
         let file = cacheDirectory.appendingPathComponent("cached-weather.json")
 
@@ -188,7 +187,7 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertNil(cache.load(for: sydney))
     }
 
-    func testGarbageInTheCacheFileReadsAsEmpty() throws {
+    @MainActor func testGarbageInTheCacheFileReadsAsEmpty() throws {
         let file = cacheDirectory.appendingPathComponent("cached-weather.json")
         try Data([0xFF, 0x00, 0xFE, 0x42]).write(to: file)
 
@@ -197,7 +196,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     /// And the app still works afterwards: a corrupt file must not be a
     /// permanent dead end.
-    func testAWriteAfterCorruptionRecovers() throws {
+    @MainActor func testAWriteAfterCorruptionRecovers() throws {
         let file = cacheDirectory.appendingPathComponent("cached-weather.json")
         try Data("not json at all".utf8).write(to: file)
 
@@ -208,7 +207,7 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Requests racing each other
 
-    func testRapidRepeatedRefreshesSettleOnTheLastResult() async {
+    @MainActor func testRapidRepeatedRefreshesSettleOnTheLastResult() async {
         let service = StubWeatherService()
         let viewModel = makeViewModel(service: service)
         let key = viewModel.entries[0].id
@@ -223,7 +222,7 @@ final class ErrorHandlingTests: XCTestCase {
         XCTAssertFalse(viewModel.entries[0].isLoading)
     }
 
-    func testAddingACityWhileARefreshIsInFlightDisturbsNeither() async {
+    @MainActor func testAddingACityWhileARefreshIsInFlightDisturbsNeither() async {
         let service = StubWeatherService()
         service.result = .success(makeWeather(temperature: 11))
         service.delayNanoseconds = 120_000_000
@@ -241,9 +240,9 @@ final class ErrorHandlingTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private let sydney = WeatherViewModel.defaultCity
+    @MainActor private var sydney: City { WeatherViewModel.defaultCity }
 
-    private func makeViewModel(service: WeatherFetching) -> WeatherViewModel {
+    @MainActor private func makeViewModel(service: WeatherFetching) -> WeatherViewModel {
         WeatherViewModel(service: service, defaults: defaults, cache: cache,
                          legacyDefaults: UserDefaults(suiteName: suiteName + ".legacy"),
                          reloader: SilentReloader(),
@@ -252,23 +251,23 @@ final class ErrorHandlingTests: XCTestCase {
     }
 
     /// Longer than the 300ms debounce, so the search task has run.
-    private func settle() async {
+    @MainActor private func settle() async {
         try? await Task.sleep(nanoseconds: 500_000_000)
     }
 
-    private func result(name: String, latitude: Double = 1, longitude: Double = 2) -> GeocodingResult {
+    @MainActor private func result(name: String, latitude: Double = 1, longitude: Double = 2) -> GeocodingResult {
         GeocodingResult(id: Int.random(in: 1...10_000), name: name,
                         latitude: latitude, longitude: longitude,
                         country: "Testland", country_code: "AU", admin1: nil)
     }
 
-    private func makeWeather(temperature: Double) -> CityWeather {
+    @MainActor private func makeWeather(temperature: Double) -> CityWeather {
         CityWeather(city: sydney, response: TestResponse.make(temperature: temperature))
     }
 
     /// Runs a real `WeatherService` search through a stub protocol and hands
     /// back the URL it actually asked for.
-    private func capturedSearchURL(for query: String) async throws -> URL? {
+    @MainActor private func capturedSearchURL(for query: String) async throws -> URL? {
         URLCapture.captured = nil
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [URLCapture.self]
@@ -280,7 +279,7 @@ final class ErrorHandlingTests: XCTestCase {
 }
 
 /// Captures the request and answers with an empty result set.
-private final class URLCapture: URLProtocol, @unchecked Sendable {
+private nonisolated final class URLCapture: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var captured: URL?
 
     override class func canInit(with request: URLRequest) -> Bool { true }

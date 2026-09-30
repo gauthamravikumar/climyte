@@ -24,9 +24,8 @@ nonisolated extension City {
 
 /// One page in the app: a city and everything known about its weather.
 ///
-/// A value type held in a `@Published` array rather than a nested
-/// `ObservableObject`, because nested observables don't propagate their
-/// changes through SwiftUI without manual plumbing.
+/// A value type held in an array on the `@Observable` view model, so a change
+/// to one city redraws that city's page without any manual plumbing.
 struct CityEntry: Identifiable, Equatable {
     let city: City
 

@@ -8,8 +8,7 @@ import XCTest
 
 /// The cache is written by two processes — the app and the widget extension —
 /// so its mutations have to survive being interleaved.
-@MainActor
-final class WeatherCacheTests: XCTestCase {
+nonisolated final class WeatherCacheTests: XCTestCase {
 
     private var directory: URL!
     private var cache: WeatherCache!
@@ -29,18 +28,18 @@ final class WeatherCacheTests: XCTestCase {
         super.tearDown()
     }
 
-    func testAnAbsentFileReadsAsEmptyRatherThanFailing() {
+    @MainActor func testAnAbsentFileReadsAsEmptyRatherThanFailing() {
         XCTAssertEqual(cache.loadAll().count, 0)
         XCTAssertNil(cache.load(for: city(0)))
     }
 
-    func testASavedReadingComesBack() {
+    @MainActor func testASavedReadingComesBack() {
         cache.save(city: city(1), response: TestResponse.make(temperature: 21))
 
         XCTAssertEqual(cache.load(for: city(1))?.response.current.temperature_2m, 21)
     }
 
-    func testSavingTheSameCityTwiceReplacesRatherThanDuplicates() {
+    @MainActor func testSavingTheSameCityTwiceReplacesRatherThanDuplicates() {
         cache.save(city: city(1), response: TestResponse.make(temperature: 21))
         cache.save(city: city(1), response: TestResponse.make(temperature: 25))
 
@@ -48,7 +47,7 @@ final class WeatherCacheTests: XCTestCase {
         XCTAssertEqual(cache.load(for: city(1))?.response.current.temperature_2m, 25)
     }
 
-    func testPruneKeepsOnlyTheCitiesGiven() {
+    @MainActor func testPruneKeepsOnlyTheCitiesGiven() {
         for i in 0..<4 { cache.save(city: city(i), response: TestResponse.make()) }
 
         cache.prune(keeping: [city(1), city(3)])
@@ -64,7 +63,7 @@ final class WeatherCacheTests: XCTestCase {
     /// state and the second write discards the first city entirely. It is not
     /// corruption — each write is atomic — which is exactly why it goes
     /// unnoticed: the file stays valid and a city just quietly isn't in it.
-    func testConcurrentSavesDoNotDiscardEachOther() {
+    @MainActor func testConcurrentSavesDoNotDiscardEachOther() {
         let count = 24
         let cities = (0..<count).map { city($0) }
         // Built here rather than inside the loop: only the cache is under test.
@@ -82,7 +81,7 @@ final class WeatherCacheTests: XCTestCase {
 
     /// Pruning races saving in the same way: the app removes a city at the
     /// moment the widget writes one.
-    func testConcurrentPrunesAndSavesLeaveTheFileIntact() {
+    @MainActor func testConcurrentPrunesAndSavesLeaveTheFileIntact() {
         let cities = (0..<12).map { city($0) }
         let responses = cities.map { _ in TestResponse.make() }
         let cache = self.cache!
@@ -104,7 +103,7 @@ final class WeatherCacheTests: XCTestCase {
     /// Pruning used to run only on an explicit delete, so a city that left the
     /// saved list any other way kept its payload on disk forever. A real
     /// device was found holding ten cached cities for three saved ones.
-    func testPruningIsDrivenByTheSavedListNotByDeletion() {
+    @MainActor func testPruningIsDrivenByTheSavedListNotByDeletion() {
         for i in 0..<6 { cache.save(city: city(i), response: TestResponse.make()) }
         XCTAssertEqual(cache.loadAll().count, 6)
 
@@ -115,7 +114,7 @@ final class WeatherCacheTests: XCTestCase {
                        Set([city(1).key, city(4).key]))
     }
 
-    func testPruningWithNothingToDropLeavesTheFileAlone() throws {
+    @MainActor func testPruningWithNothingToDropLeavesTheFileAlone() throws {
         for i in 0..<3 { cache.save(city: city(i), response: TestResponse.make()) }
         let file = directory.appendingPathComponent("cached-weather.json")
         let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
@@ -130,7 +129,7 @@ final class WeatherCacheTests: XCTestCase {
     // MARK: - Helpers
 
     /// Distinct coordinates, because `City.key` is built from them.
-    private func city(_ index: Int) -> City {
+    @MainActor private func city(_ index: Int) -> City {
         City(id: UUID(), name: "City \(index)", country: "Testland", countryCode: "AU",
              latitude: Double(index) + 0.5, longitude: Double(index) + 0.25)
     }

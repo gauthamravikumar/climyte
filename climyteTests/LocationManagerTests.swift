@@ -13,16 +13,18 @@ import CoreLocation
 /// continuation that only a delegate callback resumes, so a path that forgets
 /// to resume one does not produce a wrong answer — it hangs the caller
 /// forever. Every test here has a timeout for that reason.
-@MainActor
-final class LocationManagerTests: XCTestCase {
+nonisolated final class LocationManagerTests: XCTestCase {
 
     private var provider: StubLocationProvider!
     private var geocoder: StubGeocoder!
 
     override func setUp() {
         super.setUp()
-        provider = StubLocationProvider()
-        geocoder = StubGeocoder()
+        // XCTest runs set-up on the main thread without saying so in its
+        // types, and the stubs belong to the main actor.
+        (provider, geocoder) = MainActor.assumeIsolated {
+            (StubLocationProvider(), StubGeocoder())
+        }
     }
 
     override func tearDown() {
@@ -33,7 +35,7 @@ final class LocationManagerTests: XCTestCase {
 
     // MARK: - Permission refused
 
-    func testARefusedPermissionReturnsNoLocationAndAsksForNoFix() async throws {
+    @MainActor func testARefusedPermissionReturnsNoLocationAndAsksForNoFix() async throws {
         for status in [CLAuthorizationStatus.denied, .restricted] {
             provider = StubLocationProvider()
             provider.authorizationStatus = status
@@ -50,7 +52,7 @@ final class LocationManagerTests: XCTestCase {
     }
 
     /// The prompt is shown, and the reader says no.
-    func testAPromptAnsweredWithNoReturnsNoLocation() async throws {
+    @MainActor func testAPromptAnsweredWithNoReturnsNoLocation() async throws {
         provider.authorizationStatus = .notDetermined
         let manager = makeManager()
         provider.onRequestAuthorization = { [weak manager] in
@@ -68,7 +70,7 @@ final class LocationManagerTests: XCTestCase {
     /// The delegate fires once when it is set, before the reader has answered.
     /// Treating that as an answer would resume the continuation with
     /// `.notDetermined` and refuse a permission never actually declined.
-    func testAnEarlyNotDeterminedCallbackIsNotMistakenForAnAnswer() async throws {
+    @MainActor func testAnEarlyNotDeterminedCallbackIsNotMistakenForAnAnswer() async throws {
         provider.authorizationStatus = .notDetermined
         let manager = makeManager()
         provider.onRequestAuthorization = { [weak manager] in
@@ -86,7 +88,7 @@ final class LocationManagerTests: XCTestCase {
         XCTAssertEqual(location?.coordinate.latitude, Self.melbourne.coordinate.latitude)
     }
 
-    func testAPromptAnsweredWithYesFetchesTheLocation() async throws {
+    @MainActor func testAPromptAnsweredWithYesFetchesTheLocation() async throws {
         provider.authorizationStatus = .notDetermined
         let manager = makeManager()
         provider.onRequestAuthorization = { [weak manager] in
@@ -105,7 +107,7 @@ final class LocationManagerTests: XCTestCase {
 
     // MARK: - The fix itself failing
 
-    func testAFailedFixReturnsNilRatherThanHanging() async throws {
+    @MainActor func testAFailedFixReturnsNilRatherThanHanging() async throws {
         provider.authorizationStatus = .authorizedWhenInUse
         let manager = makeManager()
         provider.onRequestLocation = { [weak manager] in
@@ -118,7 +120,7 @@ final class LocationManagerTests: XCTestCase {
     }
 
     /// An empty update is not an answer; the real one arrives afterwards.
-    func testAnEmptyLocationUpdateDoesNotResolveTheRequest() async throws {
+    @MainActor func testAnEmptyLocationUpdateDoesNotResolveTheRequest() async throws {
         provider.authorizationStatus = .authorizedWhenInUse
         let manager = makeManager()
         provider.onRequestLocation = { [weak manager] in
@@ -133,7 +135,7 @@ final class LocationManagerTests: XCTestCase {
 
     /// A second callback after the continuation has been resumed must be
     /// ignored, not resumed twice — resuming a continuation twice traps.
-    func testALateSecondCallbackIsIgnored() async throws {
+    @MainActor func testALateSecondCallbackIsIgnored() async throws {
         provider.authorizationStatus = .authorizedWhenInUse
         let manager = makeManager()
         provider.onRequestLocation = { [weak manager] in
@@ -150,21 +152,21 @@ final class LocationManagerTests: XCTestCase {
 
     // MARK: - Reverse geocoding
 
-    func testAGeocodingFailureReturnsNil() async {
+    @MainActor func testAGeocodingFailureReturnsNil() async {
         geocoder.result = .failure(CLError(.geocodeFoundNoResult))
         let place = await makeManager().reverseGeocode(Self.melbourne)
 
         XCTAssertNil(place)
     }
 
-    func testNoPlacemarkReturnsNil() async {
+    @MainActor func testNoPlacemarkReturnsNil() async {
         geocoder.result = .success(nil)
         let place = await makeManager().reverseGeocode(Self.melbourne)
 
         XCTAssertNil(place)
     }
 
-    func testAPlacemarkWithoutALocalityFallsBackToItsName() async {
+    @MainActor func testAPlacemarkWithoutALocalityFallsBackToItsName() async {
         geocoder.result = .success(GeocodedPlace(locality: nil, name: "Kangaroo Ground",
                                                  country: "Australia", isoCountryCode: "AU"))
         let place = await makeManager().reverseGeocode(Self.melbourne)
@@ -175,7 +177,7 @@ final class LocationManagerTests: XCTestCase {
 
     /// Somewhere with no name at all still has to produce a usable city, since
     /// the result becomes a saved entry.
-    func testAPlacemarkWithNoNamesAtAllIsStillUsable() async {
+    @MainActor func testAPlacemarkWithNoNamesAtAllIsStillUsable() async {
         geocoder.result = .success(GeocodedPlace(locality: nil, name: nil,
                                                  country: nil, isoCountryCode: nil))
         let place = await makeManager().reverseGeocode(Self.melbourne)
@@ -185,7 +187,7 @@ final class LocationManagerTests: XCTestCase {
         XCTAssertNil(place?.countryCode)
     }
 
-    func testTheLocalityWinsOverTheName() async {
+    @MainActor func testTheLocalityWinsOverTheName() async {
         geocoder.result = .success(GeocodedPlace(locality: "Melbourne", name: "Some Street",
                                                  country: "Australia", isoCountryCode: "AU"))
         let place = await makeManager().reverseGeocode(Self.melbourne)
@@ -195,9 +197,9 @@ final class LocationManagerTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private static let melbourne = CLLocation(latitude: -37.8136, longitude: 144.9631)
+    @MainActor private static let melbourne = CLLocation(latitude: -37.8136, longitude: 144.9631)
 
-    private func makeManager() -> LocationManager {
+    @MainActor private func makeManager() -> LocationManager {
         LocationManager(manager: provider, geocoder: geocoder)
     }
 
@@ -210,7 +212,7 @@ final class LocationManagerTests: XCTestCase {
     /// killed; this returns a failure in two seconds. The stuck task is
     /// abandoned, which leaks it for the rest of the run and is the right
     /// trade in a test.
-    private func withTimeout<T>(
+    @MainActor private func withTimeout<T>(
         _ seconds: Double = 2,
         _ work: @escaping @MainActor () async -> T
     ) async throws -> T {

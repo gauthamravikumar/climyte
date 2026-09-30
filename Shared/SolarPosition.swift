@@ -30,6 +30,22 @@ nonisolated enum SolarPosition {
         return day.sunset.timeIntervalSince(date)
     }
 
+    /// How long until the sun comes up, in the hours before it does.
+    ///
+    /// Only once the city's date has turned to the day of that sunrise. In the
+    /// evening the sun has just set and sunset is the time worth showing; at
+    /// 3 am it is the sunrise ahead that someone awake wants, and the arc was
+    /// still pointing at a sunset nine hours gone.
+    static func untilSunrise(at date: Date, in days: [SolarDay], timeZone: TimeZone) -> TimeInterval? {
+        guard remainingDaylight(at: date, in: days) == nil,
+              let next = days.first(where: { $0.sunrise > date }) else { return nil }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        guard calendar.isDate(date, inSameDayAs: next.sunrise) else { return nil }
+        return next.sunrise.timeIntervalSince(date)
+    }
+
     /// Whether the sun is above the horizon here at `date`, from the sun itself
     /// rather than from a forecast's sun times.
     ///

@@ -36,11 +36,21 @@ struct HourlyForecastView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(units.temperature(hour.temperature))
                         .font(.hourTemperature)
-                        .foregroundColor(theme.primaryText)
+                        .foregroundStyle(theme.primaryText)
 
                     Text(hour.time)
                         .font(.hourLabel)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundStyle(theme.secondaryText)
+
+                    // Only on the hours where rain is likely, and no line at
+                    // all on a dry day. A dry hour keeps an empty line so the
+                    // wet ones beside it stay on the same baseline.
+                    if showsRain {
+                        Text(Self.isLikely(hour.rainChance)
+                             ? WeatherDetails.percentage(hour.rainChance ?? 0) : " ")
+                            .font(.hourRain)
+                            .foregroundStyle(theme.primaryText)
+                    }
                 }
                 // Leading, not centre: centred text sets each column's left
                 // edge from how wide the text happens to be, so the hour and
@@ -48,8 +58,24 @@ struct HourlyForecastView: View {
                 // whole strip shifted when a reading gained a digit.
                 .frame(width: columnWidth, alignment: .leading)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(hour.time), \(units.temperatureValue(hour.temperature)) degrees")
+                .accessibilityLabel(spokenLabel(for: hour))
             }
         }
+    }
+
+    private var showsRain: Bool {
+        hours.contains { Self.isLikely($0.rainChance) }
+    }
+
+    /// The Rain row's own threshold, so the strip and the row agree about
+    /// which chances are worth a mention.
+    static func isLikely(_ chance: Int?) -> Bool {
+        (chance ?? 0) >= WeatherDetails.Threshold.rainChance
+    }
+
+    private func spokenLabel(for hour: HourlyForecast) -> String {
+        let reading = String(localized: "\(hour.time), \(units.temperatureValue(hour.temperature)) degrees")
+        guard Self.isLikely(hour.rainChance) else { return reading }
+        return String(localized: "\(reading), \(WeatherDetails.percentage(hour.rainChance ?? 0)) chance of rain")
     }
 }

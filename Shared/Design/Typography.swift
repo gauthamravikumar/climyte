@@ -45,6 +45,7 @@ extension Font {
 
     static let hourTemperature = manrope(.bold, 14, relativeTo: .caption)
     static let hourLabel = manrope(.medium, 12, relativeTo: .caption2)
+    static let hourRain = manrope(.bold, 12, relativeTo: .caption2)
 
     static let dayLabel = manrope(.bold, 16, relativeTo: .body)
     static let dayLowTemperature = manrope(.medium, 16, relativeTo: .body)

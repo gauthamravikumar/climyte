@@ -41,7 +41,7 @@ struct RainOutlookView: View {
         VStack(alignment: .leading, spacing: 10) {
             summary
                 .font(.detailRowCaption)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             if !isCompactLayout {
@@ -117,7 +117,7 @@ struct RainOutlookView: View {
             Text("+2h")
         }
         .font(.hourLabel)
-        .foregroundColor(theme.secondaryText)
+        .foregroundStyle(theme.secondaryText)
         .accessibilityHidden(true)
     }
 }

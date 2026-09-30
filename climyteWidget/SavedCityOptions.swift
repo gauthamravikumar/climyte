@@ -1,5 +1,5 @@
 //
-//  SavedCityEntity.swift
+//  SavedCityOptions.swift
 //  climyteWidget
 //
 

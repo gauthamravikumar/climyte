@@ -9,11 +9,11 @@ import XCTest
 /// The week's ribbon has an x for each day plus one at each margin, and a high
 /// and a low at every one of those. When the counts disagree the drawing
 /// indexes past the end — a crash at launch, not a bad chart.
-final class DailyForecastRibbonTests: XCTestCase {
+nonisolated final class DailyForecastRibbonTests: XCTestCase {
 
     /// A forecast whose days have all passed keeps only its last one, so a
     /// cache a week old is enough to get here. The app crashed on every launch.
-    func testASingleDayHasAHighAndLowAtEveryX() {
+    @MainActor func testASingleDayHasAHighAndLowAtEveryX() {
         let outline = DailyForecastView.outline(highs: [20], lows: [40], at: [150],
                                                 width: 300, chartHeight: 68)
 
@@ -22,7 +22,7 @@ final class DailyForecastRibbonTests: XCTestCase {
         XCTAssertEqual(outline.lows.count, outline.xs.count)
     }
 
-    func testNoDaysDrawsNothing() {
+    @MainActor func testNoDaysDrawsNothing() {
         let outline = DailyForecastView.outline(highs: [], lows: [], at: [],
                                                 width: 300, chartHeight: 68)
 
@@ -31,7 +31,7 @@ final class DailyForecastRibbonTests: XCTestCase {
         XCTAssertTrue(outline.lows.isEmpty)
     }
 
-    func testAWeekReachesBothMargins() {
+    @MainActor func testAWeekReachesBothMargins() {
         let vertices: [CGFloat] = [20, 60, 100, 140, 180, 220, 260]
         let outline = DailyForecastView.outline(highs: [30, 25, 20, 22, 28, 30, 26],
                                                 lows: [45, 40, 38, 40, 44, 46, 42],

@@ -13,14 +13,13 @@ import SwiftUI
 /// theme inherited the day theme's secondary grey unchanged, which measured
 /// comfortably against white and 3.98:1 against near-black. Nothing about
 /// reusing a colour across an inversion looks wrong in a diff.
-@MainActor
-final class ThemeContrastTests: XCTestCase {
+nonisolated final class ThemeContrastTests: XCTestCase {
 
     /// The floor for normal-sized text. Almost every style in the ramp is
     /// below the 18pt/14pt-bold threshold that would relax this to 3:1.
     private let minimumNormalText = 4.5
 
-    func testSecondaryTextMeetsAAOnBothThemes() {
+    @MainActor func testSecondaryTextMeetsAAOnBothThemes() {
         for isNight in [true, false] {
             let theme = WeatherTheme.forIsNight(isNight)
             let ratio = contrast(theme.secondaryText, theme.background)
@@ -32,7 +31,7 @@ final class ThemeContrastTests: XCTestCase {
         }
     }
 
-    func testPrimaryTextMeetsAAOnBothThemes() {
+    @MainActor func testPrimaryTextMeetsAAOnBothThemes() {
         for isNight in [true, false] {
             let theme = WeatherTheme.forIsNight(isNight)
             let ratio = contrast(theme.primaryText, theme.background)
@@ -47,7 +46,7 @@ final class ThemeContrastTests: XCTestCase {
     /// Both themes should read with the same weight, which is the thing that
     /// silently stopped being true once and would not be noticed if it did
     /// again: each alone can pass while the pair feels inconsistent.
-    func testBothThemesGiveSecondaryTextComparableWeight() {
+    @MainActor func testBothThemesGiveSecondaryTextComparableWeight() {
         let night = WeatherTheme.forIsNight(true)
         let day = WeatherTheme.forIsNight(false)
 
@@ -67,7 +66,7 @@ final class ThemeContrastTests: XCTestCase {
     /// worst contrast in the app, under even the 3:1 floor for non-text. The
     /// tests above passed throughout, because they measure the colour the
     /// palette defines rather than the colour that reaches the screen.
-    func testFadingSecondaryTextBelowFullOpacityBreaksIt() {
+    @MainActor func testFadingSecondaryTextBelowFullOpacityBreaksIt() {
         for isNight in [true, false] {
             let theme = WeatherTheme.forIsNight(isNight)
 
@@ -84,7 +83,7 @@ final class ThemeContrastTests: XCTestCase {
     }
 
     /// The strip's two real states, at full opacity, in both themes.
-    func testCityStripStatesMeetAA() {
+    @MainActor func testCityStripStatesMeetAA() {
         for isNight in [true, false] {
             let theme = WeatherTheme.forIsNight(isNight)
 
@@ -96,7 +95,7 @@ final class ThemeContrastTests: XCTestCase {
     }
 
     /// Alpha-composites `color` onto `background`, as the renderer does.
-    private func composite(_ color: Color, over background: Color, alpha: Double) -> Color {
+    @MainActor private func composite(_ color: Color, over background: Color, alpha: Double) -> Color {
         let (r, g, b) = components(color)
         let (br, bg, bb) = components(background)
         return Color(red: r * alpha + br * (1 - alpha),
@@ -104,7 +103,7 @@ final class ThemeContrastTests: XCTestCase {
                      blue: b * alpha + bb * (1 - alpha))
     }
 
-    private func components(_ color: Color) -> (Double, Double, Double) {
+    @MainActor private func components(_ color: Color) -> (Double, Double, Double) {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
         return (Double(r), Double(g), Double(b))
@@ -112,11 +111,11 @@ final class ThemeContrastTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func rounded(_ value: Double) -> String {
+    @MainActor private func rounded(_ value: Double) -> String {
         String(format: "%.2f", value)
     }
 
-    private func contrast(_ a: Color, _ b: Color) -> Double {
+    @MainActor private func contrast(_ a: Color, _ b: Color) -> Double {
         let (high, low) = (max(luminance(a), luminance(b)), min(luminance(a), luminance(b)))
         return (high + 0.05) / (low + 0.05)
     }
@@ -125,7 +124,7 @@ final class ThemeContrastTests: XCTestCase {
     /// through UIColor rather than from the hex literal — a test that reads
     /// the same source string the code does would pass even if `Color(hex:)`
     /// were parsing it wrongly.
-    private func luminance(_ color: Color) -> Double {
+    @MainActor private func luminance(_ color: Color) -> Double {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
 

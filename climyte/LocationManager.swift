@@ -83,6 +83,13 @@ final class LocationManager: NSObject, CLLocationManagerDelegate {
         return status == .denied || status == .restricted
     }
 
+    /// Whether the reader has already said yes. Lets a caller look again
+    /// without ever being the one to raise the permission prompt.
+    var isAuthorized: Bool {
+        let status = manager.authorizationStatus
+        return status == .authorizedWhenInUse || status == .authorizedAlways
+    }
+
     /// Requests permission if needed, then fetches the current location.
     /// Returns nil when permission is refused or the fix fails.
     func requestCurrentLocation() async -> CLLocation? {

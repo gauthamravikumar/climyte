@@ -90,6 +90,15 @@ class WeatherViewModel {
     /// is false the app still works, but it must not act as though the list
     /// it is showing is the reader's real one.
     private let listWasReadable: Bool
+
+    /// True while the only city is the stand-in shown before anything is
+    /// known about the reader. It gives way to their own location when that
+    /// arrives: left in place, a new install in Melbourne opened as
+    /// "Melbourne, Sydney", with a city nobody chose.
+    private var isShowingStandInCity: Bool
+
+    /// The quarter hour the pages were last brought up to date in.
+    private var lastQuarterHour = WeatherViewModel.quarterHour(of: Date())
     private var searchTask: Task<Void, Never>?
 
     /// Newest in-flight fetch per city. Results from superseded fetches are
@@ -133,6 +142,7 @@ class WeatherViewModel {
         // cities, and must not be mistaken for one.
         let loaded = SavedCities.loadIfReadable(from: defaults, sources: citiesSources)
         self.listWasReadable = loaded != nil
+        self.isShowingStandInCity = loaded?.isEmpty == true
 
         let cities = (loaded ?? []).isEmpty ? [Self.defaultCity] : (loaded ?? [])
 
@@ -172,6 +182,9 @@ class WeatherViewModel {
 
 
     private func saveCities() {
+        // A list the reader has added to or reordered is theirs, stand-in
+        // and all.
+        isShowingStandInCity = false
         SavedCities.save(entries.map(\.city), to: defaults, sources: citiesSources)
         // Every path that changes the saved list comes through here, which
         // makes it the one place pruning cannot be forgotten — unless we
@@ -188,9 +201,19 @@ class WeatherViewModel {
 
     /// Puts the last successful fetch for every saved city on screen
     /// immediately, so a cold launch renders real data rather than a spinner.
+    ///
+    /// Also how a page is kept honest without the network. `CityWeather`
+    /// works out "today", the hours ahead and the rain timing when it is
+    /// built, so rebuilding from the same response re-resolves all of them
+    /// against the present moment.
+    ///
+    /// One read of the file for every city. Asking the cache city by city
+    /// decoded the whole file each time.
     private func restoreCachedWeather() {
+        let cachedByKey = Dictionary(cache.loadAll().map { ($0.city.key, $0) },
+                                     uniquingKeysWith: { first, _ in first })
         for index in entries.indices {
-            guard let cached = cache.load(for: entries[index].city) else { continue }
+            guard let cached = cachedByKey[entries[index].city.key] else { continue }
             entries[index].weather = CityWeather(city: cached.city, response: cached.response)
             entries[index].lastUpdated = cached.fetchedAt
         }
@@ -280,8 +303,7 @@ class WeatherViewModel {
 
         if let located = await currentLocationCity() {
             locationAccessRefused = false
-            upsertCurrentLocation(located)
-            await refresh(cityKey: located.key)
+            await refresh(cityKey: upsertCurrentLocation(located, select: true))
         } else {
             locationAccessRefused = locationManager.accessIsRefused
         }
@@ -305,38 +327,105 @@ class WeatherViewModel {
         }
     }
 
-    /// Replaces the previous located entry rather than accumulating one per
-    /// trip, and puts a newly discovered one at the front.
+    /// Marks the entry for where the reader is, adding it at the front when it
+    /// is new, and returns its key.
     ///
-    /// A city already in the list keeps its place. It used to be dragged back
-    /// to the front on every launch, which would now silently undo a
-    /// reordering the moment the location resolved.
-    private func upsertCurrentLocation(_ city: City) {
-        entries.removeAll { $0.isCurrentLocation && $0.city.key != city.key }
+    /// Replaces the previous located entry rather than accumulating one per
+    /// trip. A city already in the list keeps its place: it used to be dragged
+    /// back to the front on every launch, which silently undid a reordering
+    /// the moment the location resolved.
+    ///
+    /// `select` is false when the reader has merely come back to the app on
+    /// another city's page. Having moved is not a reason to turn their page.
+    @discardableResult
+    private func upsertCurrentLocation(_ located: City, select: Bool) -> String {
+        let idsBefore = entries.map(\.id)
 
-        if let index = entries.firstIndex(where: { $0.city.key == city.key }) {
-            entries[index].isCurrentLocation = true
-        } else {
-            entries.insert(CityEntry(city: city, isCurrentLocation: true), at: 0)
+        if isShowingStandInCity {
+            entries.removeAll { $0.city.key == Self.defaultCity.key }
+            isShowingStandInCity = false
         }
 
-        selectedCityKey = city.key
-        saveCities()
+        let key = entryID(samePlaceAs: located) ?? located.key
+        entries.removeAll { $0.isCurrentLocation && $0.id != key }
+
+        if let index = index(of: key) {
+            entries[index].isCurrentLocation = true
+        } else {
+            entries.insert(CityEntry(city: located, isCurrentLocation: true), at: 0)
+        }
+
+        if select || index(of: selectedCityKey) == nil {
+            selectedCityKey = key
+        }
+
+        // Only when the list itself changed. Which entry is the located one is
+        // not stored, so saving for that alone would rewrite the list and
+        // reload every widget each time the app came forward.
+        if entries.map(\.id) != idsBefore {
+            saveCities()
+        }
+        return key
     }
+
+    /// The saved city that is the same place as a located one, if any.
+    ///
+    /// Coordinates alone cannot say. A fix lands somewhere different in the
+    /// same town each time, so keyed by where the fix fell the located city
+    /// was a new city on every launch: a second "Melbourne" beside the saved
+    /// one, its cached reading lost with its key. The same name within this
+    /// distance is the same place as far as a forecast is concerned.
+    private func entryID(samePlaceAs located: City) -> String? {
+        if let exact = index(of: located.key) { return entries[exact].id }
+
+        let here = CLLocation(latitude: located.latitude, longitude: located.longitude)
+        return entries.first {
+            $0.city.name == located.name
+                && CLLocation(latitude: $0.city.latitude, longitude: $0.city.longitude)
+                    .distance(from: here) < Self.samePlaceRadius
+        }?.id
+    }
+
+    static let samePlaceRadius: CLLocationDistance = 50_000
 
     /// Brings the app back up to date when it returns to the foreground.
     ///
-    /// Two separate problems. `CityWeather` resolves which day is "today" when
-    /// it is built, so an app left open overnight keeps labelling yesterday
-    /// "Today" and showing yesterday's high, low and UV — rebuilding from the
-    /// same cached response fixes that without a single request. And the
-    /// reading itself may simply be old, which needs the network.
+    /// Three separate problems. The pages describe the moment they were
+    /// built, so an app left overnight keeps labelling yesterday "Today":
+    /// rebuilding from the cached response fixes that without a request. The
+    /// reading itself may simply be old, which needs the network. And the
+    /// reader may have travelled since the app last asked where they are.
     func refreshOnForeground() async {
-        rebuildFromCache()
+        async let location: Void = followCurrentLocation()
+        await bringUpToDate()
+        await location
+    }
+
+    /// Called on every tick of the app's clock, and acts once a quarter hour.
+    ///
+    /// Coming forward was the only thing that brought a page up to date, so
+    /// an app left open kept its hours, its "Starts 6:15 pm" and its Rain row
+    /// exactly as they were when the reading arrived. A quarter hour because
+    /// that is the step the rain outlook moves in.
+    func clockTicked(_ now: Date) async {
+        let quarter = Self.quarterHour(of: now)
+        guard quarter != lastQuarterHour else { return }
+        lastQuarterHour = quarter
+        await bringUpToDate(now: now)
+    }
+
+    private static func quarterHour(of date: Date) -> Int {
+        (date.timeIntervalSince1970 / 900).toInt(.down)
+    }
+
+    /// Rebuilds every page for the present moment, then fetches any reading
+    /// old enough to be worth replacing.
+    private func bringUpToDate(now: Date = Date()) async {
+        restoreCachedWeather()
 
         let stale = entries.filter {
             guard let updated = $0.lastUpdated else { return true }
-            return Date().timeIntervalSince(updated) >= Self.foregroundRefreshAfter
+            return now.timeIntervalSince(updated) >= Self.foregroundRefreshAfter
         }
         guard !stale.isEmpty else { return }
 
@@ -347,13 +436,17 @@ class WeatherViewModel {
         }
     }
 
-    /// Rebuilds every entry's weather from the response already cached, which
-    /// re-resolves "today" against the current date. Costs no network.
-    private func rebuildFromCache() {
-        for index in entries.indices {
-            guard let cached = cache.load(for: entries[index].city) else { continue }
-            entries[index].weather = CityWeather(city: cached.city, response: cached.response)
-            entries[index].lastUpdated = cached.fetchedAt
+    /// Re-checks where the reader is, once they have already said yes.
+    ///
+    /// Never the first ask: a permission prompt belongs to launch, not to
+    /// switching back from another app.
+    private func followCurrentLocation() async {
+        guard locationManager.isAuthorized, let located = await currentLocationCity() else { return }
+
+        let previous = entries.first(where: \.isCurrentLocation)?.id
+        let key = upsertCurrentLocation(located, select: selectedEntry?.isCurrentLocation == true)
+        if key != previous {
+            await refresh(cityKey: key)
         }
     }
 
@@ -490,7 +583,7 @@ class WeatherViewModel {
 
         searchTask = Task {
             // Debounce for 300ms
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(for: .milliseconds(300))
             if Task.isCancelled { return }
 
             do {

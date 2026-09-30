@@ -64,8 +64,6 @@ nonisolated struct WeatherCache {
         }
     }
 
-    /// Drops any cached city not in `cities`, so removing a city doesn't leave
-    /// its payload on disk forever.
     /// Drops any cached city not in `cities`.
     ///
     /// Called on every change to the saved list, not only on deletion: a city
@@ -86,7 +84,6 @@ nonisolated struct WeatherCache {
         }
     }
 
-    /// Reads, transforms and writes the whole file as one coordinated unit.
     /// Reads, transforms and writes back — but only writes when the transform
     /// actually changed something.
     ///

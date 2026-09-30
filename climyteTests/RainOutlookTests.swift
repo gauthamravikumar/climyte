@@ -6,7 +6,7 @@
 import XCTest
 @testable import climyte
 
-final class RainOutlookTests: XCTestCase {
+nonisolated final class RainOutlookTests: XCTestCase {
 
     private let now = Date(timeIntervalSince1970: 1_788_960_000)
 
@@ -14,7 +14,7 @@ final class RainOutlookTests: XCTestCase {
 
     /// The forecast request asks for a past day, so the quarter-hour block can
     /// begin well before now. Showing those would make "the next 2 hours" a lie.
-    func testStepsBeforeNowAreDropped() throws {
+    @MainActor func testStepsBeforeNowAreDropped() throws {
         let outlook = try XCTUnwrap(make(
             offsets: [-120, -60, -15, 0, 15, 30],
             millimetres: [9, 9, 0.2, 0.3, 0.4, 0]
@@ -25,7 +25,7 @@ final class RainOutlookTests: XCTestCase {
         XCTAssertEqual(outlook.steps.map(\.millimetres), [0.2, 0.3, 0.4, 0])
     }
 
-    func testNoMoreThanTwoHoursIsKept() throws {
+    @MainActor func testNoMoreThanTwoHoursIsKept() throws {
         let outlook = try XCTUnwrap(make(
             offsets: Array(stride(from: 0, through: 180, by: 15)),
             millimetres: Array(repeating: 0.2, count: 13)
@@ -35,7 +35,7 @@ final class RainOutlookTests: XCTestCase {
     }
 
     /// A null step is the model saying "nothing here", not a gap in the data.
-    func testNullStepsReadAsDry() throws {
+    @MainActor func testNullStepsReadAsDry() throws {
         let outlook = try XCTUnwrap(make(
             offsets: [0, 15, 30], millimetres: [0.4, nil, 0.2]
         ))
@@ -45,18 +45,18 @@ final class RainOutlookTests: XCTestCase {
 
     /// A negative amount is meaningless and would draw a bar hanging below the
     /// baseline.
-    func testNegativeAmountsAreClampedToZero() throws {
+    @MainActor func testNegativeAmountsAreClampedToZero() throws {
         let outlook = try XCTUnwrap(make(offsets: [0, 15], millimetres: [-3, 0.2]))
         XCTAssertEqual(outlook.steps[0].millimetres, 0)
     }
 
-    func testAnEmptyOrEntirelyPastBlockGivesNothing() {
+    @MainActor func testAnEmptyOrEntirelyPastBlockGivesNothing() {
         XCTAssertNil(make(offsets: [], millimetres: []))
         XCTAssertNil(make(offsets: [-180, -120, -60], millimetres: [1, 1, 1]))
     }
 
     /// An unreadable timestamp must not take the rest of the block with it.
-    func testAnUnreadableTimestampSkipsOnlyItsOwnStep() throws {
+    @MainActor func testAnUnreadableTimestampSkipsOnlyItsOwnStep() throws {
         let times = ["not a date", string(offset: 15), string(offset: 30)]
         let outlook = try XCTUnwrap(
             RainOutlook(times: times, precipitation: [5, 0.3, 0.4],
@@ -68,7 +68,7 @@ final class RainOutlookTests: XCTestCase {
 
     // MARK: - What the card says
 
-    func testDryMeansNoStepReachesTheThreshold() throws {
+    @MainActor func testDryMeansNoStepReachesTheThreshold() throws {
         let damp = try XCTUnwrap(make(offsets: [0, 15], millimetres: [0.05, 0.09]))
         XCTAssertTrue(damp.isDry)
 
@@ -76,14 +76,14 @@ final class RainOutlookTests: XCTestCase {
         XCTAssertFalse(wet.isDry)
     }
 
-    func testTotalIsEverythingExpectedToFall() throws {
+    @MainActor func testTotalIsEverythingExpectedToFall() throws {
         let outlook = try XCTUnwrap(make(
             offsets: [0, 15, 30, 45], millimetres: [0.3, 0.5, 0.8, 0.1]
         ))
         XCTAssertEqual(outlook.total, 1.7, accuracy: 0.0001)
     }
 
-    func testArrivalIsTheFirstWetStepNotTheHeaviest() throws {
+    @MainActor func testArrivalIsTheFirstWetStepNotTheHeaviest() throws {
         let outlook = try XCTUnwrap(make(
             offsets: [0, 15, 30], millimetres: [0, 0.2, 4.0]
         ))
@@ -95,14 +95,14 @@ final class RainOutlookTests: XCTestCase {
     /// The rate is the number people recognise, and a quarter hour's fall is
     /// four times as much in an hour. Reporting the bucket as though it were an
     /// hourly rate would understate a downpour fourfold.
-    func testPeakRateIsPerHourNotPerQuarter() throws {
+    @MainActor func testPeakRateIsPerHourNotPerQuarter() throws {
         let outlook = try XCTUnwrap(make(offsets: [0, 15], millimetres: [0.5, 1.5]))
         XCTAssertEqual(outlook.peakRatePerHour, 6.0, accuracy: 0.0001)
     }
 
     /// Scaling purely to the heaviest step would draw a drizzle at full height,
     /// where it reads as a downpour.
-    func testDrizzleDoesNotFillTheChart() throws {
+    @MainActor func testDrizzleDoesNotFillTheChart() throws {
         let drizzle = try XCTUnwrap(make(offsets: [0, 15], millimetres: [0.1, 0.2]))
         XCTAssertEqual(drizzle.scale, 0.5, accuracy: 0.0001)
 
@@ -114,7 +114,7 @@ final class RainOutlookTests: XCTestCase {
     // MARK: - The next 24 hours
 
     /// London at 2 pm: every drop fell before 5 am. None of it may count.
-    func testRainThatHasAlreadyFallenIsLeftOut() throws {
+    @MainActor func testRainThatHasAlreadyFallenIsLeftOut() throws {
         let rain: [Double?] = [0.4, 0.2, 0, 0.6, 0.1] + Array(repeating: 0.0, count: 19)
         let chance: [Int?] = [62, 71, 76, 76, 69] + Array(repeating: 0, count: 19)
         let ahead = try XCTUnwrap(hours(from: -10, rain: rain, chance: chance))
@@ -125,7 +125,7 @@ final class RainOutlookTests: XCTestCase {
     }
 
     /// The hour already under way has not finished raining.
-    func testTheHourInProgressCounts() throws {
+    @MainActor func testTheHourInProgressCounts() throws {
         let ahead = try XCTUnwrap(hours(from: 0, rain: [2, 0], chance: [90, 0]))
 
         XCTAssertEqual(ahead.amount, 2, accuracy: 0.0001)
@@ -133,7 +133,7 @@ final class RainOutlookTests: XCTestCase {
         XCTAssertEqual(ahead.start, now.addingTimeInterval(-20 * 60), "that hour began before now")
     }
 
-    func testOnlyTwentyFourHoursCount() throws {
+    @MainActor func testOnlyTwentyFourHoursCount() throws {
         let ahead = try XCTUnwrap(hours(from: 0, rain: Array(repeating: 1, count: 48),
                                         chance: Array(repeating: 50, count: 48)))
         XCTAssertEqual(ahead.amount, 24, accuracy: 0.0001)
@@ -141,24 +141,24 @@ final class RainOutlookTests: XCTestCase {
 
     /// The same measure the day's figure used — its peak hour — so the 20%
     /// threshold keeps its meaning.
-    func testTheChanceIsTheHighestHourAhead() throws {
+    @MainActor func testTheChanceIsTheHighestHourAhead() throws {
         let ahead = try XCTUnwrap(hours(from: 0, rain: [0, 0, 0], chance: [10, 80, 30]))
         XCTAssertEqual(ahead.chance, 80)
     }
 
-    func testTheStartIsTheFirstMeasurableRainNotTheFirstDamp() throws {
+    @MainActor func testTheStartIsTheFirstMeasurableRainNotTheFirstDamp() throws {
         let ahead = try XCTUnwrap(hours(from: 0, rain: [0, 0.05, 0.3, 2], chance: [0, 20, 60, 90]))
         XCTAssertEqual(ahead.start, now.addingTimeInterval(TimeInterval((-20 + 120) * 60)))
     }
 
     /// A cached response from before hourly rain was requested carries neither
     /// array. Nothing beats a guess from stale daily figures.
-    func testAResponseWithoutHourlyRainGivesNothing() {
+    @MainActor func testAResponseWithoutHourlyRainGivesNothing() {
         XCTAssertNil(RainAhead(times: [string(offset: 40)], precipitation: nil, probability: nil,
                                parser: formatter(), now: now))
     }
 
-    func testAMissingProbabilityLeavesTheChanceUnknown() throws {
+    @MainActor func testAMissingProbabilityLeavesTheChanceUnknown() throws {
         let ahead = try XCTUnwrap(hours(from: 0, rain: [1, 0], chance: nil))
 
         XCTAssertNil(ahead.chance)
@@ -169,13 +169,13 @@ final class RainOutlookTests: XCTestCase {
 
     /// Hourly times on the hour, starting `first` hours from the one in
     /// progress. `now` is twenty minutes past the hour.
-    private func hours(from first: Int, rain: [Double?], chance: [Int?]?) -> RainAhead? {
+    @MainActor private func hours(from first: Int, rain: [Double?], chance: [Int?]?) -> RainAhead? {
         let times = rain.indices.map { string(offset: -20 + 60 * (first + $0)) }
         return RainAhead(times: times, precipitation: rain, probability: chance,
                          parser: formatter(), now: now)
     }
 
-    private func formatter() -> DateFormatter {
+    @MainActor private func formatter() -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -184,11 +184,11 @@ final class RainOutlookTests: XCTestCase {
         return formatter
     }
 
-    private func string(offset minutes: Int) -> String {
+    @MainActor private func string(offset minutes: Int) -> String {
         formatter().string(from: now.addingTimeInterval(TimeInterval(minutes * 60)))
     }
 
-    private func make(offsets: [Int], millimetres: [Double?]) -> RainOutlook? {
+    @MainActor private func make(offsets: [Int], millimetres: [Double?]) -> RainOutlook? {
         RainOutlook(
             times: offsets.map { string(offset: $0) },
             precipitation: millimetres,

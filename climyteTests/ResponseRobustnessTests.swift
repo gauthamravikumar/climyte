@@ -7,14 +7,13 @@ import XCTest
 @testable import climyte
 
 /// What the app does with a response, or a stored list, that isn't ideal.
-@MainActor
-final class ResponseRobustnessTests: XCTestCase {
+nonisolated final class ResponseRobustnessTests: XCTestCase {
 
     /// Open-Meteo sends null past the horizon of the model backing a field.
     /// The daily arrays were typed for that; the hourly ones were not, so one
     /// missing hour failed the whole decode and the reader was told the data
     /// couldn't be read — for a response that was almost entirely usable.
-    func testANullHourIsSkippedRatherThanFailingTheWholeCity() throws {
+    @MainActor func testANullHourIsSkippedRatherThanFailingTheWholeCity() throws {
         let json = """
         {"time":["2026-08-31T00:00","2026-08-31T01:00","2026-08-31T02:00"],
          "temperature_2m":[12.0,null,14.0]}
@@ -26,7 +25,7 @@ final class ResponseRobustnessTests: XCTestCase {
         XCTAssertNil(hourly.temperature_2m[1])
     }
 
-    func testHoursWithNullValuesAreDroppedButTheRestSurvive() {
+    @MainActor func testHoursWithNullValuesAreDroppedButTheRestSurvive() {
         let now = Date()
         let stamp = DateFormatter()
         stamp.locale = Locale(identifier: "en_US_POSIX")
@@ -53,7 +52,7 @@ final class ResponseRobustnessTests: XCTestCase {
 
     /// `CityEntry.id` is `city.key` and the pager is a `ForEach` over those
     /// ids, so duplicates are undefined behaviour rather than a repeated row.
-    func testDuplicateCitiesAreCollapsedOnTheWayInAndOut() throws {
+    @MainActor func testDuplicateCitiesAreCollapsedOnTheWayInAndOut() throws {
         let suite = "climyteTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -73,7 +72,7 @@ final class ResponseRobustnessTests: XCTestCase {
         XCTAssertEqual(loaded.first?.name, "Paris", "The first occurrence wins")
     }
 
-    func testSavingDropsDuplicatesToo() {
+    @MainActor func testSavingDropsDuplicatesToo() {
         let suite = "climyteTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
