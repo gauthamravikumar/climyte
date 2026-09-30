@@ -8,28 +8,28 @@ import XCTest
 
 /// The details section is driven by relevance rules, so these cover which
 /// rows appear rather than how they look.
-final class WeatherDetailsTests: XCTestCase {
+nonisolated final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - Rain
 
-    func testRainAppearsOnlyAboveTheChanceThreshold() {
+    @MainActor func testRainAppearsOnlyAboveTheChanceThreshold() {
         XCTAssertTrue(kinds(rainChance: 99).contains(.rain))
         XCTAssertTrue(kinds(rainChance: 20).contains(.rain), "Threshold is inclusive")
         XCTAssertFalse(kinds(rainChance: 19).contains(.rain))
         XCTAssertFalse(kinds(rainChance: 0).contains(.rain))
     }
 
-    func testRainIsHiddenWhenTheApiHasNoProbability() {
+    @MainActor func testRainIsHiddenWhenTheApiHasNoProbability() {
         XCTAssertFalse(kinds(rainChance: nil).contains(.rain))
     }
 
-    func testRainLeadsTheSection() {
+    @MainActor func testRainLeadsTheSection() {
         XCTAssertEqual(kinds(rainChance: 80).first, .rain)
     }
 
     /// Rain already under way gets its amount alone; the strip beneath the row
     /// says whether it is falling now.
-    func testRainCaptionGivesTheAmountAhead() {
+    @MainActor func testRainCaptionGivesTheAmountAhead() {
         let detail = details(rainChance: 80, rainAmount: 9.5, rainHours: 7)
             .first { $0.kind == .rain }
 
@@ -40,7 +40,7 @@ final class WeatherDetailsTests: XCTestCase {
     }
 
     /// A forecast can carry a chance without a measurable amount.
-    func testRainCaptionIsOmittedWhenNoAmountIsExpected() {
+    @MainActor func testRainCaptionIsOmittedWhenNoAmountIsExpected() {
         let detail = details(rainChance: 40, rainAmount: 0, rainHours: 0)
             .first { $0.kind == .rain }
         XCTAssertNotNil(detail)
@@ -51,7 +51,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// The day's threshold is meant for the rest of the day. A reader about to
     /// step outside is not helped by it.
-    func testImminentRainEarnsTheRowOnAnUnlikelyDay() {
+    @MainActor func testImminentRainEarnsTheRowOnAnUnlikelyDay() {
         let detail = details(rainChance: 5, minutely: [0, 0.4, 0.8, 0.2])
             .first { $0.kind == .rain }
 
@@ -61,13 +61,13 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// A dry outlook on a day never likely to rain has nothing to say, so the
     /// row goes the way Wind and UV do when they have nothing to say.
-    func testADryOutlookOnAnUnlikelyDayLeavesNoRow() {
+    @MainActor func testADryOutlookOnAnUnlikelyDayLeavesNoRow() {
         XCTAssertFalse(kinds(rainChance: 5, minutely: [0, 0, 0]).contains(.rain))
     }
 
     /// The chance ahead keeps the row when it earns it; the next two hours are
     /// elaboration beneath, not a replacement for it.
-    func testALikelyDayKeepsItsOwnFiguresInTheRow() {
+    @MainActor func testALikelyDayKeepsItsOwnFiguresInTheRow() {
         let detail = details(rainChance: 80, rainAmount: 9.5, rainHours: 7,
                              minutely: [0, 0.4]).first { $0.kind == .rain }
 
@@ -75,7 +75,7 @@ final class WeatherDetailsTests: XCTestCase {
         XCTAssertEqual(detail?.caption, "9\(separator)5 mm")
     }
 
-    func testWithoutMinutelyDataNothingChanges() {
+    @MainActor func testWithoutMinutelyDataNothingChanges() {
         XCTAssertFalse(kinds(rainChance: 5, minutely: nil).contains(.rain))
         XCTAssertTrue(kinds(rainChance: 80, minutely: nil).contains(.rain))
     }
@@ -84,7 +84,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// The bug that started this: London at 2 pm said 76% about rain that had
     /// stopped before 5 am. Hours that have already gone must not count.
-    func testRainThatHasAlreadyFallenDoesNotEarnTheRow() {
+    @MainActor func testRainThatHasAlreadyFallenDoesNotEarnTheRow() {
         let hourStart = Date(timeIntervalSince1970:
             (Date().timeIntervalSince1970 / 3_600).rounded(.down) * 3_600)
         let stamp = DateFormatter()
@@ -114,7 +114,7 @@ final class WeatherDetailsTests: XCTestCase {
     }
 
     /// When it starts is the part worth knowing a day ahead.
-    func testTheCaptionSaysWhenLaterToday() {
+    @MainActor func testTheCaptionSaysWhenLaterToday() {
         let (now, timeZone) = Self.captionClock()
         let start = now.addingTimeInterval(3 * 3_600)
         XCTAssertEqual(
@@ -123,7 +123,7 @@ final class WeatherDetailsTests: XCTestCase {
         )
     }
 
-    func testTheCaptionSaysTomorrowWhenItIs() {
+    @MainActor func testTheCaptionSaysTomorrowWhenItIs() {
         let (now, timeZone) = Self.captionClock()
         let start = now.addingTimeInterval(18 * 3_600)
         XCTAssertEqual(
@@ -132,7 +132,7 @@ final class WeatherDetailsTests: XCTestCase {
         )
     }
 
-    func testRainAlreadyUnderWayGetsTheAmountAlone() {
+    @MainActor func testRainAlreadyUnderWayGetsTheAmountAlone() {
         let (now, timeZone) = Self.captionClock()
         XCTAssertEqual(
             WeatherDetails.rainCaption(amount: "3 mm", start: now.addingTimeInterval(-600),
@@ -143,7 +143,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// Under a row whose value is already the amount, the caption says only
     /// when.
-    func testAnAmountLedCaptionSaysOnlyWhen() {
+    @MainActor func testAnAmountLedCaptionSaysOnlyWhen() {
         let (now, timeZone) = Self.captionClock()
         let later = now.addingTimeInterval(3 * 3_600)
         let tomorrow = now.addingTimeInterval(18 * 3_600)
@@ -158,13 +158,13 @@ final class WeatherDetailsTests: XCTestCase {
     }
 
     /// 1:20 pm UTC, so three hours on is still today and eighteen is tomorrow.
-    private static func captionClock() -> (Date, TimeZone) {
+    @MainActor private static func captionClock() -> (Date, TimeZone) {
         (Date(timeIntervalSince1970: 1_788_960_000), TimeZone(secondsFromGMT: 0)!)
     }
 
     /// Built with the app's own style, so the expectation holds in the German
     /// and Thai regions CI also runs, where the clock reads differently.
-    private static func clock(_ date: Date, _ timeZone: TimeZone) -> String {
+    @MainActor private static func clock(_ date: Date, _ timeZone: TimeZone) -> String {
         date.formatted(Date.FormatStyle(timeZone: timeZone).hour(.defaultDigits(amPM: .abbreviated)))
             .lowercased()
     }
@@ -174,7 +174,7 @@ final class WeatherDetailsTests: XCTestCase {
     /// Paris, seen live: a 0% chance on every hour with 3.4 mm due at 8 pm. The
     /// chance and the amount come from different models, and when they
     /// disagree the rain is what the reader needs to hear about.
-    func testARealAmountEarnsTheRowWhenTheChanceMissesIt() {
+    @MainActor func testARealAmountEarnsTheRowWhenTheChanceMissesIt() {
         let detail = details(rainChance: 0, rainAmount: 3.5, rainHours: 2).first { $0.kind == .rain }
 
         // "0%" beside 3.5 mm would contradict itself, so the amount leads.
@@ -184,13 +184,13 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// A trace at a low chance is exactly what the chance threshold exists to
     /// keep off the page.
-    func testATraceAtALowChanceStaysHidden() {
+    @MainActor func testATraceAtALowChanceStaysHidden() {
         XCTAssertFalse(kinds(rainChance: 0, rainAmount: 0.4, rainHours: 2).contains(.rain))
     }
 
     /// Guards the existing behaviour through the change: a likely row reads as
     /// it did.
-    func testTheChanceStillLeadsWhenItClearsTheThreshold() {
+    @MainActor func testTheChanceStillLeadsWhenItClearsTheThreshold() {
         let detail = details(rainChance: 60, rainAmount: 3.5, rainHours: 2).first { $0.kind == .rain }
         XCTAssertEqual(detail?.value, WeatherDetails.percentage(60))
     }
@@ -198,7 +198,7 @@ final class WeatherDetailsTests: XCTestCase {
     /// The strip under the row gives its own two-hour amount unless the row's
     /// figure already is that amount. A day's total covers a different span,
     /// so under an amount-led row the strip must still say its own.
-    func testTheRowSaysWhichFigureItLeadsWith() {
+    @MainActor func testTheRowSaysWhichFigureItLeadsWith() {
         XCTAssertEqual(WeatherDetails.rainRowLead(weather(rainChance: 60, rainAmount: 3.5)), .chance)
         XCTAssertEqual(WeatherDetails.rainRowLead(weather(rainChance: 0, rainAmount: 3.5)), .amountAhead)
         XCTAssertEqual(WeatherDetails.rainRowLead(weather(rainChance: 0, rainAmount: 0.4,
@@ -206,7 +206,7 @@ final class WeatherDetailsTests: XCTestCase {
         XCTAssertNil(WeatherDetails.rainRowLead(weather(rainChance: 0, rainAmount: 0.4)))
     }
 
-    private func weather(rainChance: Int?, rainAmount: Double?,
+    @MainActor private func weather(rainChance: Int?, rainAmount: Double?,
                          minutely: [Double?]? = nil) -> CityWeather {
         CityWeather(
             city: City(id: UUID(), name: "Test", country: "Testland",
@@ -218,7 +218,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - UV
 
-    func testUVAppearsOnlyInDaylightAndAboveTheProtectionThreshold() {
+    @MainActor func testUVAppearsOnlyInDaylightAndAboveTheProtectionThreshold() {
         XCTAssertTrue(kinds(uv: 8, isNight: false).contains(.uv))
         XCTAssertFalse(kinds(uv: 8, isNight: true).contains(.uv), "UV is meaningless at night")
         XCTAssertFalse(kinds(uv: 2, isNight: false).contains(.uv))
@@ -228,14 +228,14 @@ final class WeatherDetailsTests: XCTestCase {
 
     /// Relative humidity misleads in both directions, so the trigger is dew
     /// point: 85% at 11°C is not muggy, and 51% at 33°C is.
-    func testHumidityUsesDewPointRatherThanRelativeHumidity() {
+    @MainActor func testHumidityUsesDewPointRatherThanRelativeHumidity() {
         XCTAssertFalse(kinds(dewPoint: 8.9).contains(.humidity), "Cool and damp is not humid")
         XCTAssertTrue(kinds(dewPoint: 21.8).contains(.humidity), "Warm and sticky is")
         XCTAssertTrue(kinds(dewPoint: 0).contains(.humidity), "Very dry is worth saying")
         XCTAssertFalse(kinds(dewPoint: 10).contains(.humidity), "Unremarkable stays hidden")
     }
 
-    func testHumidLabelDiffersFromDryLabel() {
+    @MainActor func testHumidLabelDiffersFromDryLabel() {
         let humid = details(dewPoint: 20).first { $0.kind == .humidity }
         let dry = details(dewPoint: 0).first { $0.kind == .humidity }
         XCTAssertNotEqual(humid?.label, dry?.label)
@@ -243,7 +243,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - Wind
 
-    func testGustsAreMentionedOnlyWhenTheyExceedTheAverage() {
+    @MainActor func testGustsAreMentionedOnlyWhenTheyExceedTheAverage() {
         let gusty = details(windSpeed: 15, windGusts: 34).first { $0.kind == .wind }
         let steady = details(windSpeed: 15, windGusts: 18).first { $0.kind == .wind }
 
@@ -253,7 +253,7 @@ final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - Visibility
 
-    func testVisibilityAppearsOnlyWhenReduced() {
+    @MainActor func testVisibilityAppearsOnlyWhenReduced() {
         XCTAssertTrue(kinds(visibilityKm: 2).contains(.visibility))
         XCTAssertFalse(kinds(visibilityKm: 10).contains(.visibility),
                        "A tile that always reads 10 km is decoration")
@@ -261,12 +261,12 @@ final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - Always present
 
-    func testWindAlwaysAppears() {
+    @MainActor func testWindAlwaysAppears() {
         let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
         XCTAssertTrue(quiet.contains(.wind))
     }
 
-    func testAQuietNightStillShowsSomething() {
+    @MainActor func testAQuietNightStillShowsSomething() {
         let quiet = kinds(rainChance: 0, uv: 0, isNight: true, dewPoint: 10, visibilityKm: 30)
         XCTAssertGreaterThanOrEqual(quiet.count, 1, "An empty section is worse than a plain one")
         XCTAssertTrue(quiet.contains(.wind))
@@ -274,25 +274,25 @@ final class WeatherDetailsTests: XCTestCase {
 
     // MARK: - Daylight
 
-    func testDurationIsFormattedInHoursAndMinutes() {
+    @MainActor func testDurationIsFormattedInHoursAndMinutes() {
         XCTAssertEqual(WeatherDetails.duration(49993), "13h 53m")
         XCTAssertEqual(WeatherDetails.duration(3600), "1h 0m")
     }
 
-    func testDaylightChangeNamesItsDirection() {
+    @MainActor func testDaylightChangeNamesItsDirection() {
         XCTAssertEqual(WeatherDetails.daylightChange(-240), "4m shorter")
         XCTAssertEqual(WeatherDetails.daylightChange(120), "2m longer")
     }
 
     /// Sub-minute drift either way is not a change worth reporting.
-    func testDaylightChangeIsOmittedWhenNegligible() {
+    @MainActor func testDaylightChangeIsOmittedWhenNegligible() {
         XCTAssertNil(WeatherDetails.daylightChange(20))
         XCTAssertNil(WeatherDetails.daylightChange(-20))
     }
 
     // MARK: - Helpers
 
-    private func kinds(rainChance: Int? = 0,
+    @MainActor private func kinds(rainChance: Int? = 0,
                        rainAmount: Double? = 0,
                        rainHours: Double? = 0,
                        uv: Double = 0,
@@ -308,7 +308,7 @@ final class WeatherDetailsTests: XCTestCase {
                 visibilityKm: visibilityKm, minutely: minutely).map(\.kind)
     }
 
-    private func details(rainChance: Int? = 0,
+    @MainActor private func details(rainChance: Int? = 0,
                          rainAmount: Double? = 0,
                          rainHours: Double? = 0,
                          uv: Double = 0,
@@ -340,9 +340,9 @@ final class WeatherDetailsTests: XCTestCase {
 
 /// The details decide day or night by the moment they're given — the app's
 /// one clock — so the UV row can't still show after the page has gone dark.
-final class DetailsFollowTheAppClockTests: XCTestCase {
+nonisolated final class DetailsFollowTheAppClockTests: XCTestCase {
 
-    func testUVFollowsTheMomentItIsGiven() {
+    @MainActor func testUVFollowsTheMomentItIsGiven() {
         let city = City(id: UUID(), name: "Testville", country: "Nowhere",
                         countryCode: "AU", latitude: 0, longitude: 0)
         let weather = CityWeather(city: city, response: TestResponse.make(isDay: 1, uvIndex: 6))

@@ -7,8 +7,7 @@ import XCTest
 import CoreLocation
 @testable import climyte
 
-@MainActor
-final class WeatherViewModelTests: XCTestCase {
+nonisolated final class WeatherViewModelTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
@@ -54,7 +53,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     // MARK: - Saved cities
 
-    func testDefaultsToSydneyWhenNothingIsPersisted() {
+    @MainActor func testDefaultsToSydneyWhenNothingIsPersisted() {
         let viewModel = makeViewModel()
 
         XCTAssertEqual(viewModel.entries.count, 1)
@@ -62,7 +61,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedCityKey, viewModel.entries.first?.id)
     }
 
-    func testLoadsPersistedCitiesInOrder() throws {
+    @MainActor func testLoadsPersistedCitiesInOrder() throws {
         let cities = [paris, tokyo]
         defaults.set(try JSONEncoder().encode(cities), forKey: "saved_cities")
 
@@ -74,7 +73,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// Anyone upgrading from the single-city build should keep their city
     /// rather than being silently reset to Sydney.
-    func testMigratesTheLegacySingleCityKey() throws {
+    @MainActor func testMigratesTheLegacySingleCityKey() throws {
         defaults.set(try JSONEncoder().encode(paris), forKey: "saved_active_city")
 
         let viewModel = makeViewModel()
@@ -88,7 +87,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// saved list read as absent, the fallback city stood in for it, and the
     /// cache was pruned against that fallback — deleting every other city's
     /// reading. The read failing is not evidence that a city was removed.
-    func testAFailedReadDoesNotPruneTheWeatherCache() throws {
+    @MainActor func testAFailedReadDoesNotPruneTheWeatherCache() throws {
         cache.save(city: paris, response: makeResponse(temperature: 12))
         cache.save(city: tokyo, response: makeResponse(temperature: 20))
         defaults.set(Data("not a list this build can read".utf8), forKey: "saved_cities")
@@ -100,7 +99,7 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// The same launch must still leave the reader with a usable app.
-    func testAFailedReadStillShowsSomething() throws {
+    @MainActor func testAFailedReadStillShowsSomething() throws {
         defaults.set(Data("not a list this build can read".utf8), forKey: "saved_cities")
 
         let viewModel = makeViewModel()
@@ -110,7 +109,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// A reader who genuinely has no cities is a different case, and pruning
     /// is correct there.
-    func testAnEmptyStoreStillPrunes() throws {
+    @MainActor func testAnEmptyStoreStillPrunes() throws {
         cache.save(city: paris, response: makeResponse(temperature: 12))
 
         _ = makeViewModel()
@@ -123,7 +122,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// The located city is put in front when it is new to the list — that is
     /// the whole reason to surface it.
-    func testANewlyLocatedCityIsPlacedFirstAndSelected() async throws {
+    @MainActor func testANewlyLocatedCityIsPlacedFirstAndSelected() async throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
         let viewModel = makeViewModel(locatedAt: berlinPlace)
 
@@ -137,7 +136,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// A city already in the list keeps the place the reader gave it. It used
     /// to be dragged to the front on every launch, which would silently undo a
     /// reordering the moment CoreLocation answered.
-    func testALocatedCityAlreadySavedKeepsItsPosition() async throws {
+    @MainActor func testALocatedCityAlreadySavedKeepsItsPosition() async throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
         let viewModel = makeViewModel(locatedAt: tokyoPlace, coordinate: tokyoCoordinate)
 
@@ -151,7 +150,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// Travelling replaces the located entry rather than collecting one per
     /// trip.
-    func testMovingReplacesThePreviousLocatedCity() async throws {
+    @MainActor func testMovingReplacesThePreviousLocatedCity() async throws {
         let viewModel = makeViewModel(locatedAt: berlinPlace)
         await viewModel.loadWeatherOnLaunch()
         XCTAssertEqual(viewModel.entries.filter(\.isCurrentLocation).count, 1)
@@ -165,7 +164,72 @@ final class WeatherViewModelTests: XCTestCase {
                        "The old located city should not linger once it is not where you are")
     }
 
-    func testARefusedLocationIsRecordedSoTheListCanSaySo() async throws {
+    /// Sydney is only a stand-in until the reader's own city is known. Kept, a
+    /// new install in Berlin opened with a city nobody had chosen beside it.
+    @MainActor func testTheStandInCityGivesWayToTheLocatedOne() async throws {
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Berlin"])
+        XCTAssertEqual(try savedNames(), ["Berlin"])
+    }
+
+    @MainActor func testTheStandInCityStaysWhenThereIsNoLocation() async throws {
+        let viewModel = makeViewModel(authorization: .denied)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Sydney"],
+                       "With nowhere better to show, the stand-in is all there is")
+    }
+
+    /// A fix never lands on the same coordinates twice. Keyed by where it
+    /// fell, the located city was a new one each launch: a second "Tokyo"
+    /// beside the saved one.
+    @MainActor func testAFixElsewhereInASavedCityIsThatCity() async throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let acrossTown = CLLocation(latitude: 35.70, longitude: 139.70)
+        let viewModel = makeViewModel(locatedAt: tokyoPlace, coordinate: acrossTown)
+
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"])
+        XCTAssertTrue(viewModel.entries[1].isCurrentLocation)
+        XCTAssertEqual(viewModel.entries[1].id, tokyo.key,
+                       "The saved city keeps its key, and so its cached reading")
+    }
+
+    /// Location used to be asked for once, at launch. Someone who flew and
+    /// reopened the app from the background kept the city they had left.
+    @MainActor func testReturningToTheAppFollowsTheReaderSomewhereNew() async throws {
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+        await viewModel.loadWeatherOnLaunch()
+
+        locationProvider.location = tokyoCoordinate
+        geocoder.result = .success(tokyoPlace)
+        await viewModel.refreshOnForeground()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Tokyo"])
+        XCTAssertEqual(viewModel.selectedEntry?.city.name, "Tokyo")
+    }
+
+    /// Having moved is not a reason to turn the page someone is reading.
+    @MainActor func testReturningDoesNotTurnThePageTheReaderIsOn() async throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+        await viewModel.loadWeatherOnLaunch()
+        viewModel.selectEntry(viewModel.entries[1])
+
+        locationProvider.location = tokyoCoordinate
+        geocoder.result = .success(tokyoPlace)
+        await viewModel.refreshOnForeground()
+
+        XCTAssertEqual(viewModel.entries.map(\.city.name), ["Tokyo", "Paris"])
+        XCTAssertEqual(viewModel.selectedEntry?.city.name, "Paris")
+    }
+
+    @MainActor func testARefusedLocationIsRecordedSoTheListCanSaySo() async throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
         let viewModel = makeViewModel(authorization: .denied)
 
@@ -177,7 +241,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// A failed fix is not a refusal, and must not be reported as one — the
     /// reader would be sent to Settings to change something already correct.
-    func testAFailedFixIsNotReportedAsARefusal() async throws {
+    @MainActor func testAFailedFixIsNotReportedAsARefusal() async throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
         let viewModel = makeViewModel(authorization: .authorizedWhenInUse)
         geocoder.result = .success(nil)
@@ -192,7 +256,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// `destination` is an insertion point in the pre-move list, so moving a
     /// row down by one means a destination two past its own index. Getting
     /// this wrong is a no-op rather than a crash, which is why it is pinned.
-    func testMovingACityDownReordersAndPersists() throws {
+    @MainActor func testMovingACityDownReordersAndPersists() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
         let viewModel = makeViewModel()
 
@@ -202,7 +266,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(try savedNames(), ["Tokyo", "Paris", "Berlin"])
     }
 
-    func testMovingACityUpReordersAndPersists() throws {
+    @MainActor func testMovingACityUpReordersAndPersists() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
         let viewModel = makeViewModel()
 
@@ -214,7 +278,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// The order is the pager's order, but which city is on screen shouldn't
     /// change underneath someone who only dragged a row.
-    func testMovingDoesNotChangeTheSelectedCity() throws {
+    @MainActor func testMovingDoesNotChangeTheSelectedCity() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
         let viewModel = makeViewModel()
         viewModel.selectEntry(viewModel.entries[1])
@@ -225,7 +289,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedCityKey, tokyo.key)
     }
 
-    func testMovingSeveralCitiesKeepsThemTogetherAndInOrder() throws {
+    @MainActor func testMovingSeveralCitiesKeepsThemTogetherAndInOrder() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo, berlin]), forKey: "saved_cities")
         let viewModel = makeViewModel()
 
@@ -236,7 +300,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// A drag that ends where it started shouldn't write to disk or reload the
     /// widget for nothing.
-    func testMovingACityOntoItselfChangesNothing() throws {
+    @MainActor func testMovingACityOntoItselfChangesNothing() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
         let reloader = CountingReloader()
         let viewModel = makeViewModel(reloader: reloader)
@@ -249,7 +313,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloader.count, before)
     }
 
-    func testMovingAnOutOfRangeIndexIsIgnored() throws {
+    @MainActor func testMovingAnOutOfRangeIndexIsIgnored() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
         let viewModel = makeViewModel()
 
@@ -258,7 +322,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries.map(\.city.name), ["Paris", "Tokyo"])
     }
 
-    func testSelectingASearchResultAppendsAndSelectsIt() {
+    @MainActor func testSelectingASearchResultAppendsAndSelectsIt() {
         let viewModel = makeViewModel()
 
         viewModel.selectCity(makeTokyoResult())
@@ -269,7 +333,7 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// Adding a city you already have should move to it, not duplicate it.
-    func testSelectingAnAlreadySavedCitySelectsRatherThanDuplicates() {
+    @MainActor func testSelectingAnAlreadySavedCitySelectsRatherThanDuplicates() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeTokyoResult())
         XCTAssertEqual(viewModel.entries.count, 2)
@@ -280,14 +344,14 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedCityKey, tokyo.key)
     }
 
-    func testSavedCitiesPersistAcrossLaunches() {
+    @MainActor func testSavedCitiesPersistAcrossLaunches() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeTokyoResult())
 
         XCTAssertEqual(makeViewModel().entries.map(\.city.name), ["Sydney", "Tokyo"])
     }
 
-    func testRemovingACitySelectsANeighbourAndPersists() {
+    @MainActor func testRemovingACitySelectsANeighbourAndPersists() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeTokyoResult())
         XCTAssertEqual(viewModel.selectedCityKey, tokyo.key)
@@ -300,7 +364,7 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// An app with no cities has nothing to show and no way back.
-    func testTheLastCityCannotBeRemoved() {
+    @MainActor func testTheLastCityCannotBeRemoved() {
         let viewModel = makeViewModel()
 
         XCTAssertFalse(viewModel.canRemoveCities)
@@ -309,7 +373,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries.count, 1)
     }
 
-    func testRemovingACityPrunesItsCachedWeather() {
+    @MainActor func testRemovingACityPrunesItsCachedWeather() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeTokyoResult())
         cache.save(city: tokyo, response: makeResponse(temperature: 8))
@@ -323,7 +387,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// Moving storage into the App Group must not lose cities that were saved
     /// before it existed — an upgrade that silently resets to Sydney would be
     /// invisible in testing and infuriating in use.
-    func testCitiesSavedBeforeTheAppGroupAreMigrated() throws {
+    @MainActor func testCitiesSavedBeforeTheAppGroupAreMigrated() throws {
         legacyDefaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
         XCTAssertNil(defaults.data(forKey: "saved_cities"), "Shared suite starts empty")
 
@@ -336,7 +400,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// The single-city key predates both the list and the App Group, so it has
     /// to survive two migrations in one hop.
-    func testTheLegacySingleCityKeyMigratesThroughTheAppGroup() throws {
+    @MainActor func testTheLegacySingleCityKeyMigratesThroughTheAppGroup() throws {
         legacyDefaults.set(try JSONEncoder().encode(paris), forKey: "saved_active_city")
 
         XCTAssertEqual(makeViewModel().entries.map(\.city.name), ["Paris"])
@@ -344,7 +408,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// Migration runs on every launch, not just the first, so it must never
     /// overwrite cities already in shared storage.
-    func testMigrationDoesNotOverwriteExistingSharedCities() throws {
+    @MainActor func testMigrationDoesNotOverwriteExistingSharedCities() throws {
         legacyDefaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
         defaults.set(try JSONEncoder().encode([tokyo]), forKey: "saved_cities")
 
@@ -353,7 +417,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     // MARK: - Fetching
 
-    func testSuccessfulFetchPublishesWeatherAgainstItsOwnEntry() async {
+    @MainActor func testSuccessfulFetchPublishesWeatherAgainstItsOwnEntry() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather())
         let viewModel = makeViewModel(service: service)
@@ -367,7 +431,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.entries[0].lastUpdated)
     }
 
-    func testOfflineErrorSurfacesAsAUserFacingMessage() async {
+    @MainActor func testOfflineErrorSurfacesAsAUserFacingMessage() async {
         let service = StubWeatherService()
         service.result = .failure(WeatherService.WeatherError.offline)
         let viewModel = makeViewModel(service: service)
@@ -379,7 +443,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.entries[0].isLoading)
     }
 
-    func testServerErrorSurfacesAsAUserFacingMessage() async {
+    @MainActor func testServerErrorSurfacesAsAUserFacingMessage() async {
         let service = StubWeatherService()
         service.result = .failure(WeatherService.WeatherError.serverError(statusCode: 503))
         let viewModel = makeViewModel(service: service)
@@ -389,7 +453,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries[0].errorMessage, "The weather service is unavailable right now.")
     }
 
-    func testDecodingErrorNamesTheCity() {
+    @MainActor func testDecodingErrorNamesTheCity() {
         let message = WeatherViewModel.userMessage(
             for: WeatherService.WeatherError.decodingError,
             city: City(id: UUID(), name: "Oslo", country: "Norway", countryCode: nil, latitude: 59.91, longitude: 10.75)
@@ -399,7 +463,7 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// One city failing must not blank out another city's page.
-    func testAFailureOnOneCityDoesNotAffectAnother() async throws {
+    @MainActor func testAFailureOnOneCityDoesNotAffectAnother() async throws {
         // Seeded through persistence rather than selectCity, which kicks off a
         // background refresh whose timing would race the assertions below.
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
@@ -420,7 +484,7 @@ final class WeatherViewModelTests: XCTestCase {
     }
 
     /// A slow fetch that lost the race must not overwrite the newer one's result.
-    func testSupersededFetchDoesNotOverwriteNewerResult() async {
+    @MainActor func testSupersededFetchDoesNotOverwriteNewerResult() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather(temperature: 1))
         service.delayNanoseconds = 200_000_000
@@ -441,7 +505,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// The array can be mutated while a request is in flight, so the write-back
     /// must re-resolve its index rather than trusting the old one.
-    func testFetchCompletingAfterARemovalDoesNotCorruptOtherEntries() async {
+    @MainActor func testFetchCompletingAfterARemovalDoesNotCorruptOtherEntries() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather(temperature: 8))
         service.delayNanoseconds = 150_000_000
@@ -462,7 +526,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// Every network fault used to collapse into one sentence that named
     /// nothing. These are genuinely different problems with different fixes.
-    func testDistinctNetworkFaultsGetDistinctMessages() {
+    @MainActor func testDistinctNetworkFaultsGetDistinctMessages() {
         let city = City(id: UUID(), name: "Oslo", country: "Norway",
                         countryCode: "NO", latitude: 59.91, longitude: 10.75)
 
@@ -482,7 +546,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// An unrecognised URLError still names its code, so a report identifies
     /// the fault even when the app has no friendly wording for it.
-    func testUnrecognisedURLErrorNamesItsCode() {
+    @MainActor func testUnrecognisedURLErrorNamesItsCode() {
         let city = City(id: UUID(), name: "Oslo", country: "Norway",
                         countryCode: "NO", latitude: 59.91, longitude: 10.75)
         let underlying = URLError(.httpTooManyRedirects)
@@ -502,7 +566,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// `entries`, rebuilds the ForEach inside the TabView and tears that task
     /// down — cancelling the request it was awaiting, so pull-to-refresh
     /// always failed with URLError -999. The work must outlive its caller.
-    func testRefreshSurvivesCancellationOfTheCallingTask() async {
+    @MainActor func testRefreshSurvivesCancellationOfTheCallingTask() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather(temperature: 30))
         service.delayNanoseconds = 200_000_000
@@ -522,7 +586,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     // MARK: - Caching
 
-    func testSuccessfulFetchIsWrittenToTheCache() async {
+    @MainActor func testSuccessfulFetchIsWrittenToTheCache() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather())
         let viewModel = makeViewModel(service: service)
@@ -535,7 +599,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// A cold launch should show the last reading immediately rather than a
     /// spinner, even before any network call resolves.
-    func testCachedWeatherIsRestoredForEveryCityOnInit() throws {
+    @MainActor func testCachedWeatherIsRestoredForEveryCityOnInit() throws {
         defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
 
         let fetchedAt = Date().addingTimeInterval(-3600)
@@ -549,7 +613,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries[0].lastUpdated, fetchedAt)
     }
 
-    func testCacheKeepsCitiesSeparate() {
+    @MainActor func testCacheKeepsCitiesSeparate() {
         cache.save(city: paris, response: makeResponse(temperature: 19))
         cache.save(city: tokyo, response: makeResponse(temperature: 8))
 
@@ -558,7 +622,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(cache.loadAll().count, 2)
     }
 
-    func testSavingTheSameCityTwiceReplacesRatherThanAccumulates() {
+    @MainActor func testSavingTheSameCityTwiceReplacesRatherThanAccumulates() {
         cache.save(city: paris, response: makeResponse(temperature: 19))
         cache.save(city: paris, response: makeResponse(temperature: 25))
 
@@ -566,7 +630,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(cache.load(for: paris)?.response.current.temperature_2m, 25)
     }
 
-    func testCacheRoundTripsThroughDisk() {
+    @MainActor func testCacheRoundTripsThroughDisk() {
         cache.save(city: paris, response: makeResponse(temperature: 19))
 
         let reloaded = WeatherCache(directory: cacheDirectory).load(for: paris)
@@ -575,7 +639,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloaded?.response.current.temperature_2m, 19)
     }
 
-    func testLoadReturnsNilWhenNothingHasBeenCached() {
+    @MainActor func testLoadReturnsNilWhenNothingHasBeenCached() {
         XCTAssertNil(cache.load(for: paris))
         XCTAssertTrue(cache.loadAll().isEmpty)
     }
@@ -583,7 +647,7 @@ final class WeatherViewModelTests: XCTestCase {
     // MARK: - Units
 
     /// Units come from each city's own country, with no global setting.
-    func testEachCityUsesItsOwnCountrysUnits() {
+    @MainActor func testEachCityUsesItsOwnCountrysUnits() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeDenverResult())
 
@@ -594,14 +658,14 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(denver.unitSystem, .imperial)
     }
 
-    func testAddedCitiesRetainTheirCountryCode() {
+    @MainActor func testAddedCitiesRetainTheirCountryCode() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeDenverResult())
 
         XCTAssertEqual(viewModel.entries[1].city.countryCode, "US")
     }
 
-    func testCountryCodeSurvivesARelaunch() {
+    @MainActor func testCountryCodeSurvivesARelaunch() {
         let viewModel = makeViewModel()
         viewModel.selectCity(makeDenverResult())
 
@@ -612,7 +676,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// The saved list is the authority on what the cache may hold, and every
     /// path that changes it goes through saveCities.
-    func testAddingACityPrunesCitiesThatAreNoLongerSaved() {
+    @MainActor func testAddingACityPrunesCitiesThatAreNoLongerSaved() {
         // A cache left over from an earlier run, holding a city nobody saved.
         let ghost = City(id: UUID(), name: "Ghost", country: "Nowhere",
                          countryCode: "AU", latitude: 10, longitude: 10)
@@ -627,7 +691,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// And an app upgrading from a build that only pruned on delete gets its
     /// accumulated cache cleaned up on the next launch.
-    func testLaunchingPrunesACacheLeftOversizedByAnEarlierBuild() {
+    @MainActor func testLaunchingPrunesACacheLeftOversizedByAnEarlierBuild() {
         for i in 0..<5 {
             let stale = City(id: UUID(), name: "Stale \(i)", country: "Nowhere",
                              countryCode: "AU", latitude: Double(i) + 20, longitude: 5)
@@ -642,13 +706,33 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.entries.count, 1)
     }
 
+    // MARK: - Staying open
+
+    /// Coming forward was the only thing that brought a page up to date, so
+    /// an app left open kept its hours and rain timing as they were when the
+    /// reading arrived, and never fetched again.
+    @MainActor func testAnOpenAppIsBroughtUpToDateEachQuarterHour() async {
+        let service = StubWeatherService()
+        service.result = .success(makeCityWeather())
+        let viewModel = makeViewModel(service: service)
+        await viewModel.refresh(cityKey: viewModel.selectedCityKey)
+        let fetched = service.fetchCount
+
+        let later = Date().addingTimeInterval(16 * 60)
+        await viewModel.clockTicked(later)
+        XCTAssertEqual(service.fetchCount, fetched + 1, "A quarter hour on, the reading is fetched again")
+
+        await viewModel.clockTicked(later)
+        XCTAssertEqual(service.fetchCount, fetched + 1, "Once per quarter hour, not once per tick")
+    }
+
     // MARK: - Returning to the foreground
 
     /// The date-rollover defect. `CityWeather` resolves which day is "today"
     /// when it is built, so an app left open overnight keeps labelling
     /// yesterday "Today". Rebuilding from the same cached response fixes it
     /// without a request.
-    func testReturningToTheForegroundRebuildsFromTheCache() async {
+    @MainActor func testReturningToTheForegroundRebuildsFromTheCache() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather())
         cache.save(city: WeatherViewModel.defaultCity,
@@ -664,7 +748,7 @@ final class WeatherViewModelTests: XCTestCase {
                        "Rebuilt from the cached response, not invented")
     }
 
-    func testAFreshReadingIsNotRefetchedOnReturningToTheForeground() async {
+    @MainActor func testAFreshReadingIsNotRefetchedOnReturningToTheForeground() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather())
         cache.save(city: WeatherViewModel.defaultCity,
@@ -680,7 +764,7 @@ final class WeatherViewModelTests: XCTestCase {
                        "Switching back to the app should not cost a request every time")
     }
 
-    func testAnOldReadingIsRefetchedOnReturningToTheForeground() async {
+    @MainActor func testAnOldReadingIsRefetchedOnReturningToTheForeground() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather(temperature: 25))
         cache.save(city: WeatherViewModel.defaultCity,
@@ -701,7 +785,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// The widget renders from the shared cache and cannot fetch on the app's
     /// behalf, so a reading the app has and the widget does not is a reading
     /// nobody asked WidgetKit to come and collect.
-    func testASuccessfulFetchAsksTheWidgetToReload() async {
+    @MainActor func testASuccessfulFetchAsksTheWidgetToReload() async {
         let service = StubWeatherService()
         service.result = .success(makeCityWeather())
         let reloader = CountingReloader()
@@ -713,7 +797,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(reloader.count, 1)
     }
 
-    func testAFailedFetchDoesNotAskTheWidgetToReload() async {
+    @MainActor func testAFailedFetchDoesNotAskTheWidgetToReload() async {
         let service = StubWeatherService()
         service.result = .failure(WeatherService.WeatherError.offline)
         let reloader = CountingReloader()
@@ -727,7 +811,7 @@ final class WeatherViewModelTests: XCTestCase {
 
     /// An unconfigured widget shows whichever city is first, so the list
     /// changing can change what a widget displays with no reading involved.
-    func testAddingACityAsksTheWidgetToReload() {
+    @MainActor func testAddingACityAsksTheWidgetToReload() {
         let reloader = CountingReloader()
         let viewModel = makeViewModel(reloader: reloader)
         reloader.count = 0
@@ -737,7 +821,7 @@ final class WeatherViewModelTests: XCTestCase {
         XCTAssertGreaterThan(reloader.count, 0)
     }
 
-    func testRemovingACityAsksTheWidgetToReload() {
+    @MainActor func testRemovingACityAsksTheWidgetToReload() {
         let reloader = CountingReloader()
         let viewModel = makeViewModel(reloader: reloader)
         viewModel.selectCity(makeTokyoResult())
@@ -757,17 +841,24 @@ final class WeatherViewModelTests: XCTestCase {
     /// Read back through `SavedCities` rather than decoding the bytes: the
     /// stored shape is versioned now, and a test that hardcodes one version
     /// only pins the format, not the behaviour.
-    private func savedNames() throws -> [String] {
+    @MainActor private func savedNames() throws -> [String] {
         XCTAssertNotNil(defaults.data(forKey: "saved_cities"), "Nothing was saved")
         return SavedCities.load(from: defaults, sources: .init(mirror: citiesMirror, backingFile: nil)).map(\.name)
     }
 
-    private func makeViewModel(service: WeatherFetching? = nil,
+    @MainActor private func makeViewModel(service: WeatherFetching? = nil,
                                reloader: WidgetReloading? = nil) -> WeatherViewModel {
-        WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
-                         cache: cache, legacyDefaults: legacyDefaults,
-                         reloader: reloader ?? CountingReloader(),
-                         citiesSources: .init(mirror: citiesMirror, backingFile: nil))
+        // A stub that says no. Left to the real CoreLocation, returning to
+        // the foreground would go looking for where the simulator is.
+        let provider = StubLocationProvider()
+        provider.authorizationStatus = .denied
+
+        return WeatherViewModel(service: service ?? StubWeatherService(), defaults: defaults,
+                                cache: cache, legacyDefaults: legacyDefaults,
+                                reloader: reloader ?? CountingReloader(),
+                                locationManager: LocationManager(manager: provider,
+                                                                 geocoder: StubGeocoder()),
+                                citiesSources: .init(mirror: citiesMirror, backingFile: nil))
     }
 
     // MARK: - Location helpers
@@ -777,12 +868,12 @@ final class WeatherViewModelTests: XCTestCase {
 
     private let tokyoCoordinate = CLLocation(latitude: 35.6762, longitude: 139.6503)
 
-    private var berlinPlace: GeocodedPlace {
+    @MainActor private var berlinPlace: GeocodedPlace {
         GeocodedPlace(locality: "Berlin", name: "Berlin",
                       country: "Germany", isoCountryCode: "DE")
     }
 
-    private var tokyoPlace: GeocodedPlace {
+    @MainActor private var tokyoPlace: GeocodedPlace {
         GeocodedPlace(locality: "Tokyo", name: "Tokyo",
                       country: "Japan", isoCountryCode: "JP")
     }
@@ -790,7 +881,7 @@ final class WeatherViewModelTests: XCTestCase {
     /// Builds a view model whose CoreLocation is a stub. Without this the
     /// located-city paths cannot be reached at all under test — which is how
     /// `upsertCurrentLocation` changed behaviour once with nothing to catch it.
-    private func makeViewModel(authorization: CLAuthorizationStatus = .authorizedWhenInUse,
+    @MainActor private func makeViewModel(authorization: CLAuthorizationStatus = .authorizedWhenInUse,
                                locatedAt place: GeocodedPlace? = nil,
                                coordinate: CLLocation? = nil) -> WeatherViewModel {
         let provider = StubLocationProvider()
@@ -810,22 +901,22 @@ final class WeatherViewModelTests: XCTestCase {
                                 citiesSources: .init(mirror: citiesMirror, backingFile: nil))
     }
 
-    private func makeTokyoResult() -> GeocodingResult {
+    @MainActor private func makeTokyoResult() -> GeocodingResult {
         GeocodingResult(id: 1, name: "Tokyo", latitude: 35.6762, longitude: 139.6503,
                         country: "Japan", country_code: "JP", admin1: "Tokyo")
     }
 
-    private func makeDenverResult() -> GeocodingResult {
+    @MainActor private func makeDenverResult() -> GeocodingResult {
         GeocodingResult(id: 2, name: "Denver", latitude: 39.7392, longitude: -104.9847,
                         country: "United States", country_code: "US", admin1: "Colorado")
     }
 
-    private func makeCityWeather(cityName: String = "Sydney", temperature: Double = 22.5) -> CityWeather {
+    @MainActor private func makeCityWeather(cityName: String = "Sydney", temperature: Double = 22.5) -> CityWeather {
         let city = City(id: UUID(), name: cityName, country: "Australia", latitude: -33.8688, longitude: 151.2093)
         return CityWeather(city: city, response: makeResponse(temperature: temperature))
     }
 
-    private func makeResponse(temperature: Double) -> WeatherResponse {
+    @MainActor private func makeResponse(temperature: Double) -> WeatherResponse {
         WeatherResponse(
             latitude: -33.8688,
             longitude: 151.2093,
@@ -894,7 +985,7 @@ private extension WeatherService.WeatherError {
 
 /// The widget reads saved cities through this same type, so a disagreement
 /// here is a disagreement between the app and its widget.
-final class SavedCitiesTests: XCTestCase {
+nonisolated final class SavedCitiesTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
@@ -922,22 +1013,22 @@ final class SavedCitiesTests: XCTestCase {
     private let berlin = City(id: UUID(), name: "Berlin", country: "Germany",
                               countryCode: "DE", latitude: 52.52, longitude: 13.405)
 
-    func testEmptyStorageReturnsNoCitiesRatherThanADefault() {
+    @MainActor func testEmptyStorageReturnsNoCitiesRatherThanADefault() {
         XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty,
                       "Substituting a default here would make an unconfigured widget lie")
     }
 
-    func testRoundTrip() {
+    @MainActor func testRoundTrip() {
         SavedCities.save([paris], to: defaults, sources: .none)
         XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
-    func testReadsTheLegacySingleCityKey() throws {
+    @MainActor func testReadsTheLegacySingleCityKey() throws {
         defaults.set(try JSONEncoder().encode(paris), forKey: SavedCities.legacySingleCityKey)
         XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
-    func testCorruptDataDoesNotCrash() {
+    @MainActor func testCorruptDataDoesNotCrash() {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
         XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty)
     }
@@ -947,12 +1038,12 @@ final class SavedCitiesTests: XCTestCase {
     /// The shape that shipped first. Anyone upgrading has this on disk, and
     /// reading it is the only thing standing between them and a reset to a
     /// default city.
-    func testReadsTheUnversionedArrayThatShippedFirst() throws {
+    @MainActor func testReadsTheUnversionedArrayThatShippedFirst() throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
         XCTAssertEqual(SavedCities.load(from: defaults, sources: .none).map(\.name), ["Paris"])
     }
 
-    func testSavingUpgradesTheStoreToTheCurrentVersion() throws {
+    @MainActor func testSavingUpgradesTheStoreToTheCurrentVersion() throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: SavedCities.key)
 
         SavedCities.save(SavedCities.load(from: defaults, sources: .none), to: defaults, sources: .none)
@@ -966,7 +1057,7 @@ final class SavedCitiesTests: XCTestCase {
     /// The failure this guards is silent and total: the reader is dropped back
     /// to a default city, that default is saved, and their list is gone. The
     /// bytes are kept so the loss is recoverable.
-    func testAStoreThisBuildCannotReadIsKeptRatherThanLost() {
+    @MainActor func testAStoreThisBuildCannotReadIsKeptRatherThanLost() {
         let unreadable = Data(#"{"version":99,"shape":"from a later build"}"#.utf8)
         defaults.set(unreadable, forKey: SavedCities.key)
 
@@ -979,7 +1070,7 @@ final class SavedCitiesTests: XCTestCase {
                        "The overwrite must not reach the quarantined copy")
     }
 
-    func testTheFirstUnreadableStoreIsTheOneKept() {
+    @MainActor func testTheFirstUnreadableStoreIsTheOneKept() {
         let original = Data("the reader's actual list".utf8)
         defaults.set(original, forKey: SavedCities.key)
         _ = SavedCities.load(from: defaults, sources: .none)
@@ -997,7 +1088,7 @@ final class SavedCitiesTests: XCTestCase {
     /// recovery took the mirror because it looked there first. The reader got
     /// back a city they had deleted, and a save then wrote it over the good
     /// copy.
-    func testTheNewestCopyWinsWhenTheStoresDisagree() throws {
+    @MainActor func testTheNewestCopyWinsWhenTheStoresDisagree() throws {
         let mirror = temporaryMirror()
         let backing = temporaryBackingFile()
 
@@ -1022,7 +1113,7 @@ final class SavedCitiesTests: XCTestCase {
 
     /// And the other way round: a stale mirror must not overwrite a newer
     /// UserDefaults.
-    func testAStaleMirrorDoesNotOverrideTheNewerStore() throws {
+    @MainActor func testAStaleMirrorDoesNotOverrideTheNewerStore() throws {
         let mirror = temporaryMirror()
         let isolated = SavedCities.Sources(mirror: mirror, backingFile: nil)
 
@@ -1039,7 +1130,7 @@ final class SavedCitiesTests: XCTestCase {
 
     /// The unversioned shape that shipped first carries no revision, so it
     /// must lose to any copy that does.
-    func testTheUnversionedShapeLosesToAStampedOne() throws {
+    @MainActor func testTheUnversionedShapeLosesToAStampedOne() throws {
         let mirror = temporaryMirror()
         let isolated = SavedCities.Sources(mirror: mirror, backingFile: nil)
 
@@ -1057,7 +1148,7 @@ final class SavedCitiesTests: XCTestCase {
     /// was observed to lose this key while the domain's own backing file
     /// still held it — in the app and the widget at once. The mirror is the
     /// copy nothing serves.
-    func testSavingWritesTheMirrorBesideTheDefaults() throws {
+    @MainActor func testSavingWritesTheMirrorBesideTheDefaults() throws {
         let mirror = temporaryMirror()
 
         SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
@@ -1065,7 +1156,7 @@ final class SavedCitiesTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: mirror.path))
     }
 
-    func testTheListIsRecoveredFromTheMirrorWhenDefaultsComeBackEmpty() throws {
+    @MainActor func testTheListIsRecoveredFromTheMirrorWhenDefaultsComeBackEmpty() throws {
         let mirror = temporaryMirror()
         SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
 
@@ -1078,7 +1169,7 @@ final class SavedCitiesTests: XCTestCase {
 
     /// Recovering also puts the list back where it belongs, so the next read
     /// does not have to go to disk again.
-    func testRecoveryHealsTheDefaults() throws {
+    @MainActor func testRecoveryHealsTheDefaults() throws {
         let mirror = temporaryMirror()
         SavedCities.save([paris], to: defaults, sources: .init(mirror: mirror, backingFile: nil))
         defaults.removeObject(forKey: SavedCities.key)
@@ -1093,7 +1184,7 @@ final class SavedCitiesTests: XCTestCase {
     /// buried the real recoveries — the one signal wanted if a city vanishes.
     /// The copies are stored in an equivalent but different encoding, so a
     /// rewrite shows up as the encoder's own bytes coming back.
-    func testCopiesThatAgreeAreNotRewritten() throws {
+    @MainActor func testCopiesThatAgreeAreNotRewritten() throws {
         let mirror = temporaryMirror()
         let backing = temporaryBackingFile()
         let sources = SavedCities.Sources(mirror: mirror, backingFile: backing)
@@ -1120,7 +1211,7 @@ final class SavedCitiesTests: XCTestCase {
     /// Two saves racing can leave copies at the same revision holding
     /// different lists. That is still a disagreement: the tie keeps the
     /// earlier source, and the other copy is brought into line with it.
-    func testCopiesAtTheSameRevisionThatDisagreeAreStillHealed() throws {
+    @MainActor func testCopiesAtTheSameRevisionThatDisagreeAreStillHealed() throws {
         let mirror = temporaryMirror()
         let withMirror = SavedCities.Sources(mirror: mirror, backingFile: nil)
 
@@ -1135,25 +1226,25 @@ final class SavedCitiesTests: XCTestCase {
                        ["Paris"], "The mirror should have been healed to the winning copy")
     }
 
-    func testAnUnreadableStoreReportsUnreadableRatherThanEmpty() {
+    @MainActor func testAnUnreadableStoreReportsUnreadableRatherThanEmpty() {
         defaults.set(Data("not json".utf8), forKey: SavedCities.key)
 
         XCTAssertNil(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: temporaryMirror(), backingFile: nil)),
                      "Unreadable and empty are different answers")
     }
 
-    func testNothingAnywhereIsAnEmptyListNotAFailure() {
+    @MainActor func testNothingAnywhereIsAnEmptyListNotAFailure() {
         XCTAssertEqual(SavedCities.loadIfReadable(from: defaults, sources: .init(mirror: temporaryMirror(), backingFile: nil)), [])
     }
 
-    private func temporaryBackingFile() -> URL {
+    @MainActor private func temporaryBackingFile() -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("prefs-\(UUID().uuidString).plist")
         mirrors.append(url)
         return url
     }
 
-    private func temporaryMirror() -> URL {
+    @MainActor private func temporaryMirror() -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("saved-cities-\(UUID().uuidString).json")
         mirrors.append(url)
@@ -1162,7 +1253,7 @@ final class SavedCitiesTests: XCTestCase {
 
     /// A store that reads cleanly and holds nothing is not a fault, and must
     /// not be quarantined — the bare-array format could not tell the two apart.
-    func testAnEmptyStoreIsNotTreatedAsUnreadable() throws {
+    @MainActor func testAnEmptyStoreIsNotTreatedAsUnreadable() throws {
         defaults.set(try JSONEncoder().encode([City]()), forKey: SavedCities.key)
 
         XCTAssertTrue(SavedCities.load(from: defaults, sources: .none).isEmpty)

@@ -18,10 +18,9 @@ protocol WidgetReloading {
 
 /// Asks WidgetKit to rebuild every timeline, coalescing bursts into one call.
 ///
-/// The widget renders whatever the app last wrote to the App Group and has no
-/// network of its own, so without this it keeps showing the previous reading
-/// until its own timeline runs out — up to six hours after the app already
-/// knew better.
+/// The widget fetches for itself only when its own timeline runs out, every
+/// couple of hours. Without this it keeps showing the previous reading until
+/// then, after the app already knows better.
 ///
 /// Coalesced because the requests arrive in clusters: a cold launch refreshes
 /// every saved city, and each success would otherwise ask for its own reload.

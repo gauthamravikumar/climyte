@@ -64,12 +64,12 @@ struct SavedCitiesView: View {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "location.slash")
                     .font(.system(size: locationIcon))
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
                     .accessibilityHidden(true)
 
                 Text("Location is off for Climyte")
                     .font(.searchResultCity)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
                     .multilineTextAlignment(.leading)
 
                 Spacer(minLength: 0)
@@ -81,6 +81,9 @@ struct SavedCitiesView: View {
         .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
         .listRowSeparatorTint(theme.dividerColor)
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        // And to the trailing margin, where the list otherwise stops short of
+        // the rule under the search results.
+        .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
         .deleteDisabled(true)
         .moveDisabled(true)
         .accessibilityHint("Opens Settings")
@@ -91,13 +94,13 @@ struct SavedCitiesView: View {
             if entry.isCurrentLocation {
                 Image(systemName: "location.fill")
                     .font(.system(size: locationIcon))
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
                     .accessibilityHidden(true)
             }
 
             Text(entry.city.name)
                 .font(.searchResultCity)
-                .foregroundColor(entry.id == selectedKey ? theme.primaryText : theme.secondaryText)
+                .foregroundStyle(entry.id == selectedKey ? theme.primaryText : theme.secondaryText)
                 // As in the search results: a Button centres a long name's
                 // wrapped lines.
                 .multilineTextAlignment(.leading)
@@ -109,7 +112,7 @@ struct SavedCitiesView: View {
                 // may be shown in different units.
                 Text(entry.city.unitSystem.temperature(weather.temperature))
                     .font(.searchResultCity)
-                    .foregroundColor(theme.primaryText)
+                    .foregroundStyle(theme.primaryText)
             }
         }
         .padding(.vertical, 16)
@@ -117,6 +120,9 @@ struct SavedCitiesView: View {
         // Without this, rows with the location icon get their separator
         // indented past it while the others start at the edge.
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        // And to the trailing margin, where the list otherwise stops short of
+        // the rule under the search results.
+        .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
         .accessibilityElement(children: .combine)
         // The arrow is hidden from VoiceOver and the row combines its
         // children, so without this the located entry and a saved city of the

@@ -197,16 +197,16 @@ struct DailyForecastView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(units.temperature(forecast.maxTemp))
                         .font(.weekColumnHigh)
-                        .foregroundColor(theme.primaryText)
+                        .foregroundStyle(theme.primaryText)
                         .anchorPreference(key: HighLabelCentres.self, value: .center) { [$0] }
 
                     Text(units.temperature(forecast.minTemp))
                         .font(.weekColumnLow)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundStyle(theme.secondaryText)
 
                     Text(forecast.day)
                         .font(.weekColumnDay)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundStyle(theme.secondaryText)
                         .padding(.top, 2)
                 }
                 .lineLimit(1)
@@ -229,17 +229,17 @@ struct DailyForecastView: View {
                 HStack(spacing: 8) {
                     Text(forecast.day)
                         .font(.dayLabel)
-                        .foregroundColor(theme.primaryText)
+                        .foregroundStyle(theme.primaryText)
 
                     Spacer(minLength: 8)
 
                     Text(units.temperature(forecast.minTemp))
                         .font(.dayLowTemperature)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundStyle(theme.secondaryText)
 
                     Text(units.temperature(forecast.maxTemp))
                         .font(.dayHighTemperature)
-                        .foregroundColor(theme.primaryText)
+                        .foregroundStyle(theme.primaryText)
                 }
                 .padding(.vertical, 14)
                 .accessibilityElement(children: .combine)

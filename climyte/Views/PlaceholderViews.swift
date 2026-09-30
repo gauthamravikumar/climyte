@@ -21,23 +21,23 @@ struct WeatherErrorView: View {
         VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: errorIcon, weight: .ultraLight))
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .accessibilityHidden(true)
 
             Text("Couldn't load weather")
                 .font(.stateTitle)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
 
             Text(message)
                 .font(.stateBody)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
 
             Button(action: onRetry) {
                 Text("Try again")
                     .font(.stateAction)
-                    .foregroundColor(theme.primaryText)
+                    .foregroundStyle(theme.primaryText)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
                     .overlay(Capsule().stroke(theme.dividerColor, lineWidth: 1))
@@ -72,7 +72,7 @@ struct StaleDataNotice: View {
 
             Spacer()
         }
-        .foregroundColor(theme.secondaryText)
+        .foregroundStyle(theme.secondaryText)
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -125,39 +125,25 @@ struct StaleDataNotice: View {
 }
 
 /// Shown before anything has loaded and no error has occurred.
+///
+/// Type only, like every other state in the app. It used to carry a
+/// multicolour cloud, the one coloured thing on any screen, and pointed at a
+/// search field "above" that had since moved to the bottom.
 struct NoWeatherDataView: View {
-    /// SF Symbols sized in points ignore Dynamic Type entirely: at
-    /// accessibility sizes this was a speck beside text three times its
-    /// height. @ScaledMetric keeps the drawn size at the default setting
-    /// and grows it with everything else.
-    @ScaledMetric(relativeTo: .largeTitle) private var emptyIcon: CGFloat = 60
-
     let theme: WeatherTheme
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "cloud.sun.rain.fill")
-                .font(.system(size: emptyIcon))
-                .symbolRenderingMode(.multicolor)
-                .accessibilityHidden(true)
-
-            Text("No weather data available")
+        VStack(spacing: 12) {
+            Text("No weather yet")
                 .font(.stateTitle)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
 
-            Text("Try searching for a city above to get started.")
+            Text("Pull down to refresh.")
                 .font(.stateBody)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
         }
         .padding(.vertical, 80)
         .frame(maxWidth: .infinity)
-        .background(theme.primaryText.opacity(0.02))
-        .cornerRadius(20)
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(theme.dividerColor, lineWidth: 1)
-        )
     }
 }

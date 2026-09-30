@@ -439,7 +439,8 @@ struct CityWeather: Identifiable {
                     let forecast = HourlyForecast(
                         id: timeString,
                         time: date.formatted(hourStyle).lowercased(),
-                        temperature: temperature
+                        temperature: temperature,
+                        rainChance: response.hourly.precipitation_probability?.value(at: i)
                     )
                     hourlyList.append(forecast)
                     parsedHours += 1
@@ -457,6 +458,10 @@ struct HourlyForecast: Identifiable {
     let id: String   // e.g. "2026-07-25T23:00"
     let time: String // e.g. "11 pm"
     let temperature: Double
+
+    /// The chance of rain in this hour, 0-100. Nil where the model publishes
+    /// none, and for a response cached before it was requested.
+    var rainChance: Int? = nil
 }
 
 struct DailyForecast: Identifiable {

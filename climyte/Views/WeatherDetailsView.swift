@@ -80,18 +80,18 @@ struct WeatherDetailsView: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(detail.label)
                 .font(.detailRowLabel)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
 
             Spacer(minLength: 12)
 
             Text(detail.value)
                 .font(.detailRowValue)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
 
             if let caption = detail.caption {
                 Text(caption)
                     .font(.detailRowCaption)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
         }
         .lineLimit(1)
@@ -102,16 +102,16 @@ struct WeatherDetailsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(detail.label)
                 .font(.detailRowLabel)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
 
             Text(detail.value)
                 .font(.detailRowValue)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
 
             if let caption = detail.caption {
                 Text(caption)
                     .font(.detailRowCaption)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
         }
         .fixedSize(horizontal: false, vertical: true)

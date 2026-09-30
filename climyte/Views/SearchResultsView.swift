@@ -18,13 +18,16 @@ struct SearchResultsView: View {
     let onSelect: (GeocodingResult) -> Void
     let onRetry: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 0) {
             switch state {
-            case .idle, .loading:
-                // Nothing yet. Staying blank avoids flashing "No matches" at
-                // someone who is still typing.
+            case .idle:
                 Color.clear.frame(height: 1)
+
+            case .loading:
+                placeholders
 
             case .results(let results):
                 list(results)
@@ -37,6 +40,35 @@ struct SearchResultsView: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    /// Rows in the shape of results, while the search is out.
+    ///
+    /// A blank screen for that second gave no sign anything was happening.
+    /// Shapes rather than words, so nothing flashes "No matches" at someone
+    /// still typing.
+    private var placeholders: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(zip([110, 80, 96] as [CGFloat], [170, 150, 130] as [CGFloat])), id: \.0) { name, region in
+                HStack {
+                    RoundedRectangle(cornerRadius: 6).frame(width: name, height: 18)
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 6).frame(width: region, height: 14)
+                }
+                .padding(.vertical, 22)
+
+                ThemeDivider(theme: theme)
+            }
+        }
+        .foregroundStyle(theme.dividerColor)
+        // Holds still when the reader has asked for less motion.
+        .phaseAnimator(reduceMotion ? [1.0] : [1.0, 0.45]) { rows, opacity in
+            rows.opacity(opacity)
+        } animation: { _ in
+            .easeInOut(duration: 0.8)
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Searching")
     }
 
     private func list(_ results: [GeocodingResult]) -> some View {
@@ -62,14 +94,14 @@ struct SearchResultsView: View {
             // The name reads from the left and the region from the right.
             Text(result.name)
                 .font(.searchResultCity)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.leading)
 
             Spacer()
 
             Text(Self.region(for: result, among: results))
                 .font(.searchResultRegion)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.trailing)
         }
         .padding(.vertical, 18)
@@ -99,18 +131,18 @@ struct SearchResultsView: View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: stateIcon))
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .accessibilityHidden(true)
 
             Text(reason)
                 .font(.searchResultCity)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .multilineTextAlignment(.center)
 
             Button(action: onRetry) {
                 Text("Try again")
                     .font(.searchResultRegion)
-                    .foregroundColor(theme.primaryText)
+                    .foregroundStyle(theme.primaryText)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
                     .overlay(Capsule().stroke(theme.dividerColor, lineWidth: 1))
@@ -127,12 +159,12 @@ struct SearchResultsView: View {
         VStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: stateIcon))
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
                 .accessibilityHidden(true)
 
             Text(title)
                 .font(.searchResultCity)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
         }
         .padding(.vertical, 40)
         .frame(maxWidth: .infinity)

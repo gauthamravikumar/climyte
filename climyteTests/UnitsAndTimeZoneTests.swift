@@ -8,12 +8,11 @@ import XCTest
 
 /// Units are chosen per country and per dimension; time zones come from the
 /// city's IANA name rather than from a single instant's offset.
-@MainActor
-final class UnitsAndTimeZoneTests: XCTestCase {
+nonisolated final class UnitsAndTimeZoneTests: XCTestCase {
 
     // MARK: - Per-dimension units
 
-    func testTheUnitedStatesIsImperialThroughout() {
+    @MainActor func testTheUnitedStatesIsImperialThroughout() {
         let units = UnitSystem.forCountry(code: "US", name: "United States")
 
         XCTAssertEqual(units.temperature(0), "32°")
@@ -23,7 +22,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
     }
 
     /// The case the old single-enum model could not express, and got wrong.
-    func testBritainIsCelsiusAndMillimetresButMilesAndMilesPerHour() {
+    @MainActor func testBritainIsCelsiusAndMillimetresButMilesAndMilesPerHour() {
         let units = UnitSystem.forCountry(code: "GB", name: "United Kingdom")
 
         XCTAssertEqual(units.temperature(20), "20°", "The Met Office forecasts in Celsius")
@@ -34,7 +33,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
 
     /// Fahrenheit and metric wind is a combination no country actually uses:
     /// where Fahrenheit survives, so do miles.
-    func testFahrenheitCountriesAreImperialThroughout() {
+    @MainActor func testFahrenheitCountriesAreImperialThroughout() {
         for code in ["BS", "BZ", "KY", "PW", "FM", "MH", "LR", "PR", "GU", "VI", "MP"] {
             let units = UnitSystem.forCountry(code: code, name: nil)
 
@@ -45,7 +44,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
     }
 
     /// Celsius, but imperial road units — the British pattern.
-    func testUKTerritoriesAndCommonwealthKeepCelsiusWithMiles() {
+    @MainActor func testUKTerritoriesAndCommonwealthKeepCelsiusWithMiles() {
         for code in ["GB", "BM", "GI", "FK", "MM", "WS", "AG", "LC", "VG", "TC"] {
             let units = UnitSystem.forCountry(code: code, name: nil)
 
@@ -55,7 +54,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
         }
     }
 
-    func testEverywhereElseIsFullyMetric() {
+    @MainActor func testEverywhereElseIsFullyMetric() {
         for code in ["AU", "FR", "JP", "IN", "BR", "ZA", "CA", "DE"] {
             XCTAssertEqual(UnitSystem.forCountry(code: code, name: nil), .metric, code)
         }
@@ -63,13 +62,13 @@ final class UnitsAndTimeZoneTests: XCTestCase {
 
     /// A blank code is not a country. Treating it as one meant a legacy city
     /// with an empty string never reached the name fallback.
-    func testABlankCodeFallsBackToTheCountryName() {
+    @MainActor func testABlankCodeFallsBackToTheCountryName() {
         XCTAssertEqual(UnitSystem.forCountry(code: "", name: "United States"), .imperial)
         XCTAssertEqual(UnitSystem.forCountry(code: "   ", name: "United Kingdom"), .british)
         XCTAssertEqual(UnitSystem.forCountry(code: nil, name: "United Kingdom"), .british)
     }
 
-    func testAnUnknownCodeIsMetricRatherThanAGuess() {
+    @MainActor func testAnUnknownCodeIsMetricRatherThanAGuess() {
         XCTAssertEqual(UnitSystem.forCountry(code: "ZZ", name: nil), .metric)
         XCTAssertEqual(UnitSystem.forCountry(code: nil, name: nil), .metric)
     }
@@ -78,7 +77,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
     /// German reader saw "9.5 mm" where the language expects "9,5 mm".
     /// Run under `-testRegion DE` this asserts the comma; elsewhere it asserts
     /// whatever the reader's own separator is, which is the actual rule.
-    func testRainfallUsesTheReadersDecimalSeparator() {
+    @MainActor func testRainfallUsesTheReadersDecimalSeparator() {
         let separator = Locale.current.decimalSeparator ?? "."
         let rendered = UnitSystem.metric.precipitation(9.5)
 
@@ -95,7 +94,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
     /// the offset in force when the response was fetched, and applies it to
     /// every date in the response — including dates on the other side of a
     /// transition.
-    func testSunTimesAfterADSTTransitionResolveToTheRightInstant() throws {
+    @MainActor func testSunTimesAfterADSTTransitionResolveToTheRightInstant() throws {
         // Fetched in August, when Paris is on CEST (+2).
         let response = parisResponse(includeZoneName: true)
         let city = City(id: UUID(), name: "Paris", country: "France",
@@ -113,7 +112,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
 
     /// Responses cached before the zone name was requested must still decode
     /// and still work, falling back to the offset.
-    func testAResponseWithNoZoneNameStillDecodesAndFallsBack() throws {
+    @MainActor func testAResponseWithNoZoneNameStillDecodesAndFallsBack() throws {
         let response = parisResponse(includeZoneName: false)
         let city = City(id: UUID(), name: "Paris", country: "France",
                         countryCode: "FR", latitude: 48.8566, longitude: 2.3522)
@@ -125,7 +124,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
         XCTAssertFalse(weather.solarDays.isEmpty, "The fallback still produces sun times")
     }
 
-    func testAnUnrecognisedZoneNameFallsBackRatherThanFailing() {
+    @MainActor func testAnUnrecognisedZoneNameFallsBackRatherThanFailing() {
         var response = parisResponse(includeZoneName: true)
         response.timezone = "Mars/Olympus_Mons"
 
@@ -136,7 +135,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func isoUTC(_ string: String) -> Date {
+    @MainActor private func isoUTC(_ string: String) -> Date {
         let formatter = ISO8601DateFormatter()
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter.date(from: string)!
@@ -144,7 +143,7 @@ final class UnitsAndTimeZoneTests: XCTestCase {
 
     /// A response fetched in Paris in August whose daily block reaches past the
     /// October DST transition.
-    private func parisResponse(includeZoneName: Bool) -> WeatherResponse {
+    @MainActor private func parisResponse(includeZoneName: Bool) -> WeatherResponse {
         WeatherResponse(
             latitude: 48.8566,
             longitude: 2.3522,

@@ -40,6 +40,8 @@ struct CurrentConditionsView: View {
     /// The app's clock: the minute the header's time and words describe.
     @Environment(\.now) private var now
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
@@ -80,13 +82,13 @@ struct CurrentConditionsView: View {
             if isUsingCurrentLocation {
                 Image(systemName: "location.fill")
                     .font(.system(size: locationIcon))
-                    .foregroundColor(theme.primaryText.opacity(0.8))
+                    .foregroundStyle(theme.primaryText.opacity(0.8))
                     .accessibilityLabel("Current location")
             }
 
             Text(weather.city.name)
                 .font(.cityName)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
                 // On one line the name shrinks a little before it truncates;
                 // stacked, it has the whole width and wraps instead of either.
                 .lineLimit(wraps ? nil : 1)
@@ -105,7 +107,7 @@ struct CurrentConditionsView: View {
         // honest without a timer of its own.
         Text(Self.localTime(at: now, in: weather.timeZone))
             .font(.localTime)
-            .foregroundColor(theme.secondaryText)
+            .foregroundStyle(theme.secondaryText)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             // accessibilityLabel replaces a Text's content, so naming
@@ -119,9 +121,14 @@ struct CurrentConditionsView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text(units.temperature(weather.temperature))
                 .font(.temperatureHero)
-                .foregroundColor(theme.primaryText)
+                .foregroundStyle(theme.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
+                // When a refresh changes the reading, only the digit that
+                // changed rolls. Each page is its own view, so swiping between
+                // cities never animates one city's number into another's.
+                .contentTransition(.numericText(value: Double(units.temperatureValue(weather.temperature))))
+                .animation(reduceMotion ? nil : .default, value: units.temperatureValue(weather.temperature))
                 // A numeral this large carries a lot of empty line box above
                 // and below it. Trimmed on the glyph itself rather than on the
                 // block, so it stops at the range line instead of reaching
@@ -137,7 +144,7 @@ struct CurrentConditionsView: View {
             if let low = weather.minTemp, let high = weather.maxTemp {
                 Text("\(units.temperatureValue(low))  ·  \(units.temperatureValue(high))")
                     .font(.temperatureRange)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,7 +174,7 @@ struct CurrentConditionsView: View {
             apparent: units.temperatureValue(weather.feelsLike)
         ))
         .font(.conditionSummary)
-        .foregroundColor(theme.secondaryText)
+        .foregroundStyle(theme.secondaryText)
     }
 
     /// The condition line, mentioning apparent temperature only when it

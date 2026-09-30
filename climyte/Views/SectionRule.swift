@@ -24,7 +24,7 @@ struct SectionRule: View {
 
             Text(label)
                 .font(.sectionHeading)
-                .foregroundColor(theme.secondaryText)
+                .foregroundStyle(theme.secondaryText)
         }
         .accessibilityElement()
         .accessibilityLabel(Text(accessibilityLabel))

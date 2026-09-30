@@ -24,6 +24,7 @@ struct SunArcView: View {
     var body: some View {
         let days = weather.solarDays
         let progress = SolarPosition.daylightProgress(at: now, in: days)
+        let untilSunrise = SolarPosition.untilSunrise(at: now, in: days, timeZone: weather.timeZone)
 
         VStack(alignment: .leading, spacing: 6) {
             SectionRule(label: "Sun",
@@ -31,24 +32,24 @@ struct SunArcView: View {
                         theme: theme)
                 .padding(.bottom, 10)
 
-            arc(progress: progress)
+            arc(progress: progress, waitsAtSunrise: untilSunrise != nil)
                 .frame(height: arcHeight)
 
             HStack(alignment: .firstTextBaseline) {
                 Text(weather.sunriseFormatted)
                 Spacer(minLength: 12)
-                Text(trailingLabel(at: now, days: days))
+                Text(trailingLabel(at: now, days: days, untilSunrise: untilSunrise))
             }
             .font(.hourLabel)
-            .foregroundColor(theme.secondaryText)
+            .foregroundStyle(theme.secondaryText)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(spokenLabel(at: now, days: days))
+        .accessibilityLabel(spokenLabel(at: now, days: days, untilSunrise: untilSunrise))
     }
 
-    private func arc(progress: Double?) -> some View {
+    private func arc(progress: Double?, waitsAtSunrise: Bool) -> some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             let baseline = geometry.size.height - 8
@@ -77,11 +78,12 @@ struct SunArcView: View {
                         .frame(width: 9, height: 9)
                         .position(x: width * progress, y: y)
                 } else {
-                    // Below the horizon: set, or not yet risen.
+                    // Below the horizon. After sunset it rests where it went
+                    // down; in the hours before dawn, where it will come up.
                     Circle()
                         .strokeBorder(theme.secondaryText, lineWidth: 1.5)
                         .frame(width: 9, height: 9)
-                        .position(x: hasRisenToday ? width : 0, y: baseline + 6)
+                        .position(x: waitsAtSunrise ? 0 : width, y: baseline + 6)
                 }
             }
         }
@@ -92,11 +94,6 @@ struct SunArcView: View {
     private func quadratic(_ t: Double, from baseline: CGFloat, control: CGFloat) -> CGFloat {
         let inverse = 1 - t
         return inverse * inverse * baseline + 2 * inverse * t * control + t * t * baseline
-    }
-
-    private var hasRisenToday: Bool {
-        guard let day = SolarPosition.day(containing: now, in: weather.solarDays) else { return false }
-        return now > day.sunrise
     }
 
     /// Whole minutes of daylight left, rounded up, or nil once none is left.
@@ -110,19 +107,30 @@ struct SunArcView: View {
     }
 
     /// While the sun is up this counts down, which is the thing worth knowing.
-    /// Once it is down there is nothing to count, so it names sunset instead.
-    private func trailingLabel(at date: Date, days: [SolarDay]) -> String {
-        guard let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) else {
-            return weather.sunsetFormatted
+    /// Before dawn it counts down to sunrise. In the evening there is nothing
+    /// to count, so it names sunset instead.
+    private func trailingLabel(at date: Date, days: [SolarDay], untilSunrise: TimeInterval?) -> String {
+        if let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) {
+            guard minutes >= 60 else { return String(localized: "\(minutes) min of light left") }
+            return String(localized: "\(minutes / 60)h \(minutes % 60)m of light left")
         }
-        guard minutes >= 60 else { return String(localized: "\(minutes) min of light left") }
-        return String(localized: "\(minutes / 60)h \(minutes % 60)m of light left")
+        if let minutes = Self.minutesLeft(untilSunrise) {
+            guard minutes >= 60 else { return String(localized: "\(minutes) min to sunrise") }
+            return String(localized: "\(minutes / 60)h \(minutes % 60)m to sunrise")
+        }
+        return weather.sunsetFormatted
     }
 
-    private func spokenLabel(at date: Date, days: [SolarDay]) -> String {
-        guard let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) else {
-            return String(localized: "The sun is down. Sunrise \(weather.sunriseFormatted), sunset \(weather.sunsetFormatted).")
+    /// Durations in words: "43 minutes", not "0 hours 43 minutes".
+    private func spokenLabel(at date: Date, days: [SolarDay], untilSunrise: TimeInterval?) -> String {
+        if let minutes = Self.minutesLeft(SolarPosition.remainingDaylight(at: date, in: days)) {
+            let left = WeatherDetails.durationSpoken(Double(minutes * 60))
+            return String(localized: "\(left) of daylight left, sunset \(weather.sunsetFormatted)")
         }
-        return String(localized: "\(minutes / 60) hours \(minutes % 60) minutes of daylight left, sunset \(weather.sunsetFormatted)")
+        if let minutes = Self.minutesLeft(untilSunrise) {
+            let wait = WeatherDetails.durationSpoken(Double(minutes * 60))
+            return String(localized: "The sun is down. Sunrise in \(wait), at \(weather.sunriseFormatted).")
+        }
+        return String(localized: "The sun is down. Sunrise \(weather.sunriseFormatted), sunset \(weather.sunsetFormatted).")
     }
 }

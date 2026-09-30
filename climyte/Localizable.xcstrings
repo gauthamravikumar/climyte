@@ -67,6 +67,16 @@
     "%@ longer" : {
 
     },
+    "%@ of daylight left, sunset %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ of daylight left, sunset %2$@"
+          }
+        }
+      }
+    },
     "%@ over %lldh" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -80,6 +90,16 @@
     },
     "%@ shorter" : {
 
+    },
+    "%@, %@ chance of rain" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@ chance of rain"
+          }
+        }
+      }
     },
     "%@, %lld degrees" : {
       "extractionState" : "manual",
@@ -141,17 +161,10 @@
         }
       }
     },
-    "%lld hours %lld minutes of daylight left, sunset %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld hours %2$lld minutes of daylight left, sunset %3$@"
-          }
-        }
-      }
-    },
     "%lld min of light left" : {
+
+    },
+    "%lld min to sunrise" : {
 
     },
     "%lld of %lld" : {
@@ -176,6 +189,16 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lldh %2$lldm of light left"
+          }
+        }
+      }
+    },
+    "%lldh %lldm to sunrise" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lldh %2$lldm to sunrise"
           }
         }
       }
@@ -230,17 +253,6 @@
         }
       }
     },
-    "Cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        }
-      }
-    },
     "City search is unavailable right now." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -265,6 +277,9 @@
           }
         }
       }
+    },
+    "Close search" : {
+
     },
     "Cloudy" : {
       "comment" : "Weather condition",
@@ -583,16 +598,8 @@
     "No matches" : {
 
     },
-    "No weather data available" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No weather data available"
-          }
-        }
-      }
+    "No weather yet" : {
+
     },
     "now" : {
 
@@ -607,6 +614,9 @@
           }
         }
       }
+    },
+    "Pull down to refresh." : {
+
     },
     "Rain" : {
       "extractionState" : "manual",
@@ -641,6 +651,9 @@
           }
         }
       }
+    },
+    "Searching" : {
+
     },
     "Secure connection failed — check the date and time on your device." : {
       "extractionState" : "manual",
@@ -774,6 +787,16 @@
         }
       }
     },
+    "The sun is down. Sunrise in %@, at %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "The sun is down. Sunrise in %1$@, at %2$@."
+          }
+        }
+      }
+    },
     "The weather service is unavailable right now." : {
       "extractionState" : "manual",
       "localizations" : {
@@ -818,17 +841,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again"
-          }
-        }
-      }
-    },
-    "Try searching for a city above to get started." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try searching for a city above to get started."
           }
         }
       }

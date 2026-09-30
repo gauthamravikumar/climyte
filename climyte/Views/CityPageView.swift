@@ -33,7 +33,7 @@ struct CityPageView: View {
     private var content: some View {
         if entry.isLoading && entry.weather == nil {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: theme.primaryText))
+                .tint(theme.primaryText)
                 .scaleEffect(1.5)
                 .padding(.top, 80)
         } else if let weather = entry.weather {
@@ -73,7 +73,7 @@ struct CityPageView: View {
         // app does not have.
         Text("[Weather from Open-Meteo](https://open-meteo.com) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)")
             .font(.credit)
-            .foregroundColor(theme.secondaryText)
+            .foregroundStyle(theme.secondaryText)
             .tint(theme.secondaryText)
             .frame(minHeight: 44, alignment: .leading)
     }

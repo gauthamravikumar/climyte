@@ -84,7 +84,8 @@ struct CityNameStrip: View {
                 }
                 .padding(.leading, leadingInset)
                 .padding(.trailing, trailingRoom)
-                .padding(.vertical, 12)
+                // The capsule it sits in supplies the rest of the height.
+                .padding(.vertical, 4)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { viewportWidth = $0 }
             // Measured to the names, not the padding: the room after the last
@@ -204,7 +205,7 @@ struct CityNameStrip: View {
         // 2.27:1, the worst contrast in the app and under even the 3:1 floor
         // for non-text. The weight and colour difference already distinguish
         // the current city; the fade only made the others hard to read.
-        .foregroundColor(isSelected ? theme.primaryText : theme.secondaryText)
+        .foregroundStyle(isSelected ? theme.primaryText : theme.secondaryText)
         // Without a minimum the target is only as wide as the name, so short
         // ones like "Oslo" fell well under 44pt and the gaps between entries
         // were dead space rather than shared target area.

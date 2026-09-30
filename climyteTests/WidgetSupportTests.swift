@@ -9,22 +9,21 @@ import XCTest
 /// Covers the pieces the widget renders from: whether it is night at a date
 /// other than now, when a timeline should re-render, and when a reading has
 /// aged out of being presentable as current.
-@MainActor
-final class WidgetSupportTests: XCTestCase {
+nonisolated final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Night at a given date
 
-    func testDaytimeBetweenSunriseAndSunset() {
+    @MainActor func testDaytimeBetweenSunriseAndSunset() {
         let weather = weatherWithSunTimes()
         XCTAssertFalse(weather.isNight(at: instant("2026-06-01T12:00")))
     }
 
-    func testNightAfterSunset() {
+    @MainActor func testNightAfterSunset() {
         let weather = weatherWithSunTimes()
         XCTAssertTrue(weather.isNight(at: instant("2026-06-01T21:00")))
     }
 
-    func testNightBeforeTheFirstSunriseCovered() {
+    @MainActor func testNightBeforeTheFirstSunriseCovered() {
         let weather = weatherWithSunTimes()
         XCTAssertTrue(weather.isNight(at: instant("2026-06-01T03:00")))
     }
@@ -35,7 +34,7 @@ final class WidgetSupportTests: XCTestCase {
     /// day's sunset, every hour after that evening reads as night — including
     /// eight the next morning, which would leave the widget in the dark
     /// palette through breakfast.
-    func testMorningAfterMidnightIsDaytime() {
+    @MainActor func testMorningAfterMidnightIsDaytime() {
         let weather = weatherWithSunTimes()
 
         XCTAssertTrue(weather.isNight(at: instant("2026-06-01T22:00")),
@@ -44,7 +43,7 @@ final class WidgetSupportTests: XCTestCase {
                        "Past the next day's sunrise, so daytime again")
     }
 
-    func testFallsBackToTheDaylightFlagWithoutSunTimes() {
+    @MainActor func testFallsBackToTheDaylightFlagWithoutSunTimes() {
         let night = weatherWithSunTimes(includeSunTimes: false, isDay: 0)
         let day = weatherWithSunTimes(includeSunTimes: false, isDay: 1)
 
@@ -54,7 +53,7 @@ final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Timeline planning
 
-    func testRenderDatesCoverTheWindowHourly() {
+    @MainActor func testRenderDatesCoverTheWindowHourly() {
         let start = instant("2026-06-01T10:00")
         let dates = TimelinePlan.renderDates(from: start,
                                              to: start.addingTimeInterval(3 * 3600),
@@ -67,7 +66,7 @@ final class WidgetSupportTests: XCTestCase {
         ])
     }
 
-    func testRenderDatesIncludeSunsetInsideTheWindow() {
+    @MainActor func testRenderDatesIncludeSunsetInsideTheWindow() {
         let start = instant("2026-06-01T18:00")
         let dates = TimelinePlan.renderDates(from: start,
                                              to: start.addingTimeInterval(3 * 3600),
@@ -78,7 +77,7 @@ final class WidgetSupportTests: XCTestCase {
         XCTAssertEqual(dates, dates.sorted(), "WidgetKit requires ascending entries")
     }
 
-    func testRenderDatesIgnoreSunTimesOutsideTheWindow() {
+    @MainActor func testRenderDatesIgnoreSunTimesOutsideTheWindow() {
         let start = instant("2026-06-01T10:00")
         let dates = TimelinePlan.renderDates(from: start,
                                              to: start.addingTimeInterval(2 * 3600),
@@ -87,7 +86,7 @@ final class WidgetSupportTests: XCTestCase {
         XCTAssertEqual(dates.count, 2, "Neither sunrise nor sunset falls in 10:00-12:00")
     }
 
-    func testRenderDatesSurviveAnEmptyWindow() {
+    @MainActor func testRenderDatesSurviveAnEmptyWindow() {
         let start = instant("2026-06-01T10:00")
         XCTAssertEqual(TimelinePlan.renderDates(from: start, to: start, solarDays: []), [start],
                        "A timeline must never be empty")
@@ -95,13 +94,13 @@ final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Reading age
 
-    func testFreshReadingHasNoAgeToShow() {
+    @MainActor func testFreshReadingHasNoAgeToShow() {
         XCTAssertNil(ReadingAge.short(0))
         XCTAssertNil(ReadingAge.short(90 * 60))
         XCTAssertNil(ReadingAge.short(nil))
     }
 
-    func testStaleReadingReportsHoursThenDays() {
+    @MainActor func testStaleReadingReportsHoursThenDays() {
         XCTAssertEqual(ReadingAge.short(ReadingAge.staleAfter), "3h")
         XCTAssertEqual(ReadingAge.short(7 * 3600), "7h")
         XCTAssertEqual(ReadingAge.short(23 * 3600), "23h")
@@ -111,20 +110,20 @@ final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Refetch policy
 
-    func testAReadingWithNoAgeAlwaysNeedsFetching() {
+    @MainActor func testAReadingWithNoAgeAlwaysNeedsFetching() {
         XCTAssertTrue(ReadingAge.needsRefetch(nil))
     }
 
     /// The case that matters: the app caches a reading and immediately asks
     /// for a widget reload. Answering that with a fetch would have the app and
     /// every placed widget request the same city seconds apart.
-    func testAReadingTheAppJustCachedIsNotRefetched() {
+    @MainActor func testAReadingTheAppJustCachedIsNotRefetched() {
         XCTAssertFalse(ReadingAge.needsRefetch(0))
         XCTAssertFalse(ReadingAge.needsRefetch(60))
         XCTAssertFalse(ReadingAge.needsRefetch(ReadingAge.refetchAfter - 1))
     }
 
-    func testTheWidgetsOwnScheduleStillFetches() {
+    @MainActor func testTheWidgetsOwnScheduleStillFetches() {
         XCTAssertTrue(ReadingAge.needsRefetch(ReadingAge.refetchAfter))
         XCTAssertTrue(ReadingAge.needsRefetch(WeatherTimelineProviderSpan.timelineSpan),
                       "A reload at the end of a timeline run must fetch")
@@ -133,7 +132,7 @@ final class WidgetSupportTests: XCTestCase {
 
     /// A reading can be worth refetching long before it is worth apologising
     /// for; the two thresholds must not collapse into each other.
-    func testRefetchHappensWellBeforeAReadingLooksStale() {
+    @MainActor func testRefetchHappensWellBeforeAReadingLooksStale() {
         XCTAssertLessThan(ReadingAge.refetchAfter, ReadingAge.staleAfter)
         XCTAssertTrue(ReadingAge.needsRefetch(30 * 60))
         XCTAssertNil(ReadingAge.short(30 * 60), "30 minutes old is worth refreshing, not flagging")
@@ -141,7 +140,7 @@ final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Reload coalescing
 
-    func testBurstOfChangesCostsASingleReload() async {
+    @MainActor func testBurstOfChangesCostsASingleReload() async {
         var count = 0
         let reloader = WidgetReloader(delay: .milliseconds(20)) { count += 1 }
 
@@ -151,7 +150,7 @@ final class WidgetSupportTests: XCTestCase {
         XCTAssertEqual(count, 1, "A cold launch refreshes every city; that is one reload")
     }
 
-    func testFlushReloadsWithoutWaiting() async {
+    @MainActor func testFlushReloadsWithoutWaiting() async {
         var count = 0
         let reloader = WidgetReloader(delay: .seconds(30)) { count += 1 }
 
@@ -163,7 +162,7 @@ final class WidgetSupportTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private static let parser: DateFormatter = {
+    @MainActor private static let parser: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.calendar = Calendar(identifier: .gregorian)
@@ -172,11 +171,11 @@ final class WidgetSupportTests: XCTestCase {
         return formatter
     }()
 
-    private func instant(_ string: String) -> Date {
+    @MainActor private func instant(_ string: String) -> Date {
         Self.parser.date(from: string)!
     }
 
-    private func solarDays() -> [SolarDay] {
+    @MainActor private func solarDays() -> [SolarDay] {
         [
             SolarDay(sunrise: instant("2026-06-01T06:00"), sunset: instant("2026-06-01T20:00")),
             SolarDay(sunrise: instant("2026-06-02T06:00"), sunset: instant("2026-06-02T20:00"))
@@ -184,7 +183,7 @@ final class WidgetSupportTests: XCTestCase {
     }
 
     /// Two consecutive days with the sun up from 06:00 to 20:00, in UTC.
-    private func weatherWithSunTimes(includeSunTimes: Bool = true, isDay: Int = 1) -> CityWeather {
+    @MainActor private func weatherWithSunTimes(includeSunTimes: Bool = true, isDay: Int = 1) -> CityWeather {
         let sunrises = includeSunTimes ? ["2026-06-01T06:00", "2026-06-02T06:00"] : [nil, nil]
         let sunsets = includeSunTimes ? ["2026-06-01T20:00", "2026-06-02T20:00"] : [nil, nil]
 
@@ -225,17 +224,16 @@ private enum WeatherTimelineProviderSpan {
 /// The rule that keeps a reconfigured widget from going blank without also
 /// stopping it refreshing. Both failure modes are silent, which is why this
 /// is tested rather than left inline in the provider.
-@MainActor
-final class FetchDecisionTests: XCTestCase {
+nonisolated final class FetchDecisionTests: XCTestCase {
 
     private let now = Date()
 
-    func testAFreshReadingNeedsNoFetch() {
+    @MainActor func testAFreshReadingNeedsNoFetch() {
         XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 60,
                                             lastDeferral: nil, now: now), .useCache)
     }
 
-    func testNoReadingFetchesImmediately() {
+    @MainActor func testNoReadingFetchesImmediately() {
         // Nothing to draw either way, so waiting costs nothing.
         XCTAssertEqual(FetchDecision.decide(hasReading: false, age: nil,
                                             lastDeferral: nil, now: now), .fetchNow)
@@ -243,7 +241,7 @@ final class FetchDecisionTests: XCTestCase {
 
     /// The reconfiguration case: a fetch is due, but blocking would leave the
     /// slot empty for as long as the network takes.
-    func testAStaleReadingIsShownFirstAndTheFetchDeferred() {
+    @MainActor func testAStaleReadingIsShownFirstAndTheFetchDeferred() {
         XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
                                             lastDeferral: nil, now: now), .deferFetch)
     }
@@ -251,7 +249,7 @@ final class FetchDecisionTests: XCTestCase {
     /// The follow-up pass must actually fetch. If it deferred again the widget
     /// would show the same stale reading forever and never refresh — which is
     /// exactly what a first attempt at this did.
-    func testTheFollowUpPassFetchesRatherThanDeferringAgain() {
+    @MainActor func testTheFollowUpPassFetchesRatherThanDeferringAgain() {
         XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
                                             lastDeferral: now.addingTimeInterval(-10),
                                             now: now), .fetchNow)
@@ -259,14 +257,14 @@ final class FetchDecisionTests: XCTestCase {
 
     /// A deferral that never got its follow-up must not suppress fetching for
     /// good; past the window the widget falls back to fetching inline.
-    func testAnExpiredDeferralDoesNotSuppressFetchingForever() {
+    @MainActor func testAnExpiredDeferralDoesNotSuppressFetchingForever() {
         XCTAssertEqual(FetchDecision.decide(hasReading: true, age: 3600,
                                             lastDeferral: now.addingTimeInterval(-600),
                                             now: now, window: 120), .deferFetch)
     }
 
     /// Deferring only matters when there is something to show meanwhile.
-    func testNoReadingFetchesEvenWithADeferralRecorded() {
+    @MainActor func testNoReadingFetchesEvenWithADeferralRecorded() {
         XCTAssertEqual(FetchDecision.decide(hasReading: false, age: nil,
                                             lastDeferral: now, now: now), .fetchNow)
     }

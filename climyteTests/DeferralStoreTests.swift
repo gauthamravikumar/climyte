@@ -9,8 +9,7 @@ import XCTest
 /// Deferrals are per city. A single shared marker meant one widget deferring
 /// could push another widget's very next pass down the blocking path — and
 /// that pass might be the one that had to be fast.
-@MainActor
-final class DeferralStoreTests: XCTestCase {
+nonisolated final class DeferralStoreTests: XCTestCase {
 
     private var defaults: UserDefaults!
     private var suiteName: String!
@@ -32,11 +31,11 @@ final class DeferralStoreTests: XCTestCase {
         super.tearDown()
     }
 
-    func testNothingIsDeferredToBeginWith() {
+    @MainActor func testNothingIsDeferredToBeginWith() {
         XCTAssertNil(store.lastDeferral(forCity: sydney))
     }
 
-    func testADeferralComesBack() {
+    @MainActor func testADeferralComesBack() {
         let at = Date()
         store.record(forCity: sydney, at: at)
 
@@ -45,7 +44,7 @@ final class DeferralStoreTests: XCTestCase {
     }
 
     /// The defect this type exists for.
-    func testOneCitysDeferralDoesNotAffectAnother() {
+    @MainActor func testOneCitysDeferralDoesNotAffectAnother() {
         store.record(forCity: sydney)
 
         XCTAssertNotNil(store.lastDeferral(forCity: sydney))
@@ -53,7 +52,7 @@ final class DeferralStoreTests: XCTestCase {
                      "A widget showing Denver has nothing to learn from one showing Sydney")
     }
 
-    func testClearingOneCityLeavesTheOthers() {
+    @MainActor func testClearingOneCityLeavesTheOthers() {
         store.record(forCity: sydney)
         store.record(forCity: denver)
 
@@ -65,14 +64,14 @@ final class DeferralStoreTests: XCTestCase {
 
     /// A deferral that never got its follow-up must stop counting, so the
     /// widget falls back to fetching inline rather than deferring for ever.
-    func testADeferralExpiresWithTheWindow() {
+    @MainActor func testADeferralExpiresWithTheWindow() {
         let old = Date().addingTimeInterval(-300)
         store.record(forCity: sydney, at: old)
 
         XCTAssertNil(store.lastDeferral(forCity: sydney))
     }
 
-    func testADeferralInsideTheWindowStillCounts() {
+    @MainActor func testADeferralInsideTheWindowStillCounts() {
         store.record(forCity: sydney, at: Date().addingTimeInterval(-30))
 
         XCTAssertNotNil(store.lastDeferral(forCity: sydney))
@@ -80,7 +79,7 @@ final class DeferralStoreTests: XCTestCase {
 
     /// Cities the reader removed must not accumulate here the way they once
     /// did in the weather cache.
-    func testLongDeadEntriesArePrunedOnWrite() {
+    @MainActor func testLongDeadEntriesArePrunedOnWrite() {
         for i in 0..<20 {
             store.record(forCity: "ghost-\(i)", at: Date().addingTimeInterval(-5_000))
         }
@@ -93,7 +92,7 @@ final class DeferralStoreTests: XCTestCase {
 
     /// The single global marker this replaced was live for one build, so it
     /// is sitting in shared defaults on any device that installed it.
-    func testTheGlobalMarkerItReplacedIsCleanedUp() {
+    @MainActor func testTheGlobalMarkerItReplacedIsCleanedUp() {
         defaults.set(Date().timeIntervalSinceReferenceDate, forKey: "widget_deferred_fetch_at")
 
         _ = DeferralStore(defaults: defaults)
@@ -101,7 +100,7 @@ final class DeferralStoreTests: XCTestCase {
         XCTAssertNil(defaults.object(forKey: "widget_deferred_fetch_at"))
     }
 
-    func testTheStoreEmptiesItselfRatherThanLeavingAnEmptyDictionary() {
+    @MainActor func testTheStoreEmptiesItselfRatherThanLeavingAnEmptyDictionary() {
         store.record(forCity: sydney)
         store.clear(forCity: sydney)
 
