@@ -12,12 +12,16 @@ looking at — not the system appearance.
   page, so swiping from a daytime city to a night-time one inverts the app. The
   page indicator is set in type rather than dots — it names what's either side
   of you, and you can tap a name to jump straight there. Names that run off
-  either edge fade out rather than being cut mid-word.
+  either edge fade out rather than being cut mid-word. The names and the search
+  button float on one capsule of Liquid Glass (a thin material before iOS 26),
+  and the page scrolls on beneath it.
 - **Current location** is resolved on launch but never blocks the first render —
   saved cities paint immediately from cache. A newly located city goes first; one
-  you had already saved keeps its place.
+  you had already saved keeps its place. It is checked again each time you come
+  back to the app, without turning the page you are on.
 - **Search** finds any city by name. Places that share a name and a state — two
-  Oslos in Minnesota — are told apart by county.
+  Oslos in Minnesota — are told apart by county. The field opens at the bottom
+  of the screen, above the keyboard, where the button that opened it was.
 - **Works offline.** The last successful fetch for every saved city is cached,
   so a cold launch shows real data rather than a spinner. Once readings are more
   than a few hours old the page says how old they are, and a saved forecast
@@ -27,12 +31,16 @@ looking at — not the system appearance.
   US city shows Fahrenheit, miles per hour and miles; a UK city Celsius with
   miles per hour and miles; everywhere else metric. There is no global setting
   and no toggle.
+- **Stays current while open.** Every quarter hour the page is rebuilt for the
+  present moment and any reading over 15 minutes old is fetched again, so the
+  hours, the rain timing and "Today" never describe a moment that has passed.
 - **Hourly and 7-day forecasts**, a sun arc, and a details section that shows
   only what is worth saying: rain when it is likely, UV in daylight above the
   protection threshold, visibility when it is actually poor, gusts when they
   exceed the average. A wet afternoon shows more rows than a still, clear night.
   Words follow the city's own day: a clear sky after dark reads *Clear*, not
-  *Sunny*.
+  *Sunny*. The 24-hour strip adds the chance of rain to any hour where it is
+  20% or more, and before dawn the sun arc counts down to sunrise.
 - **Rain, looking ahead.** The Rain row describes the next 24 hours, never rain
   that has already fallen — `92% · 3.7 mm from 7 am tomorrow`. A low chance
   still gets a mention when a millimetre or more is expected. When rain is due
@@ -112,7 +120,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              283 tests
+climyteTests/              295 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI
@@ -145,6 +153,17 @@ Tools/
   header clock, the condition words and the UV row all read it, so they turn
   together at sunset. Each keeping its own time let the page go dark while the
   arc still showed the sun up.
+- **The located city is matched by place, not by coordinates.** A fix lands
+  somewhere different in the same town each time. Keyed by where it fell, the
+  located city was a new city on every launch; the same name within 50 km is
+  treated as the city already saved.
+- **The search field is a row, not an inset.** While reading, the bottom bar is
+  a safe-area inset so the page scrolls beneath it. As an inset of the search
+  results it lost keystrokes when the results changed, so while searching it is
+  an ordinary row under them.
+- **Test classes are `nonisolated`, their methods `@MainActor`.** The project
+  isolates to the main actor by default and `XCTestCase` does not, which made
+  every test class a Swift 6 error in waiting.
 - **The saved list is mirrored to a file** in the App Group container. The
   shared defaults domain was seen to lose the key between the app and the
   widget; the file is the widget's fallback.
