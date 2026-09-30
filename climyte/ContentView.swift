@@ -204,7 +204,7 @@ struct ContentView: View {
     private var searchGlyph: some View {
         Image(systemName: "magnifyingglass")
             .font(.system(size: searchIcon, weight: .medium))
-            .foregroundStyle(theme.secondaryText)
+            .foregroundStyle(theme.barSecondaryText)
     }
 
     /// Opens search. In the bottom bar rather than the top, because it is
@@ -231,7 +231,7 @@ struct ContentView: View {
 
                 Text("Search city")
                     .font(.searchField)
-                    .foregroundStyle(theme.secondaryText)
+                    .foregroundStyle(theme.barSecondaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
 

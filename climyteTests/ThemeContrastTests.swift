@@ -57,6 +57,28 @@ nonisolated final class ThemeContrastTests: XCTestCase {
                           "Day and night hierarchies have drifted apart by \(rounded(difference))")
     }
 
+    // MARK: - On the glass bar
+
+    /// The bottom bar's glass is not the page's colour.
+    ///
+    /// At night it sits well above the near-black ground. Measured on the
+    /// iPhone 18 Pro it is #3C3D43, and the page's own grey came to 2.7:1 on
+    /// it while every test above still passed, because they compare against
+    /// the page. By day the glass measures #FBFBFB.
+    @MainActor func testBarTextMeetsAAOnTheGlassItSitsOn() {
+        let glass = [true: Color(hex: "3C3D43"), false: Color(hex: "FBFBFB")]
+
+        for isNight in [true, false] {
+            let theme = WeatherTheme.forIsNight(isNight)
+            let ratio = contrast(theme.barSecondaryText, glass[isNight]!)
+
+            XCTAssertGreaterThanOrEqual(
+                ratio, minimumNormalText,
+                "barSecondaryText on \(isNight ? "night" : "day") glass is \(rounded(ratio)):1"
+            )
+        }
+    }
+
     // MARK: - Composited colours
 
     /// The token is not what the reader sees.

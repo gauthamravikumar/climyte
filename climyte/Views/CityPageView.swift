@@ -24,6 +24,20 @@ struct CityPageView: View {
         .refreshable {
             await onRefresh()
         }
+        // The page stopped in a hard line under the status bar, slicing
+        // through whatever was scrolling past it, and at large text sizes
+        // showed through the bottom bar behind the city names. It now eases
+        // out at the top and dims as it passes under the bar.
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 16)
+                Color.black
+                LinearGradient(colors: [.black, .black.opacity(0.25)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: 110)
+            }
+            .ignoresSafeArea(edges: .bottom)
+        }
         // Each page shows its own city's units, so this is set per page
         // rather than once for the whole app.
         .environment(\.unitSystem, entry.city.unitSystem)

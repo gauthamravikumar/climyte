@@ -120,7 +120,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              295 tests
+climyteTests/              296 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI

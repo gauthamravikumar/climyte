@@ -83,7 +83,9 @@ struct SunArcView: View {
                     Circle()
                         .strokeBorder(theme.secondaryText, lineWidth: 1.5)
                         .frame(width: 9, height: 9)
-                        .position(x: waitsAtSunrise ? 0 : width, y: baseline + 6)
+                        // Its edge on the margin, not its centre: centred on the
+                        // end of the line it hung half outside the page's edge.
+                        .position(x: waitsAtSunrise ? 4.5 : width - 4.5, y: baseline + 6)
                 }
             }
         }

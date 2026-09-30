@@ -7,23 +7,12 @@ import SwiftUI
 
 /// Shown when a fetch failed and there is nothing to fall back on.
 struct WeatherErrorView: View {
-    /// SF Symbols sized in points ignore Dynamic Type entirely: at
-    /// accessibility sizes this was a speck beside text three times its
-    /// height. @ScaledMetric keeps the drawn size at the default setting
-    /// and grows it with everything else.
-    @ScaledMetric(relativeTo: .largeTitle) private var errorIcon: CGFloat = 44
-
     let message: String
     let theme: WeatherTheme
     let onRetry: () -> Void
 
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: errorIcon, weight: .ultraLight))
-                .foregroundStyle(theme.secondaryText)
-                .accessibilityHidden(true)
-
             Text("Couldn't load weather")
                 .font(.stateTitle)
                 .foregroundStyle(theme.primaryText)
