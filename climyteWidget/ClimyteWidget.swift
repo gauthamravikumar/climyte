@@ -42,6 +42,27 @@ struct ClimyteAccessoryWidget: Widget {
     }
 }
 
+/// Today from midnight to midnight, as a bar of light and dark under the
+/// reading. The view pads itself, as the Week widget does.
+struct ClimyteDaylightWidget: Widget {
+    let kind = "ClimyteDaylightWidget"
+
+    var body: some WidgetConfiguration {
+        AppIntentConfiguration(kind: kind,
+                               intent: SelectCityIntent.self,
+                               provider: WeatherTimelineProvider()) { entry in
+            DaylightWidgetView(entry: entry)
+                .containerBackground(for: .widget) {
+                    WidgetBackground(theme: entry.theme)
+                }
+        }
+        .configurationDisplayName("Daylight")
+        .description("Today from midnight to midnight, in light and dark.")
+        .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
+    }
+}
+
 /// One entry point per family, so each accessory can be laid out for the space
 /// it actually gets rather than sharing a compromise.
 private struct AccessoryView: View {
@@ -64,6 +85,7 @@ private struct AccessoryView: View {
 struct ClimyteWidgetBundle: WidgetBundle {
     var body: some Widget {
         ClimyteWidget()
+        ClimyteDaylightWidget()
         ClimyteAccessoryWidget()
     }
 }

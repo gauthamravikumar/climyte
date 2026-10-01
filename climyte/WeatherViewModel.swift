@@ -97,6 +97,10 @@ class WeatherViewModel {
     /// "Melbourne, Sydney", with a city nobody chose.
     private var isShowingStandInCity: Bool
 
+    /// True once a widget has chosen the page. Finding the reader's location
+    /// a moment after launch would otherwise turn it straight back to theirs.
+    private var pageChosenByLink = false
+
     /// The quarter hour the pages were last brought up to date in.
     private var lastQuarterHour = WeatherViewModel.quarterHour(of: Date())
     private var searchTask: Task<Void, Never>?
@@ -246,6 +250,16 @@ class WeatherViewModel {
         Task { await self.refresh(cityKey: newCity.key) }
     }
 
+    /// Turns to the city a widget link names. A city no longer saved is
+    /// ignored, and the app opens where it was.
+    @discardableResult
+    func showCity(linkedBy url: URL) -> Bool {
+        guard let key = CityLink.cityKey(from: url), index(of: key) != nil else { return false }
+        selectedCityKey = key
+        pageChosenByLink = true
+        return true
+    }
+
     func selectEntry(_ entry: CityEntry) {
         selectedCityKey = entry.id
     }
@@ -303,7 +317,7 @@ class WeatherViewModel {
 
         if let located = await currentLocationCity() {
             locationAccessRefused = false
-            await refresh(cityKey: upsertCurrentLocation(located, select: true))
+            await refresh(cityKey: upsertCurrentLocation(located, select: !pageChosenByLink))
         } else {
             locationAccessRefused = locationManager.accessIsRefused
         }

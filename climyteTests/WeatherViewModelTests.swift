@@ -229,6 +229,28 @@ nonisolated final class WeatherViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedEntry?.city.name, "Paris")
     }
 
+    /// A widget opens its own city's page, and finding the reader's location
+    /// a moment later does not turn the page back to theirs.
+    @MainActor func testAWidgetLinkOpensItsCityAndLocationDoesNotTakeItBack() async throws {
+        defaults.set(try JSONEncoder().encode([paris, tokyo]), forKey: "saved_cities")
+        let viewModel = makeViewModel(locatedAt: berlinPlace)
+
+        XCTAssertTrue(viewModel.showCity(linkedBy: try XCTUnwrap(CityLink.url(for: tokyo))))
+        await viewModel.loadWeatherOnLaunch()
+
+        XCTAssertEqual(viewModel.selectedEntry?.city.name, "Tokyo")
+        XCTAssertEqual(viewModel.entries.first?.city.name, "Berlin", "The located city is still added")
+    }
+
+    @MainActor func testALinkToACityNoLongerSavedIsIgnored() throws {
+        defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
+        let viewModel = makeViewModel()
+
+        XCTAssertFalse(viewModel.showCity(linkedBy: try XCTUnwrap(CityLink.url(for: tokyo))))
+        XCTAssertFalse(viewModel.showCity(linkedBy: try XCTUnwrap(URL(string: "https://example.com/city?key=1,2"))))
+        XCTAssertEqual(viewModel.selectedEntry?.city.name, "Paris")
+    }
+
     @MainActor func testARefusedLocationIsRecordedSoTheListCanSaySo() async throws {
         defaults.set(try JSONEncoder().encode([paris]), forKey: "saved_cities")
         let viewModel = makeViewModel(authorization: .denied)

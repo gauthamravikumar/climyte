@@ -401,6 +401,9 @@
         }
       }
     },
+    "Done" : {
+
+    },
     "Dry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -411,6 +414,9 @@
           }
         }
       }
+    },
+    "Edit" : {
+
     },
     "Expected" : {
 
@@ -486,6 +492,9 @@
       }
     },
     "in the next 2 hours" : {
+
+    },
+    "Loading weather for %@" : {
 
     },
     "Local time in %@" : {
@@ -640,6 +649,12 @@
           }
         }
       }
+    },
+    "Remove" : {
+
+    },
+    "Remove %@" : {
+
     },
     "Search city" : {
       "extractionState" : "manual",

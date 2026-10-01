@@ -18,7 +18,11 @@ enum TimelinePlan {
     ///
     /// The sun times are the point. Hourly entries alone would leave a city
     /// that got dark at 6:10 rendered in the daytime palette until 7.
-    static func renderDates(from start: Date, to end: Date, solarDays: [SolarDay]) -> [Date] {
+    ///
+    /// `step` is shorter for the Daylight widget, whose line for now would
+    /// otherwise jump a twenty-fourth of its width once an hour.
+    static func renderDates(from start: Date, to end: Date, solarDays: [SolarDay],
+                            step: TimeInterval = 3600) -> [Date] {
         guard start < end else { return [start] }
 
         var dates: [Date] = []
@@ -26,7 +30,7 @@ enum TimelinePlan {
         var cursor = start
         while cursor < end {
             dates.append(cursor)
-            cursor = cursor.addingTimeInterval(3600)
+            cursor = cursor.addingTimeInterval(step)
         }
 
         for day in solarDays {

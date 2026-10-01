@@ -21,6 +21,8 @@ struct SearchBarView: View {
     @Binding var query: String
     @Binding var isSearching: Bool
     let theme: WeatherTheme
+    /// Where the bar's glass is named, so the field grows out of it.
+    let glass: Namespace.ID
 
     @FocusState private var isFocused: Bool
 
@@ -113,7 +115,7 @@ struct SearchBarView: View {
         .padding(.leading, 18)
         .padding(.trailing, 4)
         .frame(minHeight: 52)
-        .glassBackground(in: Capsule())
+        .glassBackground(in: Capsule(), id: GlassID.bar, namespace: glass)
     }
 
     /// Leaves search. A round button of its own beside the field, where the
@@ -129,7 +131,7 @@ struct SearchBarView: View {
                 .frame(minWidth: 52, minHeight: 52)
                 .contentShape(Circle())
         }
-        .glassBackground(in: Circle())
+        .glassBackground(in: Circle(), id: GlassID.close, namespace: glass)
         .accessibilityLabel("Close search")
     }
 }

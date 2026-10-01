@@ -73,7 +73,11 @@ extension Font {
     // has to hold a three-digit reading at accessibility sizes.
 
     static let widgetCity = manrope(.semiBold, 11, relativeTo: .caption2)
-    static let widgetTemperature = manrope(.regular, 42, relativeTo: .title)
+    /// The reading at poster scale, tracked in tight as display type is. It
+    /// is the widgets' voice; everything else is small beside it.
+    static let widgetHero = manrope(.regular, 86, relativeTo: .largeTitle)
+    static let widgetHeroSmall = manrope(.regular, 78, relativeTo: .largeTitle)
+    static let widgetHeadline = manrope(.bold, 15, relativeTo: .headline)
     static let widgetDetail = manrope(.semiBold, 11, relativeTo: .caption2)
     static let widgetCaption = manrope(.medium, 10, relativeTo: .caption2)
 

@@ -46,10 +46,7 @@ struct CityPageView: View {
     @ViewBuilder
     private var content: some View {
         if entry.isLoading && entry.weather == nil {
-            ProgressView()
-                .tint(theme.primaryText)
-                .scaleEffect(1.5)
-                .padding(.top, 80)
+            PageSkeleton(cityName: entry.city.name, theme: theme)
         } else if let weather = entry.weather {
             // A refresh can fail while cached data is still on screen, and a
             // saved forecast can be days old — say so, and say how old what
