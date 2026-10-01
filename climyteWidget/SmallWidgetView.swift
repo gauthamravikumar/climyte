@@ -24,7 +24,6 @@ struct SmallWidgetView: View {
 
     private var primary: Color { isAccented ? .primary : entry.theme.primaryText }
     private var secondary: Color { isAccented ? .secondary : entry.theme.secondaryText }
-    private var divider: Color { isAccented ? .secondary.opacity(0.4) : entry.theme.dividerColor }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -50,7 +49,11 @@ struct SmallWidgetView: View {
             Spacer(minLength: 2)
 
             Text(temperature)
-                .font(.widgetTemperature)
+                .font(.widgetHeroSmall)
+                .tracking(-3.6)
+                // Trimmed on the glyph: the line box at this size is deeper
+                // than the tile has room for.
+                .padding(.vertical, -12)
                 .foregroundStyle(primary)
                 // The reading is what a glance is for, so it leads the accent
                 // group when the system recolours the widget.
@@ -62,12 +65,16 @@ struct SmallWidgetView: View {
 
             Spacer(minLength: 2)
 
+            // Room for the chip first: the reading above it can shrink, and
+            // the chip's second line, at large text sizes, cannot.
             detail
+                .layoutPriority(1)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(showsBackground ? 0 : 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(spokenLabel)
+        .widgetURL(entry.city.flatMap(CityLink.url))
     }
 
     /// The tile is deliberately terse; VoiceOver should not be.
@@ -99,34 +106,33 @@ struct SmallWidgetView: View {
         return entry.units.temperature(weather.temperature)
     }
 
+    /// The last line, on a pane of glass. The app's own rule decides whether
+    /// rain is worth mentioning, so the widget and the Rain row never
+    /// disagree; otherwise the condition and the day's range take it.
     @ViewBuilder
     private var detail: some View {
         if let weather = entry.weather {
-            VStack(alignment: .leading, spacing: 1) {
-                Divider().overlay(divider)
-                    .padding(.bottom, 4)
-
-                // The app's own rule, so the widget and the Rain row never
-                // disagree about whether rain is worth mentioning; otherwise
-                // the day's range takes the line.
-                if let line = rainLine(weather) {
-                    Text(line)
-                        .font(.widgetDetail)
-                        .foregroundStyle(primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                } else if let low = weather.minTemp, let high = weather.maxTemp {
-                    Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
-                        .font(.widgetDetail)
-                        .foregroundStyle(primary)
-                        .lineLimit(1)
-                }
+            GlassChip(isNight: entry.isNight, isAccented: isAccented) {
+                Text(rainLine(weather) ?? summary(weather))
+                    .font(.widgetDetail)
+                    .foregroundStyle(primary)
+                    // A second line rather than an ellipsis: at the largest
+                    // text sizes "Rain 100% · 30.2 mm" does not fit on one,
+                    // and the amount is the part that was cut.
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
             }
         } else {
             Text("Open Climyte")
                 .font(.widgetCaption)
                 .foregroundStyle(secondary)
         }
+    }
+
+    private func summary(_ weather: CityWeather) -> String {
+        let condition = weather.conditionDescription(at: entry.date)
+        guard let low = weather.minTemp, let high = weather.maxTemp else { return condition }
+        return "\(condition) · \(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))"
     }
 
     private func rainLine(_ weather: CityWeather) -> String? {

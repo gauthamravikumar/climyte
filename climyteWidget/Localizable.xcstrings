@@ -97,6 +97,16 @@
         }
       }
     },
+    "%@, %lld degrees, %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$lld degrees, %3$@."
+          }
+        }
+      }
+    },
     "%@, %lld degrees, %@%@" : {
       "localizations" : {
         "en" : {
@@ -184,6 +194,12 @@
         }
       }
     },
+    "%lld min of light left" : {
+
+    },
+    "%lld min to sunrise" : {
+
+    },
     "%lldd" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -202,6 +218,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lldh"
+          }
+        }
+      }
+    },
+    "%lldh %lldm of light left" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lldh %2$lldm of light left"
+          }
+        }
+      }
+    },
+    "%lldh %lldm to sunrise" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lldh %2$lldm to sunrise"
           }
         }
       }
@@ -570,6 +606,16 @@
         }
       }
     },
+    "Sunrise %@, sunset %@." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Sunrise %1$@, sunset %2$@."
+          }
+        }
+      }
+    },
     "Sunset" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -658,6 +704,9 @@
           }
         }
       }
+    },
+    "Today from midnight to midnight, in light and dark." : {
+
     },
     "UV" : {
       "extractionState" : "manual",

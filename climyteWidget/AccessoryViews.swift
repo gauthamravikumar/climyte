@@ -29,6 +29,7 @@ struct AccessoryCircularView: View {
                 .padding(4)
         }
         .widgetAccessibilityLabel(entry, detail: false)
+        .widgetURL(entry.city.flatMap(CityLink.url))
     }
 
     private var temperature: String {
@@ -76,6 +77,7 @@ struct AccessoryRectangularView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .widgetAccessibilityLabel(entry, detail: true)
+        .widgetURL(entry.city.flatMap(CityLink.url))
     }
 
     private func secondLine(_ weather: CityWeather) -> String {
@@ -115,6 +117,7 @@ struct AccessoryInlineView: View {
         // "6°" while the person beside them reads "Reykjavik 6° · Sunny".
         // What is spoken should not depend on how much room the clock left.
         .accessibilityLabel(spokenLabel)
+        .widgetURL(entry.city.flatMap(CityLink.url))
     }
 
     private var spokenLabel: String {

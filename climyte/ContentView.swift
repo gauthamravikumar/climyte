@@ -19,6 +19,10 @@ struct ContentView: View {
 
     @Environment(\.scenePhase) private var scenePhase
 
+    /// The bar, the search field and its close button are named in here,
+    /// so the glass can change shape between them.
+    @Namespace private var glass
+
     /// Scales with the type ramp, like every other icon in the app.
     @ScaledMetric(relativeTo: .body) private var searchIcon: CGFloat = 17
 
@@ -51,27 +55,24 @@ struct ContentView: View {
                 .animation(themeAnimation, value: theme.background)
 
             if isSearching {
-                // A row of its own here, beneath the results and riding up
-                // with the keyboard. As an inset of the results it lost its
-                // place each time they changed: the first letter typed swaps
-                // the saved cities for results, and the letters after it
-                // never reached the field.
-                VStack(spacing: 0) {
-                    searchOverlay
-                        .padding(.horizontal, 24)
-                        .padding(.top, 16)
-                        .frame(maxHeight: .infinity, alignment: .top)
-
-                    bottomBar
-                }
+                searchOverlay
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+                    .frame(maxHeight: .infinity, alignment: .top)
             } else {
                 pager
-                    // An inset rather than a row of its own: the page scrolls
-                    // on underneath the bar instead of stopping at it.
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBar
-                    }
             }
+        }
+        // One bar under reading and searching alike, so opening search
+        // reshapes the same glass instead of swapping one bar for another.
+        // An inset of this stack, which never changes, and not of the
+        // results: as an inset of the results it lost its place each time
+        // they changed — the first letter typed swaps the saved cities for
+        // results, and the letters after it never reached the field. The
+        // page still scrolls on underneath the bar; search results stop at
+        // it, and it rides up with the keyboard.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomBar
         }
         // A tick as the page turns, by swipe or by tapping a name.
         .sensoryFeedback(.selection, trigger: viewModel.selectedCityKey)
@@ -83,6 +84,11 @@ struct ContentView: View {
         .onChange(of: scenePhase) { previous, phase in
             guard phase == .active, previous != .active else { return }
             Task { await viewModel.refreshOnForeground() }
+        }
+        // Tapping a widget opens the page for the city it shows.
+        .onOpenURL { url in
+            guard viewModel.showCity(linkedBy: url) else { return }
+            isSearching = false
         }
         // And an app left open needs the same, without ever leaving it.
         .onChange(of: now) { _, now in
@@ -154,12 +160,14 @@ struct ContentView: View {
                 SearchBarView(
                     query: $viewModel.searchQuery,
                     isSearching: $isSearching,
-                    theme: theme
+                    theme: theme,
+                    glass: glass
                 )
             } else {
                 cityBar
             }
         }
+        .glassGroup()
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         // Glass takes its light or dark from the environment, and the page's
@@ -194,7 +202,7 @@ struct ContentView: View {
         .frame(minHeight: 52)
         // The names scroll; they must not draw past the capsule's ends.
         .clipShape(Capsule())
-        .glassBackground(in: Capsule())
+        .glassBackground(in: Capsule(), id: GlassID.bar, namespace: glass)
     }
 
     private func openSearch() {
@@ -244,26 +252,54 @@ struct ContentView: View {
     }
 }
 
+/// Names for the pieces of glass in the bottom bar. The city bar and the
+/// search field share one, so one becomes the other.
+enum GlassID {
+    static let bar = "bar"
+    static let close = "close"
+}
+
 extension View {
     /// Liquid Glass where the system has it, and a thin material before it.
     ///
     /// The glass takes its tint from whatever is beneath it, which keeps the
     /// bar in the page's own black or white without a colour of its own.
+    /// Pieces given the same `id` within one `glassGroup()` change shape
+    /// into each other as they come and go.
     @ViewBuilder
-    func glassBackground(in shape: some Shape) -> some View {
+    func glassBackground(in shape: some Shape, id: String, namespace: Namespace.ID) -> some View {
         // The glass API arrived with the iOS 26 SDK. An older Xcode, such as
         // the one CI builds with, has never heard of it, and takes the
         // material path at compile time rather than at run time.
         #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
-            // Behind the content rather than applied to it, so the glass is
-            // never what hosts the search field.
-            background { Color.clear.glassEffect(.regular, in: shape) }
+            // On the content itself, so the content is drawn on the glass. As
+            // a layer behind it, inside a glass group, the group drew the glass
+            // over the names and washed them out.
+            glassEffect(.regular, in: shape)
+                .glassEffectID(id, in: namespace)
         } else {
             background(.ultraThinMaterial, in: shape)
         }
         #else
         background(.ultraThinMaterial, in: shape)
+        #endif
+    }
+
+    /// Glass that sits together goes in one container, as Apple asks: the
+    /// pieces are drawn in a single pass, they can blend, and only inside
+    /// one can they change shape into each other. Before iOS 26 there is
+    /// nothing to group.
+    @ViewBuilder
+    func glassGroup() -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer { self }
+        } else {
+            self
+        }
+        #else
+        self
         #endif
     }
 }

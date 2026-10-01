@@ -30,30 +30,140 @@ struct SavedCitiesView: View {
     let onMove: (IndexSet, Int) -> Void
 
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    @ScaledMetric(relativeTo: .headline) private var removeIcon: CGFloat = 20
+
+    /// Removing and reordering, made visible. Swiping a row was the only way
+    /// to remove a city, and nothing on screen said so; holding to drag was
+    /// as hidden.
+    @State private var isEditing = false
+
+    /// The row whose remove mark was tapped, asking once before it goes.
+    @State private var pendingRemoval: String?
 
     var body: some View {
-        List {
-            if locationAccessRefused {
-                locationNotice
+        VStack(spacing: 0) {
+            // Nothing to edit with one city: it can't be removed, and there is
+            // nothing to reorder it against.
+            if entries.count > 1 {
+                editButton
             }
 
-            ForEach(entries) { entry in
-                Button {
-                    onSelect(entry)
-                } label: {
-                    row(for: entry)
+            List {
+                if locationAccessRefused {
+                    locationNotice
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
-                .listRowSeparatorTint(theme.dividerColor)
-                .deleteDisabled(!canRemove)
+
+                ForEach(entries) { entry in
+                    Group {
+                        if isEditing {
+                            editingRow(for: entry)
+                        } else {
+                            Button {
+                                onSelect(entry)
+                            } label: {
+                                row(for: entry)
+                            }
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
+                    .listRowSeparatorTint(theme.dividerColor)
+                    .deleteDisabled(!canRemove)
+                }
+                // While editing, removal goes through the row's own mark. The
+                // list's built-in control would be the one red thing in the app.
+                .onDelete(perform: isEditing ? nil : onDelete)
+                .onMove(perform: onMove)
             }
-            .onDelete(perform: onDelete)
-            .onMove(perform: onMove)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            // Drag handles appear only while editing; holding to drag still
+            // works either way.
+            .environment(\.editMode, .constant(isEditing ? .active : .inactive))
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
+        .onChange(of: entries.count) { _, count in
+            pendingRemoval = nil
+            if count < 2 { isEditing = false }
+        }
+    }
+
+    private var editButton: some View {
+        HStack {
+            Spacer()
+            Button(isEditing ? "Done" : "Edit") {
+                withAnimation(reduceMotion ? nil : .default) {
+                    isEditing.toggle()
+                    pendingRemoval = nil
+                }
+            }
+            .font(.searchCancel)
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(1)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .padding(.horizontal, 4)
+    }
+
+    /// A row while editing: a remove mark, the name, and a confirmation in
+    /// place of the reading once the mark is tapped.
+    private func editingRow(for entry: CityEntry) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            if canRemove {
+                Button {
+                    withAnimation(reduceMotion ? nil : .default) {
+                        pendingRemoval = pendingRemoval == entry.id ? nil : entry.id
+                    }
+                } label: {
+                    Image(systemName: "minus.circle")
+                        .font(.system(size: removeIcon))
+                        .foregroundStyle(theme.primaryText)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Remove \(entry.city.name)"))
+            }
+
+            Text(entry.city.name)
+                .font(.searchResultCity)
+                .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.leading)
+
+            Spacer(minLength: 8)
+
+            if pendingRemoval == entry.id {
+                Button {
+                    remove(entry)
+                } label: {
+                    Text("Remove")
+                        .font(.searchCancel)
+                        .foregroundStyle(theme.background)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(theme.primaryText))
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
+            }
+        }
+        .padding(.vertical, 4)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
+    }
+
+    private func remove(_ entry: CityEntry) {
+        guard canRemove, let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        pendingRemoval = nil
+        withAnimation(reduceMotion ? nil : .default) {
+            onDelete(IndexSet(integer: index))
+        }
     }
 
     private var locationNotice: some View {
@@ -90,30 +200,32 @@ struct SavedCitiesView: View {
     }
 
     private func row(for entry: CityEntry) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if entry.isCurrentLocation {
-                Image(systemName: "location.fill")
-                    .font(.system(size: locationIcon))
-                    .foregroundStyle(theme.secondaryText)
-                    .accessibilityHidden(true)
-            }
+        // At accessibility sizes the reading beside the name left it too
+        // little room, and "Melbourne" broke across two lines mid-word. There
+        // the reading goes under the name instead.
+        let stacked = typeSize.isAccessibilitySize
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if entry.isCurrentLocation {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: locationIcon))
+                        .foregroundStyle(theme.secondaryText)
+                        .accessibilityHidden(true)
+                }
 
-            Text(entry.city.name)
-                .font(.searchResultCity)
-                .foregroundStyle(entry.id == selectedKey ? theme.primaryText : theme.secondaryText)
-                // As in the search results: a Button centres a long name's
-                // wrapped lines.
-                .multilineTextAlignment(.leading)
-
-            Spacer()
-
-            if let weather = entry.weather {
-                // Per row, not from the environment: each city in this list
-                // may be shown in different units.
-                Text(entry.city.unitSystem.temperature(weather.temperature))
+                Text(entry.city.name)
                     .font(.searchResultCity)
-                    .foregroundStyle(theme.primaryText)
+                    .foregroundStyle(entry.id == selectedKey ? theme.primaryText : theme.secondaryText)
+                    // As in the search results: a Button centres a long name's
+                    // wrapped lines.
+                    .multilineTextAlignment(.leading)
+
+                Spacer()
+
+                if !stacked { reading(for: entry) }
             }
+
+            if stacked { reading(for: entry) }
         }
         .padding(.vertical, 16)
         .contentShape(Rectangle())
@@ -141,6 +253,17 @@ struct SavedCitiesView: View {
         // so the same reordering is offered as two named actions.
         .accessibilityAction(named: Text("Move up")) { move(entry, by: -1) }
         .accessibilityAction(named: Text("Move down")) { move(entry, by: 1) }
+    }
+
+    @ViewBuilder
+    private func reading(for entry: CityEntry) -> some View {
+        if let weather = entry.weather {
+            // Per row, not from the environment: each city in this list
+            // may be shown in different units.
+            Text(entry.city.unitSystem.temperature(weather.temperature))
+                .font(.searchResultCity)
+                .foregroundStyle(theme.primaryText)
+        }
     }
 
     /// `onMove`'s destination is an insertion point, not an index: moving down

@@ -64,6 +64,10 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
         let saved = SavedCityOptions.savedCities()
         let cached = entry(for: configuration, saved: saved)
 
+        // Entries cost no reloads. The medium widgets draw where now is in
+        // the day or the week, so they redraw each quarter hour.
+        let step: TimeInterval = context.family == .systemMedium ? 900 : 3600
+
         // Anything we can already draw goes back immediately, and the fetch
         // happens afterwards.
         //
@@ -85,18 +89,18 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
                                     lastDeferral: cityKey.flatMap { deferrals.lastDeferral(forCity: $0) }) {
         case .useCache:
             if let cityKey { deferrals.clear(forCity: cityKey) }
-            return plan(from: cached)
+            return plan(from: cached, step: step)
 
         case .deferFetch:
             // Show the cached reading now and come straight back for the
             // fetch — by then there is something on screen to keep showing
             // while we wait.
             if let cityKey { deferrals.record(forCity: cityKey) }
-            return plan(from: cached, reloadAfter: Self.deferredFetchDelay)
+            return plan(from: cached, reloadAfter: Self.deferredFetchDelay, step: step)
 
         case .fetchNow:
             if let cityKey { deferrals.clear(forCity: cityKey) }
-            return plan(from: await refreshed(cached, saved: saved))
+            return plan(from: await refreshed(cached, saved: saved), step: step)
         }
     }
 
@@ -105,11 +109,13 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
 
 
     private func plan(from base: WeatherEntry,
-                     reloadAfter delay: TimeInterval? = nil) -> Timeline<WeatherEntry> {
+                     reloadAfter delay: TimeInterval? = nil,
+                     step: TimeInterval) -> Timeline<WeatherEntry> {
         let now = Date()
         let dates = TimelinePlan.renderDates(from: now,
                                              to: now.addingTimeInterval(Self.timelineSpan),
-                                             solarDays: base.weather?.solarDays ?? [])
+                                             solarDays: base.weather?.solarDays ?? [],
+                                             step: step)
         let entries = dates.map {
             WeatherEntry(date: $0, city: base.city,
                          weather: base.weather, fetchedAt: base.fetchedAt)

@@ -269,3 +269,69 @@ nonisolated final class FetchDecisionTests: XCTestCase {
                                             lastDeferral: now, now: now), .fetchNow)
     }
 }
+
+/// The Daylight widget's picture is the city's day, midnight to midnight.
+nonisolated final class LightClockTests: XCTestCase {
+
+    /// Midnight UTC on 1 June 2026, plus hours.
+    @MainActor private func at(_ hours: Double) -> Date {
+        Date(timeIntervalSince1970: 1_780_272_000 + hours * 3_600)
+    }
+
+    @MainActor private var days: [SolarDay] {
+        [SolarDay(sunrise: at(6), sunset: at(18)),
+         SolarDay(sunrise: at(30), sunset: at(42))]
+    }
+
+    @MainActor func testTheDayIsPlacedAcrossMidnightToMidnight() throws {
+        let day = try XCTUnwrap(LightClock.day(at: at(14), in: days, timeZone: TimeZone(secondsFromGMT: 0)!))
+
+        XCTAssertEqual(day.sunriseFraction, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(day.sunsetFraction, 0.75, accuracy: 0.0001)
+        XCTAssertEqual(day.nowFraction, 14.0 / 24, accuracy: 0.0001)
+    }
+
+    /// After midnight the picture is the new day, with its own sun times.
+    @MainActor func testTheSmallHoursBelongToTheNewDay() throws {
+        let day = try XCTUnwrap(LightClock.day(at: at(27), in: days, timeZone: TimeZone(secondsFromGMT: 0)!))
+
+        XCTAssertEqual(day.sunrise, at(30))
+        XCTAssertEqual(day.nowFraction, 3.0 / 24, accuracy: 0.0001)
+    }
+
+    /// The city's own midnight, not the device's: 2 pm in Melbourne is the
+    /// same instant as 4 am in UTC.
+    @MainActor func testFractionsAreOfTheCitysDay() throws {
+        let melbourne = try XCTUnwrap(TimeZone(identifier: "Australia/Melbourne"))
+        let local = [SolarDay(sunrise: at(-4), sunset: at(8))]   // 6 am and 6 pm in Melbourne (UTC+10)
+
+        let day = try XCTUnwrap(LightClock.day(at: at(4), in: local, timeZone: melbourne))
+
+        XCTAssertEqual(day.sunriseFraction, 0.25, accuracy: 0.0001)
+        XCTAssertEqual(day.nowFraction, 14.0 / 24, accuracy: 0.0001)
+    }
+
+    @MainActor func testNoSunTimesForTheDayDrawsNoBand() {
+        XCTAssertNil(LightClock.day(at: at(60), in: days, timeZone: TimeZone(secondsFromGMT: 0)!))
+    }
+
+    @MainActor func testTheMediumWidgetsRedrawEachQuarterHour() {
+        let start = at(10)
+        let dates = TimelinePlan.renderDates(from: start, to: start.addingTimeInterval(3_600),
+                                             solarDays: [], step: 900)
+        XCTAssertEqual(dates.count, 4)
+        XCTAssertEqual(dates.last, start.addingTimeInterval(2_700))
+    }
+}
+
+/// The link a widget carries survives a round trip, minus signs and all.
+nonisolated final class CityLinkTests: XCTestCase {
+    @MainActor func testALinkNamesItsCity() throws {
+        let melbourne = City(id: UUID(), name: "Melbourne", country: "Australia",
+                             countryCode: "AU", latitude: -37.8136, longitude: 144.9631)
+        let url = try XCTUnwrap(CityLink.url(for: melbourne))
+
+        XCTAssertEqual(url.scheme, "climyte")
+        XCTAssertEqual(CityLink.cityKey(from: url), melbourne.key)
+    }
+}

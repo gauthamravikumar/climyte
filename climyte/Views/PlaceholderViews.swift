@@ -136,3 +136,62 @@ struct NoWeatherDataView: View {
         .frame(maxWidth: .infinity)
     }
 }
+
+/// A newly added city while its first forecast is on the way.
+///
+/// It replaces a spinner at one and a half times normal size, alone on a
+/// blank page, which was the only spinner in the app. The name is known
+/// already and is shown; the rest of the page stands in as shapes, pulsing
+/// like the search placeholders, and holding still under Reduce Motion.
+struct PageSkeleton: View {
+    let cityName: String
+    let theme: WeatherTheme
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(cityName)
+                    .font(.cityName)
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Spacer(minLength: 12)
+                block(width: 74, height: 18)
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                block(width: 150, height: 84)
+                    .padding(.top, 34)
+                block(width: 64, height: 14)
+                    .padding(.top, 16)
+                block(width: 190, height: 16)
+                    .padding(.top, 10)
+
+                ThemeDivider(theme: theme)
+                    .padding(.top, 30)
+
+                HStack(spacing: 18) {
+                    ForEach(0..<5, id: \.self) { _ in block(width: 38, height: 14) }
+                }
+                .padding(.top, 40)
+            }
+            .phaseAnimator(reduceMotion ? [1.0] : [1.0, 0.45]) { shapes, opacity in
+                shapes.opacity(opacity)
+            } animation: { _ in
+                .easeInOut(duration: 0.8)
+            }
+        }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Loading weather for \(cityName)"))
+    }
+
+    private func block(width: CGFloat, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(theme.dividerColor)
+            .frame(width: width, height: height)
+    }
+}

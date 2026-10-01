@@ -14,13 +14,15 @@ looking at — not the system appearance.
   of you, and you can tap a name to jump straight there. Names that run off
   either edge fade out rather than being cut mid-word. The names and the search
   button float on one capsule of Liquid Glass (a thin material before iOS 26),
-  and the page scrolls on beneath it.
+  and the page scrolls on beneath it. Opening search reshapes that capsule into
+  the field, and the close button separates from it.
 - **Current location** is resolved on launch but never blocks the first render —
   saved cities paint immediately from cache. A newly located city goes first; one
   you had already saved keeps its place. It is checked again each time you come
   back to the app, without turning the page you are on.
 - **Search** finds any city by name. Places that share a name and a state — two
-  Oslos in Minnesota — are told apart by county. The field opens at the bottom
+  Oslos in Minnesota — are told apart by county. Edit above the saved list
+  shows a remove mark and a drag handle on each city. The field opens at the bottom
   of the screen, above the keyboard, where the button that opened it was.
 - **Works offline.** The last successful fetch for every saved city is cached,
   so a cold launch shows real data rather than a spinner. Once readings are more
@@ -46,8 +48,11 @@ looking at — not the system appearance.
   still gets a mention when a millimetre or more is expected. When rain is due
   in the next two hours, a strip of quarter-hour bars sits beneath the row with
   when it starts and how much.
-- **Widgets.** A small Home Screen widget, and circular, rectangular and inline
-  Lock Screen widgets, each showing a saved city of your choice. The inline one
+- **Widgets.** A small Home Screen widget, its last line on a glass chip; a medium one, *Daylight*, the
+  city's day from midnight to midnight as a glass tube under the reading, with
+  a glass bead at now; and circular,
+  rectangular and inline Lock Screen widgets. Each shows a saved city of your
+  choice, and tapping one opens the app on that city's page. The inline one
   sits beside the date as a symbol and the temperature — `☾ 18°` — the only
   weather icon in the app.
 - **Large text reflows** rather than truncates: the header stacks, the city strip
@@ -87,10 +92,11 @@ From Xcode, ⌘U. From the command line:
 xcodebuild test -project climyte.xcodeproj -scheme climyte -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-CI runs the suite on every push and pull request, three times: in the default
+CI runs the suite on every push and pull request, four times: in the default
 region, under Thailand's Buddhist calendar (`-testRegion TH`) and under
-Germany's decimal comma (`-testRegion DE`). Both have broken fixed-format
-parsing or formatting before. It resolves a simulator at runtime via
+Germany's decimal comma (`-testRegion DE`), which have both broken fixed-format
+parsing or formatting before, and once more on iOS 18, the oldest system the
+app supports. It resolves a simulator at runtime via
 [`Tools/pick-simulator.py`](Tools/pick-simulator.py) rather than pinning a model
 name, because runner images swap their bundled simulators without notice.
 
@@ -113,6 +119,8 @@ Shared/                    Compiled into both the app and the widget
   RainOutlook.swift        The next two hours and the next 24 hours of rain
   WeatherDetail.swift      Which detail rows to show, and what they say
   SolarPosition.swift      The sun arc, and day or night once a forecast runs out
+  LightClock.swift         The day from midnight to midnight, for the Daylight widget
+  WeekRibbon.swift         The week's band geometry, kept apart for a future Week widget
   CityEntry.swift          Per-city state, and stable identity for a City
   SavedCities.swift        The saved list, shared with the widget
   WeatherCache.swift       On-disk cache of the last fetch per city
@@ -120,7 +128,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              296 tests
+climyteTests/              304 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI
@@ -157,10 +165,14 @@ Tools/
   somewhere different in the same town each time. Keyed by where it fell, the
   located city was a new city on every launch; the same name within 50 km is
   treated as the city already saved.
-- **The search field is a row, not an inset.** While reading, the bottom bar is
-  a safe-area inset so the page scrolls beneath it. As an inset of the search
-  results it lost keystrokes when the results changed, so while searching it is
-  an ordinary row under them.
+- **The bar is an inset of the screen, not of the results.** One bar sits under
+  reading and searching alike, so its glass can change shape between the two.
+  As an inset of the search results it lost keystrokes when the results
+  changed; attached to the screen, which never changes, it keeps them.
+- **The bar's glass is on its content, inside one `GlassEffectContainer`.** The
+  container is what lets the pieces change shape into each other, and it draws
+  all its glass in one pass — over any content that is not itself the glass,
+  which washed the city names out.
 - **Test classes are `nonisolated`, their methods `@MainActor`.** The project
   isolates to the main actor by default and `XCTestCase` does not, which made
   every test class a Swift 6 error in waiting.
