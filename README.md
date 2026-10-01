@@ -92,10 +92,11 @@ From Xcode, ⌘U. From the command line:
 xcodebuild test -project climyte.xcodeproj -scheme climyte -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-CI runs the suite on every push and pull request, three times: in the default
+CI runs the suite on every push and pull request, four times: in the default
 region, under Thailand's Buddhist calendar (`-testRegion TH`) and under
-Germany's decimal comma (`-testRegion DE`). Both have broken fixed-format
-parsing or formatting before. It resolves a simulator at runtime via
+Germany's decimal comma (`-testRegion DE`), which have both broken fixed-format
+parsing or formatting before, and once more on iOS 18, the oldest system the
+app supports. It resolves a simulator at runtime via
 [`Tools/pick-simulator.py`](Tools/pick-simulator.py) rather than pinning a model
 name, because runner images swap their bundled simulators without notice.
 

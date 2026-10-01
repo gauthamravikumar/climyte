@@ -75,6 +75,27 @@ jobs:
             -resultBundlePath TestResultsDE.xcresult \
             CODE_SIGNING_ALLOWED=NO
 
+      # The app supports iOS 18, but the runs above take the newest simulator
+      # on the runner, which is iOS 26: nothing was ever run on the oldest
+      # system the app ships to. The picker fails here rather than fall back
+      # to a newer iOS if the image stops carrying an iOS 18 runtime.
+      - name: Resolve an iOS 18 simulator
+        id: sim18
+        run: |
+          UDID=$(xcrun simctl list devices available --json | python3 Tools/pick-simulator.py --major 18)
+          echo "Using simulator $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Test on iOS 18
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project climyte.xcodeproj \
+            -scheme climyte \
+            -destination "platform=iOS Simulator,id=${{ steps.sim18.outputs.udid }}" \
+            -resultBundlePath TestResults18.xcresult \
+            CODE_SIGNING_ALLOWED=NO
+
       - name: Upload results on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -84,4 +105,5 @@ jobs:
             TestResults.xcresult
             TestResultsTH.xcresult
             TestResultsDE.xcresult
+            TestResults18.xcresult
           retention-days: 7
