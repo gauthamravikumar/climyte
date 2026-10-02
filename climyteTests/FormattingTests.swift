@@ -193,6 +193,19 @@ nonisolated final class FormattingTests: XCTestCase {
             CurrentConditionsView.localTime(at: anHourLater, in: TimeZone(secondsFromGMT: 0)!)
         )
     }
+
+    /// Every other time in the app is lowercased. In a region that writes
+    /// "PM", the header said "9:44 PM" over a sun arc saying "6:24 pm".
+    @MainActor func testTheHeaderClockIsLowercasedLikeEveryOtherTime() {
+        let evening = Date(timeIntervalSince1970: 1_753_469_040) // 18:44 UTC
+        let utc = TimeZone(secondsFromGMT: 0)!
+
+        XCTAssertEqual(
+            CurrentConditionsView.localTime(at: evening, in: utc, locale: Locale(identifier: "en_US"))
+                .replacingOccurrences(of: "\u{202F}", with: " "),
+            "6:44 pm"
+        )
+    }
 }
 
 /// Two places can share a name, a state and a country — Oslo, Minnesota is two

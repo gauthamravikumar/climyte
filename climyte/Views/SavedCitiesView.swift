@@ -68,7 +68,10 @@ struct SavedCitiesView: View {
                             }
                         }
                     }
-                    .listRowBackground(Color.clear)
+                    // The page's own ground rather than clear: a row lifted to
+                    // be dragged keeps its background, and a clear one let the
+                    // system's light-grey card show through on the night theme.
+                    .listRowBackground(theme.background)
                     .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
                     .listRowSeparatorTint(theme.dividerColor)
                     .deleteDisabled(!canRemove)
