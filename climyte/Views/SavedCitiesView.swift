@@ -66,6 +66,21 @@ struct SavedCitiesView: View {
                             } label: {
                                 row(for: entry)
                             }
+                            // A swipe action rather than the list's own delete.
+                            // With `onDelete` on the list, turning Edit on slid
+                            // the system's red delete circles onto the rows as
+                            // they faded into the editing ones; and its swipe
+                            // button was the one red thing in the app.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                if canRemove {
+                                    Button(role: .destructive) {
+                                        remove(entry)
+                                    } label: {
+                                        Text("Remove")
+                                    }
+                                    .tint(theme.swipeFill)
+                                }
+                            }
                         }
                     }
                     // The page's own ground rather than clear: a row lifted to
@@ -74,11 +89,7 @@ struct SavedCitiesView: View {
                     .listRowBackground(theme.background)
                     .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 4))
                     .listRowSeparatorTint(theme.dividerColor)
-                    .deleteDisabled(!canRemove)
                 }
-                // While editing, removal goes through the row's own mark. The
-                // list's built-in control would be the one red thing in the app.
-                .onDelete(perform: isEditing ? nil : onDelete)
                 .onMove(perform: onMove)
             }
             .listStyle(.plain)

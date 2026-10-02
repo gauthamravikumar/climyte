@@ -578,6 +578,11 @@ struct WeatherTheme {
     let barSecondaryText: Color
     let dividerColor: Color
 
+    /// The fill behind a row's swipe-to-remove button, whose label the system
+    /// draws in white. By day that is the text colour; at night the text
+    /// colour is near-white, so a grey that stands off the near-black ground.
+    let swipeFill: Color
+
     /// Secondary text is a different grey in each theme, on purpose.
     ///
     /// One value cannot serve both: #727272 was picked against white, where it
@@ -593,7 +598,8 @@ struct WeatherTheme {
                 primaryText: Color(hex: "F2F2F0"),
                 secondaryText: Color(hex: "808080"),
                 barSecondaryText: Color(hex: "ADADAD"),
-                dividerColor: Color(hex: "F2F2F0").opacity(0.12)
+                dividerColor: Color(hex: "F2F2F0").opacity(0.12),
+                swipeFill: Color(hex: "3A3B40")
             )
         } else {
             return WeatherTheme(
@@ -601,7 +607,8 @@ struct WeatherTheme {
                 primaryText: Color(hex: "1A1A1A"),
                 secondaryText: Color(hex: "727272"),
                 barSecondaryText: Color(hex: "727272"),
-                dividerColor: Color(hex: "1A1A1A").opacity(0.12)
+                dividerColor: Color(hex: "1A1A1A").opacity(0.12),
+                swipeFill: Color(hex: "1A1A1A")
             )
         }
     }
