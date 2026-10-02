@@ -13,8 +13,27 @@ struct WeatherEntry: TimelineEntry {
     let weather: CityWeather?
     /// When the reading was fetched, which is not when this entry was made.
     let fetchedAt: Date?
+    /// The city this widget was set to, when that city has since been
+    /// removed from the app. The widget names it rather than showing
+    /// another city under a picker that still says this one.
+    var removedCityName: String? = nil
 
     var units: UnitSystem { city?.unitSystem ?? .metric }
+
+    /// The name at the top of the widget: the city shown, or the removed
+    /// city this widget is still set to.
+    var displayName: String { city?.name ?? removedCityName ?? "Climyte" }
+
+    /// The line shown in place of a reading.
+    var noReadingNote: String {
+        removedCityName == nil ? String(localized: "Open Climyte") : String(localized: "No longer saved")
+    }
+
+    /// What VoiceOver says in place of a reading.
+    var spokenNoReading: String {
+        guard let removedCityName else { return String(localized: "\(displayName), no reading yet") }
+        return String(localized: "\(removedCityName) is no longer saved. Edit the widget to choose another city.")
+    }
 
     /// How old the reading is at the moment this entry is shown, or nil when
     /// there is no reading.
@@ -118,7 +137,8 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
                                              step: step)
         let entries = dates.map {
             WeatherEntry(date: $0, city: base.city,
-                         weather: base.weather, fetchedAt: base.fetchedAt)
+                         weather: base.weather, fetchedAt: base.fetchedAt,
+                         removedCityName: base.removedCityName)
         }
 
         guard let delay else { return Timeline(entries: entries, policy: .atEnd) }
@@ -167,9 +187,16 @@ struct WeatherTimelineProvider: AppIntentTimelineProvider {
 
     private func entry(for configuration: SelectCityIntent,
                        saved: [City] = SavedCityOptions.savedCities()) -> WeatherEntry {
-        // Fall back to the first saved city so a freshly placed widget shows
-        // something real before the user has configured it.
-        let city = configuration.city ?? saved.first
+        let city: City?
+        switch WidgetCity.resolve(name: configuration.cityName, saved: saved) {
+        case .city(let chosen):
+            city = chosen
+        case .removed(let name):
+            return WeatherEntry(date: .now, city: nil, weather: nil, fetchedAt: nil,
+                                removedCityName: name)
+        case .none:
+            city = nil
+        }
 
         guard let city, let cached = WeatherCache().load(for: city) else {
             return WeatherEntry(date: .now, city: city, weather: nil, fetchedAt: nil)

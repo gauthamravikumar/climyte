@@ -30,48 +30,53 @@ struct DaylightWidgetView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(entry.city?.name ?? "Climyte")
+            Text(entry.displayName)
                 .font(.widgetCity)
                 .foregroundStyle(primary)
                 .lineLimit(1)
 
-            // The reading at poster scale, and what qualifies it beside it.
-            HStack(alignment: .top, spacing: 12) {
-                Text(entry.weather.map { entry.units.temperature($0.temperature) } ?? "--")
-                    .font(.widgetHero)
-                    .tracking(-4)
-                    .foregroundStyle(primary)
-                    .widgetAccentable()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-                    // A numeral this size carries a deep line box above and
-                    // below it, and the widget has no room for it: the reading
-                    // shrank to fit instead. Trimmed on the glyph, as the
-                    // app's own hero is.
-                    .padding(.vertical, -14)
-
-                Spacer(minLength: 0)
-
-                if let weather = entry.weather {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(weather.conditionDescription(at: entry.date))
-                            .font(.widgetHeadline)
-                            .foregroundStyle(primary)
-                        if let low = weather.minTemp, let high = weather.maxTemp {
-                            Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
-                                .font(.widgetDetail)
-                                .foregroundStyle(secondary)
-                        }
-                        if let line = countdown(weather) {
-                            Text(line)
-                                .font(.widgetDetail)
-                                .foregroundStyle(secondary)
-                        }
-                    }
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(width: 148, alignment: .leading)
+            if entry.removedCityName != nil {
+                RemovedCityNote(primary: primary, secondary: secondary)
                     .padding(.top, 10)
+            } else {
+                // The reading at poster scale, and what qualifies it beside it.
+                HStack(alignment: .top, spacing: 12) {
+                    Text(entry.weather.map { entry.units.temperature($0.temperature) } ?? "--")
+                        .font(.widgetHero)
+                        .tracking(-4)
+                        .foregroundStyle(primary)
+                        .widgetAccentable()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                        // A numeral this size carries a deep line box above and
+                        // below it, and the widget has no room for it: the reading
+                        // shrank to fit instead. Trimmed on the glyph, as the
+                        // app's own hero is.
+                        .padding(.vertical, -14)
+
+                    Spacer(minLength: 0)
+
+                    if let weather = entry.weather {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(weather.conditionDescription(at: entry.date))
+                                .font(.widgetHeadline)
+                                .foregroundStyle(primary)
+                            if let low = weather.minTemp, let high = weather.maxTemp {
+                                Text("\(entry.units.temperatureValue(low)) · \(entry.units.temperatureValue(high))")
+                                    .font(.widgetDetail)
+                                    .foregroundStyle(secondary)
+                            }
+                            if let line = countdown(weather) {
+                                Text(line)
+                                    .font(.widgetDetail)
+                                    .foregroundStyle(secondary)
+                            }
+                        }
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(width: 148, alignment: .leading)
+                        .padding(.top, 10)
+                    }
                 }
             }
 
@@ -168,8 +173,8 @@ struct DaylightWidgetView: View {
     }
 
     private var spokenLabel: String {
-        let name = entry.city?.name ?? "Climyte"
-        guard let weather = entry.weather else { return String(localized: "\(name), no reading yet") }
+        let name = entry.displayName
+        guard let weather = entry.weather else { return entry.spokenNoReading }
         let reading = entry.units.temperatureValue(weather.temperature)
         let base = String(localized: "\(name), \(reading) degrees, \(weather.conditionDescription(at: entry.date)).")
         let sun = String(localized: "Sunrise \(weather.sunriseFormatted), sunset \(weather.sunsetFormatted).")

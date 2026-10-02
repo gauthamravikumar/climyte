@@ -44,7 +44,7 @@ struct AccessoryRectangularView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
-                Text(entry.city?.name ?? "Climyte")
+                Text(entry.displayName)
                     .font(.accessoryLabel)
                     .widgetAccentable()
                     .lineLimit(1)
@@ -72,7 +72,7 @@ struct AccessoryRectangularView: View {
                     .font(.accessoryLabel)
                     .lineLimit(1)
             } else {
-                Text("No data yet").font(.accessoryLabel)
+                Text(entry.removedCityName == nil ? String(localized: "No data yet") : entry.noReadingNote).font(.accessoryLabel)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -121,9 +121,9 @@ struct AccessoryInlineView: View {
     }
 
     private var spokenLabel: String {
-        let name = entry.city?.name ?? "Climyte"
+        let name = entry.displayName
         guard let weather = entry.weather else {
-            return String(localized: "\(name), no reading yet")
+            return entry.spokenNoReading
         }
 
         let reading = entry.units.temperatureValue(weather.temperature)
@@ -141,10 +141,10 @@ struct AccessoryInlineView: View {
 private extension View {
     /// Accessory text is terse by necessity; VoiceOver should not be.
     func widgetAccessibilityLabel(_ entry: WeatherEntry, detail: Bool) -> some View {
-        let name = entry.city?.name ?? "Climyte"
+        let name = entry.displayName
 
         guard let weather = entry.weather else {
-            return self.accessibilityLabel(Text("\(name), no data yet"))
+            return self.accessibilityLabel(Text(entry.spokenNoReading))
         }
 
         let reading = entry.units.temperatureValue(weather.temperature)

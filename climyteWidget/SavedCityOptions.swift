@@ -25,6 +25,13 @@ nonisolated struct SavedCityOptions: DynamicOptionsProvider {
     func results() async throws -> [String] {
         Self.savedCities().map(\.name)
     }
+
+    /// A newly placed widget stores the first saved city as its choice.
+    /// Without a default it stored nothing, and the picker showed its own
+    /// label, "City", beside a widget that was showing a real city.
+    func defaultResult() async -> String? {
+        Self.savedCities().first?.name
+    }
 }
 
 struct SelectCityIntent: WidgetConfigurationIntent {
@@ -40,13 +47,9 @@ struct SelectCityIntent: WidgetConfigurationIntent {
         self.cityName = cityName
     }
 
-    /// The saved city of that name, or nil when it names one since removed.
-    ///
-    /// Two saved cities could in principle share a name — the list is keyed by
-    /// coordinates, not by name — in which case the first wins. That is a
-    /// better failure than the whole choice being dropped.
-    var city: City? {
-        guard let cityName else { return nil }
-        return SavedCityOptions.savedCities().first { $0.name == cityName }
+    /// The city this widget shows, or the name of the one it was set to if
+    /// that city has since been removed.
+    var resolved: WidgetCity {
+        WidgetCity.resolve(name: cityName, saved: SavedCityOptions.savedCities())
     }
 }

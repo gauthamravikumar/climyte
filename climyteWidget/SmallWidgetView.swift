@@ -28,7 +28,7 @@ struct SmallWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(entry.city?.name ?? "Climyte")
+                Text(entry.displayName)
                     .font(.widgetCity)
                     .foregroundStyle(primary)
                     .lineLimit(1)
@@ -48,27 +48,31 @@ struct SmallWidgetView: View {
 
             Spacer(minLength: 2)
 
-            Text(temperature)
-                .font(.widgetHeroSmall)
-                .tracking(-3.6)
-                // Trimmed on the glyph: the line box at this size is deeper
-                // than the tile has room for.
-                .padding(.vertical, -12)
-                .foregroundStyle(primary)
-                // The reading is what a glance is for, so it leads the accent
-                // group when the system recolours the widget.
-                .widgetAccentable()
-                .lineLimit(1)
-                // A three-digit Fahrenheit reading, or a large accessibility
-                // text size, must shrink rather than truncate.
-                .minimumScaleFactor(0.5)
+            if entry.removedCityName != nil {
+                RemovedCityNote(primary: primary, secondary: secondary)
+            } else {
+                Text(temperature)
+                    .font(.widgetHeroSmall)
+                    .tracking(-3.6)
+                    // Trimmed on the glyph: the line box at this size is deeper
+                    // than the tile has room for.
+                    .padding(.vertical, -12)
+                    .foregroundStyle(primary)
+                    // The reading is what a glance is for, so it leads the accent
+                    // group when the system recolours the widget.
+                    .widgetAccentable()
+                    .lineLimit(1)
+                    // A three-digit Fahrenheit reading, or a large accessibility
+                    // text size, must shrink rather than truncate.
+                    .minimumScaleFactor(0.5)
 
-            Spacer(minLength: 2)
+                Spacer(minLength: 2)
 
-            // Room for the chip first: the reading above it can shrink, and
-            // the chip's second line, at large text sizes, cannot.
-            detail
-                .layoutPriority(1)
+                // Room for the chip first: the reading above it can shrink, and
+                // the chip's second line, at large text sizes, cannot.
+                detail
+                    .layoutPriority(1)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .padding(showsBackground ? 0 : 4)
@@ -79,9 +83,9 @@ struct SmallWidgetView: View {
 
     /// The tile is deliberately terse; VoiceOver should not be.
     private var spokenLabel: String {
-        let name = entry.city?.name ?? "Climyte"
+        let name = entry.displayName
         guard let weather = entry.weather else {
-            return String(localized: "\(name), no reading yet")
+            return entry.spokenNoReading
         }
         let temperature = entry.units.temperatureValue(weather.temperature)
         let reading: String
@@ -123,7 +127,7 @@ struct SmallWidgetView: View {
                     .minimumScaleFactor(0.7)
             }
         } else {
-            Text("Open Climyte")
+            Text(entry.noReadingNote)
                 .font(.widgetCaption)
                 .foregroundStyle(secondary)
         }
@@ -146,5 +150,26 @@ struct SmallWidgetView: View {
         case .nextTwoHours, nil:
             return nil
         }
+    }
+}
+
+/// In place of a reading, when the widget is set to a city that has since
+/// been removed. Its picker still names that city, so the widget does too,
+/// and says how to choose another.
+struct RemovedCityNote: View {
+    let primary: Color
+    let secondary: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("No longer saved")
+                .font(.widgetHeadline)
+                .foregroundStyle(primary)
+            Text("Hold the widget and choose Edit Widget to pick a city.")
+                .font(.widgetDetail)
+                .foregroundStyle(secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
