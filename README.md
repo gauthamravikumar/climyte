@@ -22,7 +22,8 @@ looking at — not the system appearance.
   back to the app, without turning the page you are on.
 - **Search** finds any city by name. Places that share a name and a state — two
   Oslos in Minnesota — are told apart by county. Edit above the saved list
-  shows a remove mark and a drag handle on each city. The field opens at the bottom
+  shows a remove mark and a drag handle on each city, and swiping a city left
+  offers the same Remove, in the page's own black or grey. The field opens at the bottom
   of the screen, above the keyboard, where the button that opened it was.
 - **Works offline.** The last successful fetch for every saved city is cached,
   so a cold launch shows real data rather than a spinner. Once readings are more
@@ -52,7 +53,9 @@ looking at — not the system appearance.
   city's day from midnight to midnight as a glass tube under the reading, with
   a glass bead at now; and circular,
   rectangular and inline Lock Screen widgets. Each shows a saved city of your
-  choice, and tapping one opens the app on that city's page. The inline one
+  choice, and tapping one opens the app on that city's page. A widget whose
+  city has since been removed names it and says to pick another, so it never
+  shows a different city from the one its settings name. The inline one
   sits beside the date as a symbol and the temperature — `☾ 18°` — the only
   weather icon in the app.
 - **Large text reflows** rather than truncates: the header stacks, the city strip
@@ -99,6 +102,8 @@ parsing or formatting before, and once more on iOS 18, the oldest system the
 app supports. It resolves a simulator at runtime via
 [`Tools/pick-simulator.py`](Tools/pick-simulator.py) rather than pinning a model
 name, because runner images swap their bundled simulators without notice.
+`main` requires the run to pass before a pull request can merge, and a pull
+request set to auto-merge lands once it does.
 
 To check a layout at a large text size in the simulator, pass
 `-UIPreferredContentSizeCategoryName UICTContentSizeCategoryAccessibilityXXXL`
@@ -128,7 +133,7 @@ Shared/                    Compiled into both the app and the widget
   Design/                  Typography ramp and unit system
   Fonts/                   Manrope
 climyteWidget/             Home Screen and Lock Screen widgets
-climyteTests/              304 tests
+climyteTests/              309 tests
 Tools/
   RenderAppIcon.swift      Regenerates the app icon in its three appearances
   pick-simulator.py        Resolves a simulator destination for CI
@@ -181,6 +186,14 @@ Tools/
   widget; the file is the widget's fallback.
 - **The widget's city is a `String`, not an `AppEntity`.** An entity never
   round-tripped through the widget's configuration, so a chosen city was lost.
+- **A widget never stands in another city.** Its settings sheet can only show
+  the name it stored, so `WidgetCity.resolve` shows that city, or says it was
+  removed; falling back to the first saved city left Madurai on the widget
+  under a sheet that said New York. A new widget stores the first saved city
+  as its default, so the sheet names a city from the start.
+- **Pages know where the bar is.** The pager runs past the bar so pages
+  scroll beneath the glass, which hides the bar from them; each page adds its
+  height to the end of its content, or the last line stays under the glass.
 - **Font names are deliberately odd.** The bundled Manrope files report
   PostScript names like `ManropeExtraLight-Bold`; the type ramp in
   [`Shared/Design/Typography.swift`](Shared/Design/Typography.swift) matches the
