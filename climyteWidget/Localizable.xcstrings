@@ -43,6 +43,9 @@
         }
       }
     },
+    "%@ is no longer saved. Edit the widget to choose another city." : {
+
+    },
     "%@ longer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -420,6 +423,9 @@
         }
       }
     },
+    "Hold the widget and choose Edit Widget to pick a city." : {
+
+    },
     "Humid" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -502,6 +508,9 @@
           }
         }
       }
+    },
+    "No longer saved" : {
+
     },
     "Open Climyte" : {
       "extractionState" : "manual",

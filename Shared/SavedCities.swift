@@ -202,3 +202,27 @@ nonisolated enum SavedCities {
         return cities.filter { seen.insert($0.key).inserted }
     }
 }
+
+/// Which city a widget shows, given the name its configuration stored.
+///
+/// The widget's city picker can only show what was stored, so the widget
+/// must show the same thing. It used to fall back to the first saved city
+/// whenever the stored name was no longer saved, which left a widget showing
+/// Madurai over a picker that said New York.
+nonisolated enum WidgetCity: Equatable {
+    case city(City)
+    /// The widget was set to a city that has since been removed.
+    case removed(name: String)
+    /// Nothing is saved at all.
+    case none
+
+    static func resolve(name: String?, saved: [City]) -> WidgetCity {
+        // No choice stored: a widget placed before the picker had a default.
+        // The first saved city is what the picker offers as that default.
+        guard let name else { return saved.first.map(WidgetCity.city) ?? .none }
+        // Two saved cities could share a name, since the list is keyed by
+        // coordinates; the first wins.
+        if let match = saved.first(where: { $0.name == name }) { return .city(match) }
+        return .removed(name: name)
+    }
+}

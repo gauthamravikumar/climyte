@@ -23,6 +23,9 @@ struct ContentView: View {
     /// so the glass can change shape between them.
     @Namespace private var glass
 
+    /// How far up from the screen's bottom edge the bar reaches.
+    @State private var barClearance: CGFloat = 0
+
     /// Scales with the type ramp, like every other icon in the app.
     @ScaledMetric(relativeTo: .body) private var searchIcon: CGFloat = 17
 
@@ -53,6 +56,11 @@ struct ContentView: View {
             theme.background
                 .ignoresSafeArea()
                 .animation(themeAnimation, value: theme.background)
+                // Stretched to the screen's edge, this sees how much of the
+                // bottom the bar and the home indicator take.
+                .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom } action: {
+                    barClearance = $0
+                }
 
             if isSearching {
                 searchOverlay
@@ -140,6 +148,11 @@ struct ContentView: View {
                     theme: theme,
                     onRefresh: { await viewModel.refresh(cityKey: entry.id) }
                 )
+                // The pager below is taken past the bar, so a page never
+                // learns the bar is there, and its last row stopped under the
+                // glass where it could not be scrolled into view. The room is
+                // added to the end of the page's content instead.
+                .contentMargins(.bottom, barClearance, for: .scrollContent)
                 .tag(entry.id)
             }
         }

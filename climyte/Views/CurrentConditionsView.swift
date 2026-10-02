@@ -200,10 +200,14 @@ struct CurrentConditionsView: View {
 
     /// Renders `date` in the city's timezone. `.shortened` picks up the
     /// reader's locale, so 12h/24h follows their device rather than a
-    /// hardcoded format that dropped am/pm entirely.
-    static func localTime(at date: Date, in timeZone: TimeZone) -> String {
+    /// hardcoded format that dropped am/pm entirely. Lowercased like every
+    /// other time in the app: in a region that writes "PM", the header was
+    /// the one clock on the page that said it differently.
+    static func localTime(at date: Date, in timeZone: TimeZone,
+                          locale: Locale = .autoupdatingCurrent) -> String {
         date.formatted(
-            Date.FormatStyle(date: .omitted, time: .shortened, timeZone: timeZone)
+            Date.FormatStyle(date: .omitted, time: .shortened, locale: locale, timeZone: timeZone)
         )
+        .lowercased()
     }
 }

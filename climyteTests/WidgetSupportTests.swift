@@ -335,3 +335,31 @@ nonisolated final class CityLinkTests: XCTestCase {
         XCTAssertEqual(CityLink.cityKey(from: url), melbourne.key)
     }
 }
+
+/// Which city a widget shows, from the name its configuration stored. The
+/// widget and its city picker must agree: the picker can only show what was
+/// stored, so the widget must never quietly show another city in its place.
+nonisolated final class WidgetCityTests: XCTestCase {
+    @MainActor private func city(_ name: String, _ latitude: Double) -> City {
+        City(id: UUID(), name: name, country: "", countryCode: nil, latitude: latitude, longitude: 0)
+    }
+
+    @MainActor func testAChosenCityThatIsStillSavedIsShown() {
+        let saved = [city("Madurai", 9.9), city("Seattle", 47.6)]
+        XCTAssertEqual(WidgetCity.resolve(name: "Seattle", saved: saved), .city(saved[1]))
+    }
+
+    @MainActor func testAChosenCitySinceRemovedIsNamedRatherThanSwappedForAnother() {
+        let saved = [city("Madurai", 9.9), city("Seattle", 47.6)]
+        XCTAssertEqual(WidgetCity.resolve(name: "New York", saved: saved), .removed(name: "New York"))
+    }
+
+    @MainActor func testAWidgetWithNoChoiceShowsTheFirstSavedCity() {
+        let saved = [city("Madurai", 9.9), city("Seattle", 47.6)]
+        XCTAssertEqual(WidgetCity.resolve(name: nil, saved: saved), .city(saved[0]))
+    }
+
+    @MainActor func testNothingSavedShowsNothing() {
+        XCTAssertEqual(WidgetCity.resolve(name: nil, saved: []), .none)
+    }
+}
