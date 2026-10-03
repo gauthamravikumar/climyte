@@ -299,6 +299,21 @@ extension View {
         #endif
     }
 
+    /// Liquid Glass on its own, for a piece that never changes shape into
+    /// another, with the same material fallback.
+    @ViewBuilder
+    func glassBackground(in shape: some Shape) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.ultraThinMaterial, in: shape)
+        }
+        #else
+        background(.ultraThinMaterial, in: shape)
+        #endif
+    }
+
     /// Glass that sits together goes in one container, as Apple asks: the
     /// pieces are drawn in a single pass, they can blend, and only inside
     /// one can they change shape into each other. Before iOS 26 there is

@@ -91,6 +91,16 @@
     "%@ shorter" : {
 
     },
+    "%@, %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@, %2$@"
+          }
+        }
+      }
+    },
     "%@, %@ chance of rain" : {
       "localizations" : {
         "en" : {
@@ -654,6 +664,9 @@
 
     },
     "Remove %@" : {
+
+    },
+    "Scrolls to the top" : {
 
     },
     "Search city" : {

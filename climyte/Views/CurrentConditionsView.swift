@@ -42,6 +42,9 @@ struct CurrentConditionsView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Where the temperature ends on the page, for the compact header.
+    var onReadingBottom: (CGFloat) -> Void = { _ in }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             header
@@ -138,6 +141,9 @@ struct CurrentConditionsView: View {
                 // starts on the same edge as everything else on the page,
                 // whichever digit happens to lead.
                 .padding(.leading, -heroBearing)
+                .onGeometryChange(for: CGFloat.self) {
+                    $0.frame(in: .named(CityPageView.space)).maxY
+                } action: { onReadingBottom($0) }
 
             // The day's range, set as a span rather than two labelled values.
             // Only the reading itself carries a degree sign; these inherit it.

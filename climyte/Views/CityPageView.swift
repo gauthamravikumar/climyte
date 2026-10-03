@@ -13,6 +13,17 @@ struct CityPageView: View {
     let theme: WeatherTheme
     let onRefresh: () async -> Void
 
+    @State private var position = ScrollPosition(edge: .top)
+
+    /// Where the big temperature ends, measured down the page.
+    @State private var readingBottom: CGFloat = .infinity
+
+    /// Once the name and the reading have scrolled away, the page could be
+    /// any city's. A small capsule then keeps both in view.
+    @State private var showsCompactHeader = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 16) {
@@ -20,6 +31,13 @@ struct CityPageView: View {
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
+            .coordinateSpace(.named(Self.space))
+        }
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: Bool.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top > readingBottom
+        } action: { _, scrolledPast in
+            withAnimation(reduceMotion ? nil : .snappy) { showsCompactHeader = scrolledPast }
         }
         .refreshable {
             await onRefresh()
@@ -37,6 +55,13 @@ struct CityPageView: View {
                     .frame(height: 110)
             }
             .ignoresSafeArea(edges: .bottom)
+        }
+        // Outside the mask, so the fade at the top of the page leaves it whole.
+        .overlay(alignment: .top) {
+            if showsCompactHeader, let weather = entry.weather {
+                compactHeader(weather)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
         // Each page shows its own city's units, so this is set per page
         // rather than once for the whole app.
@@ -89,12 +114,49 @@ struct CityPageView: View {
             .frame(minHeight: 44, alignment: .leading)
     }
 
+    /// The page's own coordinates, so the reading can say where it ends.
+    nonisolated static let space = "cityPage"
+
+    /// The name and the reading, small, under the status bar. Tapping it
+    /// goes back to the top, where both are full size again.
+    private func compactHeader(_ weather: CityWeather) -> some View {
+        let temperature = entry.city.unitSystem.temperature(weather.temperature)
+        return Button {
+            withAnimation(reduceMotion ? nil : .smooth) { position.scrollTo(edge: .top) }
+        } label: {
+            HStack(spacing: 8) {
+                Text(entry.city.name)
+                    .font(.compactCity)
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                Text(temperature)
+                    .font(.compactTemperature)
+                    .foregroundStyle(theme.barSecondaryText)
+                    .fixedSize()
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 36)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .glassBackground(in: Capsule())
+        .environment(\.colorScheme, theme.colorScheme)
+        .padding(.horizontal, 24)
+        .padding(.top, 4)
+        .accessibilityLabel(Text("\(entry.city.name), \(temperature)"))
+        .accessibilityHint(Text("Scrolls to the top"))
+    }
+
     private func weatherLayout(_ weather: CityWeather) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             CurrentConditionsView(
                 weather: weather,
                 theme: theme,
-                isUsingCurrentLocation: entry.isCurrentLocation
+                isUsingCurrentLocation: entry.isCurrentLocation,
+                // The big temperature, not the whole header: on a short page
+                // the condition line below it never leaves the screen, and
+                // the capsule never came.
+                onReadingBottom: { readingBottom = $0 }
             )
 
             // A saved forecast old enough for its hours and days to have

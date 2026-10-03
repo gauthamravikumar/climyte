@@ -14,7 +14,9 @@ looking at — not the system appearance.
   of you, and you can tap a name to jump straight there. Names that run off
   either edge fade out rather than being cut mid-word. The names and the search
   button float on one capsule of Liquid Glass (a thin material before iOS 26),
-  and the page scrolls on beneath it. Opening search reshapes that capsule into
+  and the page scrolls on beneath it. Scroll past the big reading and the
+  city's name and temperature settle under the status bar in a small glass
+  capsule; tapping it goes back to the top. Opening search reshapes that capsule into
   the field, and the close button separates from it.
 - **Current location** is resolved on launch but never blocks the first render —
   saved cities paint immediately from cache. A newly located city goes first; one
