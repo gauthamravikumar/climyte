@@ -583,6 +583,11 @@ struct WeatherTheme {
     /// colour is near-white, so a grey that stands off the near-black ground.
     let swipeFill: Color
 
+    /// Light or dark, for system materials. Glass takes its tint from the
+    /// environment, and the page follows the city's sun rather than the
+    /// phone's appearance.
+    let colorScheme: ColorScheme
+
     /// Secondary text is a different grey in each theme, on purpose.
     ///
     /// One value cannot serve both: #727272 was picked against white, where it
@@ -599,7 +604,8 @@ struct WeatherTheme {
                 secondaryText: Color(hex: "808080"),
                 barSecondaryText: Color(hex: "ADADAD"),
                 dividerColor: Color(hex: "F2F2F0").opacity(0.12),
-                swipeFill: Color(hex: "3A3B40")
+                swipeFill: Color(hex: "3A3B40"),
+                colorScheme: .dark
             )
         } else {
             return WeatherTheme(
@@ -608,7 +614,8 @@ struct WeatherTheme {
                 secondaryText: Color(hex: "727272"),
                 barSecondaryText: Color(hex: "727272"),
                 dividerColor: Color(hex: "1A1A1A").opacity(0.12),
-                swipeFill: Color(hex: "1A1A1A")
+                swipeFill: Color(hex: "1A1A1A"),
+                colorScheme: .light
             )
         }
     }

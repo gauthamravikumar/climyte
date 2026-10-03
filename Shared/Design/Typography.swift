@@ -36,6 +36,8 @@ extension Font {
     static let temperatureHero = manrope(.regular, 100, relativeTo: .largeTitle)
     static let temperatureRange = manrope(.medium, 15, relativeTo: .subheadline)
     static let conditionSummary = manrope(.medium, 16, relativeTo: .body)
+    static let compactCity = manrope(.bold, 15, relativeTo: .subheadline)
+    static let compactTemperature = manrope(.medium, 15, relativeTo: .subheadline)
 
     static let sectionHeading = manrope(.bold, 12, relativeTo: .caption2)
 
