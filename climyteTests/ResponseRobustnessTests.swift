@@ -53,9 +53,9 @@ nonisolated final class ResponseRobustnessTests: XCTestCase {
     /// `CityEntry.id` is `city.key` and the pager is a `ForEach` over those
     /// ids, so duplicates are undefined behaviour rather than a repeated row.
     @MainActor func testDuplicateCitiesAreCollapsedOnTheWayInAndOut() throws {
-        let suite = "climyteTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let suite = "climyteTests.ResponseRobustness"
+        let defaults = TestDefaults.suite(suite)
+        defer { TestDefaults.discard(suite) }
 
         // Two names, one location — City.key is built from the coordinates.
         let paris = City(id: UUID(), name: "Paris", country: "France",
@@ -73,9 +73,9 @@ nonisolated final class ResponseRobustnessTests: XCTestCase {
     }
 
     @MainActor func testSavingDropsDuplicatesToo() {
-        let suite = "climyteTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let suite = "climyteTests.ResponseRobustness"
+        let defaults = TestDefaults.suite(suite)
+        defer { TestDefaults.discard(suite) }
 
         let tokyo = City(id: UUID(), name: "Tokyo", country: "Japan",
                          countryCode: "JP", latitude: 35.6762, longitude: 139.6503)

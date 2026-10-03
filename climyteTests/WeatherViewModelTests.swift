@@ -21,11 +21,11 @@ nonisolated final class WeatherViewModelTests: XCTestCase {
         super.setUp()
         // An isolated suite and cache directory so tests never read or clobber
         // the real app's state, and can't leak into each other.
-        suiteName = "climyteTests.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        suiteName = "climyteTests.WeatherViewModel"
+        defaults = TestDefaults.suite(suiteName)
 
-        legacySuiteName = "climyteTests.legacy.\(UUID().uuidString)"
-        legacyDefaults = UserDefaults(suiteName: legacySuiteName)
+        legacySuiteName = "climyteTests.WeatherViewModel.legacy"
+        legacyDefaults = TestDefaults.suite(legacySuiteName)
 
         cacheDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("climyteTests-\(UUID().uuidString)")
@@ -38,8 +38,8 @@ nonisolated final class WeatherViewModelTests: XCTestCase {
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suiteName)
-        legacyDefaults.removePersistentDomain(forName: legacySuiteName)
+        TestDefaults.discard(suiteName)
+        TestDefaults.discard(legacySuiteName)
         try? FileManager.default.removeItem(at: cacheDirectory)
         defaults = nil
         suiteName = nil
@@ -1015,14 +1015,14 @@ nonisolated final class SavedCitiesTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "climyteTests.saved.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        suiteName = "climyteTests.SavedCities"
+        defaults = TestDefaults.suite(suiteName)
     }
 
     override func tearDown() {
         mirrors.forEach { try? FileManager.default.removeItem(at: $0) }
         mirrors = []
-        defaults.removePersistentDomain(forName: suiteName)
+        TestDefaults.discard(suiteName)
         defaults = nil
         suiteName = nil
         super.tearDown()
