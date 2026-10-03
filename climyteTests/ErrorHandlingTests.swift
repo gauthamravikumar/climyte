@@ -17,8 +17,9 @@ nonisolated final class ErrorHandlingTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "climyteTests.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        suiteName = "climyteTests.ErrorHandling"
+        defaults = TestDefaults.suite(suiteName)
+        TestDefaults.discard(suiteName + ".legacy")
         cacheDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("climyteErrors-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
@@ -26,7 +27,8 @@ nonisolated final class ErrorHandlingTests: XCTestCase {
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suiteName)
+        TestDefaults.discard(suiteName)
+        TestDefaults.discard(suiteName + ".legacy")
         try? FileManager.default.removeItem(at: cacheDirectory)
         defaults = nil; suiteName = nil; cacheDirectory = nil; cache = nil
         super.tearDown()

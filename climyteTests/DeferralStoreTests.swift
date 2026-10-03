@@ -20,13 +20,13 @@ nonisolated final class DeferralStoreTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        suiteName = "climyteTests.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        suiteName = "climyteTests.DeferralStore"
+        defaults = TestDefaults.suite(suiteName)
         store = DeferralStore(defaults: defaults, window: 120)
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: suiteName)
+        TestDefaults.discard(suiteName)
         defaults = nil; suiteName = nil; store = nil
         super.tearDown()
     }
